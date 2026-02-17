@@ -26,6 +26,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import EmissionsPage from './EmissionsPage'
 import ScopeCombustiblePage from './ScopeCombustiblePage'
 import ScopeElectricidadPage from './ScopeElectricidadPage'
+import AreasPage from './AreasPage'
 
 
 const fd = "var(--eco-font-display)",
@@ -253,9 +254,11 @@ const NAV_TO_PATH = {
   emissions: "/emisiones",
   scope2: "/scope/electricidad",
   scope1: "/scope/combustible",
+  areas: "/areas",
 }
 
 function navFromPath(pathname) {
+  if (pathname?.startsWith("/areas")) return "areas";
   if (pathname?.startsWith("/scope/electricidad")) return "scope2";
   if (pathname?.startsWith("/scope/combustible")) return "scope1";
   if (pathname?.startsWith("/emisiones")) return "emissions";
@@ -1272,6 +1275,8 @@ export default function DashboardPage({ user, onLogout }) {
                   ? <><Zap size={13} /> Scope 2 / Electricidad</>
                   : activeNav === "scope1"
                   ? <><Flame size={13} /> Scope 1 / Combustible</>
+                  : activeNav === "areas"
+                  ? <><Building2 size={13} /> Áreas</>
                   : <><LayoutDashboard size={13} /> Dashboard</>}
               </li>
             </ol>
@@ -1463,11 +1468,16 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
             <EmissionsPage user={user} onOpenRecord={() => {
+              if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
+              setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
+            }} />
+          ) : activeNav === "areas" ? (
+            <AreasPage onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
