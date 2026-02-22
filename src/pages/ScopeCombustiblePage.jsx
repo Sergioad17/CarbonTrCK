@@ -287,7 +287,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{width:38,height:38,borderRadius:"var(--eco-radius-md)",background:"linear-gradient(135deg,#EAB308,#CA8A04)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 20px rgba(234,179,8,.2)",flexShrink:0}}><Flame size={18} color="white"/></div>
             <div>
-              <h1 style={{margin:0,fontFamily:fd,fontSize:24,fontWeight:800,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>Scope 1 — Combustible</h1>
+              <h1 style={{margin:0,fontFamily:fd,fontSize:24,fontWeight:800,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>Combustible</h1>
               <p style={{margin:"2px 0 0",fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)"}}>Consumo de combustible (L) y emisiones (CO₂e) · Clic en gráficas para filtrar</p>
             </div>
           </div>
