@@ -27,6 +27,8 @@ import EmissionsPage from './EmissionsPage'
 import ScopeCombustiblePage from './ScopeCombustiblePage'
 import ScopeElectricidadPage from './ScopeElectricidadPage'
 import AreasPage from './AreasPage'
+import MetasPage from './MetasPage'
+import MetasDetailPage from './MetasDetailPage'
 
 
 const fd = "var(--eco-font-display)",
@@ -255,9 +257,11 @@ const NAV_TO_PATH = {
   scope2: "/scope/electricidad",
   scope1: "/scope/combustible",
   areas: "/areas",
+  goals: "/metas",
 }
 
 function navFromPath(pathname) {
+  if (pathname?.startsWith("/metas")) return "goals";
   if (pathname?.startsWith("/areas")) return "areas";
   if (pathname?.startsWith("/scope/electricidad")) return "scope2";
   if (pathname?.startsWith("/scope/combustible")) return "scope1";
@@ -1277,6 +1281,8 @@ export default function DashboardPage({ user, onLogout }) {
                   ? <><Flame size={13} /> Scope 1 / Combustible</>
                   : activeNav === "areas"
                   ? <><Building2 size={13} /> Áreas</>
+                  : activeNav === "goals"
+                  ? <><Target size={13} /> Metas</>
                   : <><LayoutDashboard size={13} /> Dashboard</>}
               </li>
             </ol>
@@ -1468,7 +1474,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -1491,6 +1497,12 @@ export default function DashboardPage({ user, onLogout }) {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
+          ) : activeNav === "goals" ? (
+            location.pathname?.startsWith("/metas/") ? (
+              <MetasDetailPage />
+            ) : (
+              <MetasPage />
+            )
           ) : (
           <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
             <div
@@ -2067,3 +2079,7 @@ export default function DashboardPage({ user, onLogout }) {
     </div>
   );
 }
+
+
+
+
