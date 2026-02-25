@@ -1,6 +1,4 @@
-# CarbonTrCK
 
-Aplicación web construida con **Vite + React** para monitoreo y gestión de huella de carbono en instituciones educativas.
 
 ## Requisitos
 
