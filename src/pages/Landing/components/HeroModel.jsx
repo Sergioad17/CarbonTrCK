@@ -1,11 +1,10 @@
 import React, { Suspense, useLayoutEffect, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { Html, OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 function Model() {
   const { scene } = useGLTF("/Landing/Models/carcasa_prototipo.glb");
-  const autoRotateRef = useRef(null);
   const fitRef = useRef(null);
   const uprightRotation = [-Math.PI / 2, Math.PI, 0];
 
@@ -32,14 +31,8 @@ function Model() {
     fitRef.current.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
   }, [scene]);
 
-  useFrame((_, delta) => {
-    if (autoRotateRef.current) {
-      autoRotateRef.current.rotation.y += delta * 0.22;
-    }
-  });
-
   return (
-    <group ref={autoRotateRef} position={[0, -0.10, 0]}>
+    <group position={[0, -0.10, 0]}>
       <group ref={fitRef} rotation={uprightRotation}>
         <primitive object={scene} />
       </group>
@@ -109,18 +102,19 @@ export default function HeroModel() {
           shadows
           dpr={[1, 1.8]}
           camera={{ position: [0, 0.35, 3.2], fov: 38 }}
-          style={{ width: "100%", height: "100%", background: "transparent" }}
-        >
-          <Suspense fallback={<LoadingFallback />}>
-            <ambientLight intensity={0.55} />
+        style={{ width: "100%", height: "100%", background: "transparent" }}
+      >
+        <Suspense fallback={<LoadingFallback />}>
+            <ambientLight intensity={0.78} />
+            <hemisphereLight intensity={0.38} color="#eafff2" groundColor="#22332b" />
             <directionalLight
               position={[4, 5, 3]}
-              intensity={1.15}
+              intensity={1.45}
               castShadow
               shadow-mapSize-width={1024}
               shadow-mapSize-height={1024}
             />
-            <directionalLight position={[-3, 2, -2]} intensity={0.35} />
+            <directionalLight position={[-3, 2, -2]} intensity={0.55} />
 
             <Model />
 
@@ -130,14 +124,13 @@ export default function HeroModel() {
             </mesh>
 
             <OrbitControls
+              autoRotate
+              autoRotateSpeed={2}
               enableZoom={false}
               enablePan={false}
               enableDamping
               dampingFactor={0.08}
-              minAzimuthAngle={-0.6}
-              maxAzimuthAngle={0.6}
-              minPolarAngle={Math.PI / 2 - 0.28}
-              maxPolarAngle={Math.PI / 2 + 0.22}
+              rotateSpeed={0.85}
             />
           </Suspense>
         </Canvas>
