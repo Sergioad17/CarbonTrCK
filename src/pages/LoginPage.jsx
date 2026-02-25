@@ -603,8 +603,45 @@ export default function LoginPage({ onLogin }) {
           }} />
 
           <div style={{
-            position: "relative",
+            position: "absolute",
+            inset: 0,
             zIndex: 1,
+            pointerEvents: "none",
+            overflow: "hidden"
+          }}>
+            {[
+              { text: "Mide", anim: "eco-dvdA 11s linear infinite", fadeDelay: "0s" },
+              { text: "Reduce", anim: "eco-dvdB 12.6s linear infinite", fadeDelay: "1.2s" },
+              { text: "Transforma", anim: "eco-dvdC 13.8s linear infinite", fadeDelay: "2.1s" },
+            ].map((tag) => (
+              <span
+                key={tag.text}
+                style={{
+                  position: "absolute",
+                  padding: "6px 12px",
+                  borderRadius: "var(--eco-radius-full)",
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(255,255,255,0.1)",
+                  backdropFilter: "blur(4px)",
+                  fontFamily: fd,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "white",
+                  opacity: 0.72,
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
+                  animation: `${tag.anim}, eco-bubbleFade 5.2s ease-in-out ${tag.fadeDelay} infinite`,
+                  boxShadow: "0 8px 18px rgba(3,7,18,0.22)"
+                }}
+              >
+                {tag.text}
+              </span>
+            ))}
+          </div>
+
+          <div style={{
+            position: "relative",
+            zIndex: 2,
             textAlign: "center",
             maxWidth: 380
           }}>
@@ -621,14 +658,6 @@ export default function LoginPage({ onLogin }) {
             }}>
               <Leaf size={40} style={{ color: "var(--eco-primary-400)" }} />
             </div>
-            <h2 style={{
-              fontFamily: fd,
-              fontSize: 26,
-              fontWeight: 800,
-              color: "white",
-              margin: "0 0 10px",
-              lineHeight: 1.2
-            }}>Mide - Reduce<br />Transforma</h2>
             <p style={{
               fontFamily: fb,
               fontSize: 15,

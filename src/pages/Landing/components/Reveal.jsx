@@ -9,12 +9,12 @@ function useRv() {
 
     const obs = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) {
-          el.classList.add("v");
-          obs.unobserve(el);
-        }
+        el.classList.toggle("v", e.isIntersecting);
       },
-      { threshold: 0.12 }
+      {
+        threshold: 0.14,
+        rootMargin: "0px 0px -8% 0px",
+      }
     );
 
     obs.observe(el);

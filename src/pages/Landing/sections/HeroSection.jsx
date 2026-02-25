@@ -1,6 +1,29 @@
+import { lazy, Suspense } from "react";
 import { R } from "../components/Reveal";
-import DashMock from "../components/DashMock";
 import { Leaf, Sparkles } from "lucide-react";
+
+const HeroModel = lazy(() => import("../components/HeroModel"));
+
+function HeroModelFallback() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "rgba(241,245,249,.72)",
+        fontSize: 12,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        fontFamily: "'JetBrains Mono',monospace",
+      }}
+    >
+      loading
+    </div>
+  );
+}
 
 export default function HeroSection({ onGo }) {
   return (
@@ -32,14 +55,13 @@ export default function HeroSection({ onGo }) {
 
       <R>
         <p className="lnd-ss" style={{ margin: "0 auto", textAlign: "center" }}>
-          Convierte consumos reales y estimados en CO₂e con trazabilidad completa. Visualiza Scope 1 y
-          2, analiza por áreas del campus y gestiona metas de reducción con evidencia.
+          Convierte consumos reales y estimados en CO₂e con trazabilidad completa. Monitorea el consumo eléctrico con histórico y controla el combustible por actividades y vehículos/equipos. Analiza por áreas del campus y gestiona metas de reducción con evidencia.
         </p>
       </R>
 
       <R>
         <p className="lnd-hm">
-          Diseñado para campus con recursos limitados: funciona con recibos, inventarios y bitácoras
+           Funciona con recibos, inventarios y bitácoras
         </p>
       </R>
 
@@ -54,13 +76,17 @@ export default function HeroSection({ onGo }) {
       </R>
 
       <R>
-        <p className="lnd-hn">Sin backend por ahora · Datos locales · Listo para escalar a institución</p>
+        <p className="lnd-hn">Fácil de usar · Datos locales · Listo para escalar a institución</p>
       </R>
 
       <R>
         <div className="lnd-pv">
           <div className="lnd-pvg" />
-          <div className="lnd-pvi"><DashMock /></div>
+          <div className="lnd-pvi">
+            <Suspense fallback={<HeroModelFallback />}>
+              <HeroModel />
+            </Suspense>
+          </div>
         </div>
       </R>
     </section>

@@ -3,8 +3,8 @@ import { R } from "../components/Reveal";
 export default function TestimonialsSection({ tests }) {
   return (
     <section id="testimonials" className="lnd-sec lnd-c">
-      <R><div className="lnd-sl">Testimonios</div></R>
-      <R><h2 className="lnd-st">Lo que dicen nuestros usuarios</h2></R>
+      <R><div className="lnd-sl">Prototipo</div></R>
+      <R><h2 className="lnd-st">Medición automatica por área</h2></R>
       <R>
         <div className="lnd-tg">
           {tests.map((t, i) => (

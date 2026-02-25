@@ -33,8 +33,8 @@ export const CASES = [
 ];
 
 export const TESTS = [
-  { r: "Coordinación Académica", q: "Por fin tenemos un tablero claro para comparar áreas y justificar decisiones con datos." },
-  { r: "Responsable de Centro de Cómputo", q: "Identificamos cuándo se dispara el consumo y qué cambios tienen más impacto." },
-  { r: "Dirección / Planeación", q: "La trazabilidad ayuda a presentar resultados sin dudas: dato, factor y evidencia." },
-  { r: "Área de Sustentabilidad", q: "Metas y acciones nos permiten dar seguimiento real, no solo reportar números." },
+  { r: "¿Qué hace?", q: "El prototipo se instala en el tablero o en la línea principal de un área (p. ej. Centro de Cómputo, Aulas). Mide consumo eléctrico en tiempo real y genera registros continuos sin captura manual." },
+  { r: "¿Qué mide?", q: "Registra corriente y voltaje para calcular potencia y energía: V RMS, I RMS, W (potencia real), kWh acumulados y estado de calidad del dato (medición real). Todo queda con fecha/hora para auditoría." },
+  { r: "Del sensor al dashboard", q: "Las lecturas se guardan como series de tiempo y se agregan por hora/día/mes. CarbonTrack convierte kWh → CO₂e con factores de emisión y muestra comparativos por área, tendencias y ranking de consumo." },
+  { r: "Menos trabajo, más precisión", q: "Reduce errores humanos y acelera reportes. Permite detectar picos de consumo, comparar áreas y justificar decisiones (cambios de equipos, horarios, mantenimiento) con datos medidos." },
 ];

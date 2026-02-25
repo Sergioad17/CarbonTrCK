@@ -9,14 +9,14 @@ export default function Navbar({ scrolled, onGo }) {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
           <LeafIcon />
-          <span>CarbonTrack</span>
+          <span>CarbónTrack</span>
         </div>
 
         <ul className="lnd-nl">
           <li><a href="#features">Features</a></li>
           <li><a href="#formulas">Cálculos</a></li>
           <li><a href="#process">Proceso</a></li>
-          <li><a href="#testimonials">Testimonios</a></li>
+          <li><a href="#testimonials">Prototipo</a></li>
         </ul>
 
         <button className="lnd-nb" onClick={onGo}>

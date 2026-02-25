@@ -176,6 +176,33 @@ body {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-15px); }
 }
+@keyframes eco-dvdA {
+  0% { top: 8%; left: 8%; }
+  25% { top: 12%; left: 72%; }
+  50% { top: 76%; left: 64%; }
+  75% { top: 72%; left: 10%; }
+  100% { top: 8%; left: 8%; }
+}
+@keyframes eco-dvdB {
+  0% { top: 64%; left: 14%; }
+  25% { top: 10%; left: 64%; }
+  50% { top: 34%; left: 78%; }
+  75% { top: 78%; left: 30%; }
+  100% { top: 64%; left: 14%; }
+}
+@keyframes eco-dvdC {
+  0% { top: 18%; left: 58%; }
+  25% { top: 74%; left: 76%; }
+  50% { top: 78%; left: 8%; }
+  75% { top: 20%; left: 20%; }
+  100% { top: 18%; left: 58%; }
+}
+@keyframes eco-bubbleFade {
+  0%, 100% { opacity: 0.18; }
+  18% { opacity: 0.56; }
+  50% { opacity: 0.9; }
+  82% { opacity: 0.52; }
+}
 
 /* Responsive */
 @media (max-width: 1024px) {

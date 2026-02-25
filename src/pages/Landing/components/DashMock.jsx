@@ -45,7 +45,7 @@ export default function DashMock() {
           }}
         >
           <div style={{ fontFamily: fd, fontSize: 12, fontWeight: 700, color: "#F8FAFC", marginBottom: 10 }}>
-            Tendencia mensual
+            Prototipo
           </div>
 
           <div style={{ display: "flex", alignItems: "flex-end", gap: 6, flex: 1 }}>
