@@ -29,6 +29,7 @@ import ScopeElectricidadPage from './ScopeElectricidadPage'
 import AreasPage from './AreasPage'
 import MetasPage from './MetasPage'
 import MetasDetailPage from './MetasDetailPage'
+import ReportsPage from './ReportsPage'
 
 
 const fd = "var(--eco-font-display)",
@@ -258,6 +259,7 @@ const NAV_TO_PATH = {
   scope1: "/scope/combustible",
   areas: "/areas",
   goals: "/metas",
+  reports: "/reportes",
 }
 
 function navFromPath(pathname) {
@@ -266,6 +268,7 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/scope/electricidad")) return "scope2";
   if (pathname?.startsWith("/scope/combustible")) return "scope1";
   if (pathname?.startsWith("/emisiones")) return "emissions";
+  if (pathname?.startsWith("/reportes")) return "reports";
   return "dashboard";
 }
 
@@ -1180,7 +1183,7 @@ export default function DashboardPage({ user, onLogout }) {
     try {
       const RKEY = "carbontrack.records";
       const existing = JSON.parse(localStorage.getItem(RKEY) || "[]");
-      const newRec = { id: "u" + Date.now(), dateISO: rec?.dateISO, area: rec?.area, category: rec?.category || "electricidad", activity: rec?.activity || "", value: Number(rec?.value) || 0, unit: rec?.unit || "kWh", factor: Number(rec?.factor) || 0, co2e_kg: Number(rec?.co2e_kg) || 0, co2e_t: Number.isFinite(co2e) ? co2e : 0, status: rec?.isEstimated ? "est" : "real", source: rec?.source || "Medición", by: user?.name || "Tu" };
+      const newRec = { id: "u" + Date.now(), dateISO: rec?.dateISO, area: rec?.area, category: rec?.category || "electricidad", activity: rec?.activity || "", value: Number(rec?.value) || 0, unit: rec?.unit || "kWh", factor: Number(rec?.factor) || 0, co2e_kg: Number(rec?.co2e_kg) || 0, co2e_t: Number.isFinite(co2e) ? co2e : 0, status: rec?.isEstimated ? "est" : "real", source: rec?.source || "Medición", hasEvidence: Boolean(rec?.hasEvidence), evidence: rec?.evidence || rec?.evidenceUrl || "", evidenceUrl: rec?.evidenceUrl || rec?.evidence || "", evidenceImage: rec?.evidenceImage || "", by: user?.name || "Tu" };
       localStorage.setItem(RKEY, JSON.stringify([newRec, ...existing].slice(0, 200)));
       window.dispatchEvent(new CustomEvent("carbontrack:newrecord", { detail: newRec }));
     } catch {}
@@ -1283,6 +1286,8 @@ export default function DashboardPage({ user, onLogout }) {
                   ? <><Building2 size={13} /> Áreas</>
                   : activeNav === "goals"
                   ? <><Target size={13} /> Metas</>
+                  : activeNav === "reports"
+                  ? <><FileText size={13} /> Reportes</>
                   : <><LayoutDashboard size={13} /> Dashboard</>}
               </li>
             </ol>
@@ -1474,7 +1479,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -1494,6 +1499,11 @@ export default function DashboardPage({ user, onLogout }) {
             }} />
           ) : activeNav === "scope1" ? (
             <ScopeCombustiblePage onOpenRecord={() => {
+              if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
+              setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
+            }} />
+          ) : activeNav === "reports" ? (
+            <ReportsPage onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
@@ -2079,6 +2089,7 @@ export default function DashboardPage({ user, onLogout }) {
     </div>
   );
 }
+
 
 
 

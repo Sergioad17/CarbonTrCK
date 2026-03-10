@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   X, Zap, Flame, CheckCircle2, AlertTriangle, Calendar, Building2,
   FileText, Beaker, Calculator, Leaf, Save, Info, ChevronDown,
-  AlertCircle, Loader2, Droplets, Fuel
+  AlertCircle, Loader2, Droplets, Fuel, ImagePlus, Trash2
 } from "lucide-react";
 
 
@@ -364,6 +364,10 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
   const [fuelType, setFuelType] = useState("Diesel");
   const [factor, setFactor] = useState(DEFAULT_FACTORS.electricidad);
   const [note, setNote] = useState("");
+  const [evidenceEnabled, setEvidenceEnabled] = useState(false);
+  const [evidenceName, setEvidenceName] = useState("");
+  const [evidenceDataUrl, setEvidenceDataUrl] = useState("");
+  const [evidenceError, setEvidenceError] = useState("");
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -373,6 +377,8 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
     setDate(new Date().toISOString().slice(0, 10)); setArea("Aulas");
     setSource("Medición"); setActivity(""); setValue("");
     setFuelType("Diesel"); setFactor(DEFAULT_FACTORS.electricidad); setNote("");
+    setEvidenceEnabled(false);
+    setEvidenceName(""); setEvidenceDataUrl(""); setEvidenceError("");
     setSaving(false);
   }, [open]);
 
@@ -392,6 +398,27 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
 
   const co2e_t = useMemo(() => (co2eKg ? co2eKg / 1000 : 0), [co2eKg]);
 
+  const handleEvidenceChange = (evt) => {
+    const file = evt.target.files?.[0];
+    if (!file) return;
+    if (!file.type?.startsWith("image/")) {
+      setEvidenceError("Solo se permiten imágenes (jpg, png, webp).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setEvidenceError("La imagen supera 2 MB. Usa una captura más ligera.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setEvidenceDataUrl(String(reader.result || ""));
+      setEvidenceName(file.name || "evidencia.jpg");
+      setEvidenceError("");
+    };
+    reader.onerror = () => setEvidenceError("No se pudo leer la imagen seleccionada.");
+    reader.readAsDataURL(file);
+  };
+
   const errors = useMemo(() => {
     const e = {};
     if (!date) e.date = "Selecciona una fecha";
@@ -400,8 +427,9 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
     if (!activity.trim()) e.activity = "Describe la actividad";
     if (!numericValue || numericValue <= 0) e.value = `Ingresa un valor válido en ${unit}`;
     if (!factorNum || factorNum <= 0) e.factor = "Factor inválido";
+    if (evidenceEnabled && !evidenceDataUrl) e.evidence = "Adjunta una imagen de evidencia";
     return e;
-  }, [date, area, source, activity, numericValue, unit, factorNum]);
+  }, [date, area, source, activity, numericValue, unit, factorNum, evidenceDataUrl, evidenceEnabled]);
 
   const canSave = Object.keys(errors).length === 0;
 
@@ -410,14 +438,17 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
     if (!canSave) return;
     setSaving(true);
     setTimeout(() => {
-      onCreate?.({
-        category: cat, categoryLabel, dateISO: date, area, source, isEstimated,
-        activity: activity.trim(), unit, value: numericValue, factor: factorNum,
-        co2e_kg: co2eKg, co2e_t, fuelType: cat === "combustible" ? fuelType : null,
-        note: note.trim(),
-      });
-      setSaving(false);
-    }, 800);
+        onCreate?.({
+          category: cat, categoryLabel, dateISO: date, area, source, isEstimated,
+          activity: activity.trim(), unit, value: numericValue, factor: factorNum,
+          co2e_kg: co2eKg, co2e_t, fuelType: cat === "combustible" ? fuelType : null,
+          note: note.trim(), hasEvidence: evidenceEnabled,
+          evidence: evidenceEnabled ? evidenceName : "",
+          evidenceUrl: evidenceEnabled ? evidenceName : "",
+          evidenceImage: evidenceEnabled ? evidenceDataUrl : "",
+        });
+        setSaving(false);
+      }, 800);
   };
 
   /* Handle Escape */
@@ -581,6 +612,101 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
                 <EcoInput value={note} onChange={e => setNote(e.target.value)}
                   placeholder="Ej: Lectura parcial del medidor, pendiente evidencia" />
               </Field>
+
+              {/* Evidence */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <Field label="Evidencia disponible">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEvidenceEnabled((prev) => {
+                        if (prev) { setEvidenceDataUrl(""); setEvidenceName(""); setEvidenceError(""); }
+                        return !prev;
+                      });
+                    }}
+                    style={{
+                      width: "100%", height: 40, borderRadius: "var(--eco-radius-md)",
+                      border: `1px solid ${evidenceEnabled ? "var(--eco-primary-300)" : "var(--eco-gray-300)"}`,
+                      background: evidenceEnabled ? "var(--eco-primary-50)" : "white",
+                      padding: "0 10px", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)", transition: "all 150ms",
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{evidenceEnabled ? "Activada" : "Desactivada"}</span>
+                    <span
+                      style={{
+                        width: 38, height: 22, borderRadius: 999, position: "relative",
+                        background: evidenceEnabled ? "var(--eco-primary-500)" : "var(--eco-gray-300)",
+                        transition: "background 150ms",
+                        display: "inline-block",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute", top: 2, left: evidenceEnabled ? 18 : 2,
+                          width: 18, height: 18, borderRadius: "50%", background: "white",
+                          boxShadow: "0 1px 3px rgba(15,23,42,.25)", transition: "left 150ms",
+                        }}
+                      />
+                    </span>
+                  </button>
+                </Field>
+
+                {evidenceEnabled && (
+                  <Field
+                    label="Evidencia (imagen)"
+                    required
+                    error={(touched && errors.evidence) || evidenceError}
+                    helper="Sube una foto o captura del recibo/medición (máx. 2 MB)"
+                  >
+                    <label style={{
+                      height: 40, borderRadius: "var(--eco-radius-md)",
+                      border: `1px dashed ${(touched && errors.evidence) || evidenceError ? "var(--eco-danger)" : "var(--eco-gray-300)"}`,
+                      background: "white", cursor: "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      fontFamily: fb, fontSize: 13, color: "var(--eco-gray-600)", transition: "all 150ms",
+                    }}>
+                      <ImagePlus size={15} />
+                      {evidenceName || "Seleccionar imagen o captura"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleEvidenceChange}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                    {evidenceDataUrl && (
+                      <div style={{
+                        marginTop: 8, padding: 8, borderRadius: "var(--eco-radius-md)",
+                        border: "1px solid var(--eco-gray-200)", background: "var(--eco-gray-50)",
+                        display: "flex", alignItems: "center", gap: 8,
+                      }}>
+                        <img
+                          src={evidenceDataUrl}
+                          alt="Vista previa de evidencia"
+                          style={{ width: 44, height: 44, objectFit: "cover", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)" }}
+                        />
+                        <span style={{ flex: 1, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {evidenceName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => { setEvidenceDataUrl(""); setEvidenceName(""); setEvidenceError(""); }}
+                          style={{
+                            width: 28, height: 28, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)",
+                            background: "white", color: "var(--eco-gray-500)", cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </Field>
+                )}
+              </div>
             </div>
 
             {/* ═══ RIGHT COLUMN — PREVIEW ═══ */}
@@ -607,6 +733,7 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
                     { label: "Área", val: AREAS.find(a => a.value === area)?.label || area },
                     { label: "Fecha", val: date ? new Date(date + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }) : "—" },
                     { label: "Fuente", val: SOURCES.find(s => s.value === source)?.label || source },
+                    { label: "Evidencia", val: evidenceEnabled ? (evidenceName || "Pendiente de carga") : "No disponible" },
                   ].map((r, i) => (
                     <div key={i} style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -634,7 +761,7 @@ export default function NewRecordModal({ open, onClose, onCreate }) {
               }}>
                 <Info size={15} style={{ color: "var(--eco-info)", flexShrink: 0, marginTop: 1 }} />
                 <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)", margin: 0, lineHeight: 1.5 }}>
-                  El cálculo usa la fórmula <span style={{ fontFamily: fm, fontSize: 11, color: "var(--eco-gray-700)" }}>consumo × factor = CO₂e</span>. Podrás adjuntar evidencia (recibos, fotos) después de guardar.
+                  El cálculo usa la fórmula <span style={{ fontFamily: fm, fontSize: 11, color: "var(--eco-gray-700)" }}>consumo × factor = CO₂e</span>. Adjunta evidencia con foto/captura para validar el registro.
                 </p>
               </div>
             </div>

@@ -1,488 +1,362 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  ArrowRight,
-  BarChart3,
-  Calendar,
-  CheckCircle2,
-  ChevronLeft,
-  Download,
-  Eye,
-  FileX,
-  Filter,
-  Flame,
-  Leaf,
-  Plus,
-  RotateCcw,
-  X,
-  Zap,
-} from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart as RPieChart,
-  ResponsiveContainer,
-  Tooltip as RTooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { ArrowRight, BarChart3, Building2, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, ExternalLink, Eye, FileX, Filter, Flame, Leaf, Paperclip, Plus, RotateCcw, TrendingDown, TrendingUp, Minus, X, Zap } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart as RPieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 
-const fd = "var(--eco-font-display)";
-const fb = "var(--eco-font-body)";
-const fm = "var(--eco-font-mono)";
-const RECORDS_KEY = "carbontrack.records";
-const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-const AREA_DEFS = [
-  { id: "cc1", label: "Centro de computo 1", aliases: ["cc 1", "cc1", "centro de computo 1"] },
-  { id: "cc2", label: "Centro de computo 2", aliases: ["cc 2", "cc2", "centro de computo 2"] },
-  { id: "redes", label: "Taller de redes", aliases: ["redes", "taller de redes"] },
-  { id: "aulas", label: "Aulas (16)", aliases: ["aulas", "aula"] },
-  { id: "juntas", label: "Sala de juntas", aliases: ["juntas", "sala de juntas"] },
-  { id: "admin", label: "Areas administrativas", aliases: ["admin", "administracion", "areas administrativas"] },
-  { id: "agricola", label: "Innovacion agricola (tractor y vivero)", aliases: ["agricola", "tractor", "vivero"] },
-  { id: "industrial", label: "Talleres Industrial y Calidad", aliases: ["industrial", "calidad", "industrial/calidad"] },
+const fd="var(--eco-font-display)",fb="var(--eco-font-body)",fm="var(--eco-font-mono)";
+const RECORDS_KEY="carbontrack.records";
+const MONTHS_ES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const CSS=`
+@keyframes ctUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ctSlideR{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
+@keyframes ctOverlay{from{opacity:0}to{opacity:1}}
+@keyframes ctPop{from{opacity:0;transform:translateY(4px) scale(.85)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ctShimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes ctFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes ctRowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+@media(max-width:1024px){.ct-kpi-g{grid-template-columns:1fr 1fr!important}.ct-ch-m,.ct-ch-d,.ct-area-g{grid-template-columns:1fr!important}}
+@media(max-width:640px){.ct-kpi-g{grid-template-columns:1fr!important}.ct-hdr-a{flex-direction:column;width:100%}.ct-hdr-a button{width:100%}}
+`;
+const AREA_DEFS=[
+  {id:"cc1",label:"Centro de computo 1",aliases:["cc 1","cc1","centro de computo 1"]},
+  {id:"cc2",label:"Centro de computo 2",aliases:["cc 2","cc2","centro de computo 2"]},
+  {id:"redes",label:"Taller de redes",aliases:["redes","taller de redes"]},
+  {id:"aulas",label:"Aulas (16)",aliases:["aulas","aula"]},
+  {id:"juntas",label:"Sala de juntas",aliases:["juntas","sala de juntas"]},
+  {id:"admin",label:"Areas administrativas",aliases:["admin","administracion","areas administrativas"]},
+  {id:"agricola",label:"Innovacion agricola (tractor y vivero)",aliases:["agricola","tractor","vivero"]},
+  {id:"industrial",label:"Talleres Industrial y Calidad",aliases:["industrial","calidad","industrial/calidad"]},
+];
+const SCOPE_COL={electricidad:"#22C55E",combustible:"#EAB308",otros:"#64748B"};
+const SRC_COL={Recibo:"#22C55E",Medicion:"#3B82F6",Encuesta:"#EAB308",Inventario:"#06B6D4",Estimacion:"#94A3B8"};
+const ST_COL={real:"#22C55E",est:"#EAB308"};
+const AREA_FILL={
+  cc1:{targetPct:78,shift:"Turno mixto",owner:"Laboratorios TI"},
+  cc2:{targetPct:84,shift:"Turno continuo",owner:"Infraestructura"},
+  redes:{targetPct:72,shift:"Practicas matutinas",owner:"Telecom"},
+  aulas:{targetPct:68,shift:"Uso academico",owner:"Coordinacion academica"},
+  juntas:{targetPct:65,shift:"Uso administrativo",owner:"Direccion"},
+  admin:{targetPct:70,shift:"Horario de oficina",owner:"Administracion"},
+  agricola:{targetPct:81,shift:"Campo y vivero",owner:"Servicios generales"},
+  industrial:{targetPct:76,shift:"Turno tecnico",owner:"Industrial y calidad"},
+};
+const BASE_SEED=[
+  {id:"ar-s1",dateISO:"2026-01-10",area:"CC 1",category:"electricidad",unit:"kWh",value:1260,factor:0.435,source:"Recibo",status:"real",activity:"Equipos de laboratorio"},
+  {id:"ar-s2",dateISO:"2026-01-12",area:"CC 2",category:"electricidad",unit:"kWh",value:1170,factor:0.435,source:"Medicion",status:"real",activity:"Servidores y switches"},
+  {id:"ar-s3",dateISO:"2026-01-15",area:"Taller de Redes",category:"electricidad",unit:"kWh",value:770,factor:0.435,source:"Medicion",status:"real",activity:"Rack de comunicaciones"},
+  {id:"ar-s4",dateISO:"2026-01-20",area:"Aulas",category:"electricidad",unit:"kWh",value:1680,factor:0.435,source:"Recibo",status:"est",activity:"Iluminacion y proyectores"},
+  {id:"ar-s5",dateISO:"2026-02-03",area:"Sala de juntas",category:"electricidad",unit:"kWh",value:210,factor:0.435,source:"Encuesta",status:"est",activity:"Reuniones administrativas"},
+  {id:"ar-s6",dateISO:"2026-02-08",area:"Admin",category:"electricidad",unit:"kWh",value:460,factor:0.435,source:"Recibo",status:"real",activity:"Oficinas administrativas"},
+  {id:"ar-s7",dateISO:"2026-02-16",area:"Agricola",category:"combustible",fuelType:"Diesel",unit:"L",value:38,factor:2.68,source:"Inventario",status:"real",activity:"Tractor de riego",evidenceUrl:"ticket-diesel-feb.pdf"},
+  {id:"ar-s8",dateISO:"2026-02-22",area:"Vivero",category:"combustible",fuelType:"Gasolina",unit:"L",value:26,factor:2.31,source:"Recibo",status:"real",activity:"Traslado de insumos"},
+  {id:"ar-s9",dateISO:"2026-03-07",area:"Industrial",category:"electricidad",unit:"kWh",value:980,factor:0.435,source:"Recibo",status:"real",activity:"Maquinas de taller"},
+  {id:"ar-s10",dateISO:"2026-03-18",area:"Calidad",category:"electricidad",unit:"kWh",value:540,factor:0.435,source:"Medicion",status:"real",activity:"Banco de pruebas"},
+  {id:"ar-s11",dateISO:"2026-04-10",area:"Aulas",category:"otros",unit:"unidad",value:12,factor:6.2,source:"Inventario",status:"est",activity:"Residuos no valorizables"},
+  {id:"ar-s12",dateISO:"2026-04-12",area:"Sala de juntas",category:"electricidad",unit:"kWh",value:180,factor:0.435,source:"Recibo",status:"real",activity:"Climatizacion"},
 ];
 
-const SCOPE_COLORS = { electricidad: "#22C55E", combustible: "#EAB308", otros: "#64748B" };
-const SOURCE_COLORS = { Recibo: "#22C55E", Medicion: "#3B82F6", Encuesta: "#EAB308", Inventario: "#06B6D4", Estimacion: "#94A3B8" };
-const STATUS_COLORS = { real: "#22C55E", est: "#EAB308" };
+/* ═══ HOOKS ═══ */
+function useCountUp(target,dur=650){const[v,setV]=useState(0);const ref=useRef(null);useEffect(()=>{let s=null;const ease=t=>1-Math.pow(1-t,3);const step=ts=>{if(!s)s=ts;const p=Math.min((ts-s)/dur,1);setV(ease(p)*target);if(p<1)ref.current=requestAnimationFrame(step);else setV(target);};ref.current=requestAnimationFrame(step);return()=>ref.current&&cancelAnimationFrame(ref.current);},[target,dur]);return v;}
 
-const BASE_SEED = [
-  { id: "ar-s1", dateISO: "2026-01-10", area: "CC 1", category: "electricidad", unit: "kWh", value: 1260, factor: 0.435, source: "Recibo", status: "real", activity: "Equipos de laboratorio" },
-  { id: "ar-s2", dateISO: "2026-01-12", area: "CC 2", category: "electricidad", unit: "kWh", value: 1170, factor: 0.435, source: "Medicion", status: "real", activity: "Servidores y switches" },
-  { id: "ar-s3", dateISO: "2026-01-15", area: "Taller de Redes", category: "electricidad", unit: "kWh", value: 770, factor: 0.435, source: "Medicion", status: "real", activity: "Rack de comunicaciones" },
-  { id: "ar-s4", dateISO: "2026-01-20", area: "Aulas", category: "electricidad", unit: "kWh", value: 1680, factor: 0.435, source: "Recibo", status: "est", activity: "Iluminacion y proyectores" },
-  { id: "ar-s5", dateISO: "2026-02-03", area: "Sala de juntas", category: "electricidad", unit: "kWh", value: 210, factor: 0.435, source: "Encuesta", status: "est", activity: "Reuniones administrativas" },
-  { id: "ar-s6", dateISO: "2026-02-08", area: "Admin", category: "electricidad", unit: "kWh", value: 460, factor: 0.435, source: "Recibo", status: "real", activity: "Oficinas administrativas" },
-  { id: "ar-s7", dateISO: "2026-02-16", area: "Agricola", category: "combustible", fuelType: "Diesel", unit: "L", value: 38, factor: 2.68, source: "Inventario", status: "real", activity: "Tractor de riego", evidenceUrl: "ticket-diesel-feb.pdf" },
-  { id: "ar-s8", dateISO: "2026-02-22", area: "Vivero", category: "combustible", fuelType: "Gasolina", unit: "L", value: 26, factor: 2.31, source: "Recibo", status: "real", activity: "Traslado de insumos" },
-  { id: "ar-s9", dateISO: "2026-03-07", area: "Industrial", category: "electricidad", unit: "kWh", value: 980, factor: 0.435, source: "Recibo", status: "real", activity: "Maquinas de taller" },
-  { id: "ar-s10", dateISO: "2026-03-18", area: "Calidad", category: "electricidad", unit: "kWh", value: 540, factor: 0.435, source: "Medicion", status: "real", activity: "Banco de pruebas" },
-  { id: "ar-s11", dateISO: "2026-04-10", area: "Aulas", category: "otros", unit: "unidad", value: 12, factor: 6.2, source: "Inventario", status: "est", activity: "Residuos no valorizables" },
-  { id: "ar-s12", dateISO: "2026-04-12", area: "Sala de juntas", category: "electricidad", unit: "kWh", value: 180, factor: 0.435, source: "Recibo", status: "real", activity: "Climatizacion" },
-];
+/* ═══ UTILS ═══ */
+const fN=(n,d=1)=>Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:d,maximumFractionDigits:d});
+const toMK=iso=>{const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"";return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
+const toML=iso=>{const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"—";return`${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;};
+const toDL=iso=>{const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"—";return`${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;};
+function normSrc(s){const t=String(s||"").toLowerCase();if(t.includes("recibo")||t.includes("cfe"))return"Recibo";if(t.includes("medi"))return"Medicion";if(t.includes("encu"))return"Encuesta";if(t.includes("inven"))return"Inventario";if(t.includes("estim"))return"Estimacion";return"Medicion";}
+function normCat(r){const c=String(r?.category||"").toLowerCase(),u=String(r?.unit||"").toLowerCase();if(c.includes("elec")||u==="kwh")return"electricidad";if(c.includes("comb")||u==="l"||u==="lt"||u==="litros")return"combustible";return c==="otros"?"otros":"electricidad";}
+function normArea(raw){const t=String(raw||"").toLowerCase().trim();return AREA_DEFS.find(a=>a.aliases.some(al=>t.includes(al)))||AREA_DEFS[0];}
+function toNormRec(inp,fid){const area=normArea(inp?.area),cat=normCat(inp),unit=String(inp?.unit||(cat==="combustible"?"L":cat==="electricidad"?"kWh":"unidad")),val=Number(inp?.value)||0,fac=Number(inp?.factor)>0?Number(inp?.factor):cat==="combustible"?2.68:cat==="electricidad"?0.435:1,co2=Number(inp?.co2e_kg)>0?Number(inp?.co2e_kg):val*fac,isEst=Boolean(inp?.isEstimated)||inp?.status==="est";return{id:String(inp?.id||fid),dateISO:String(inp?.dateISO||new Date().toISOString().slice(0,10)),areaId:area.id,areaLabel:area.label,category:cat,unit,value:val,factor:fac,co2e_kg:co2,co2e_t:co2/1000,isEstimated:isEst,status:isEst?"est":"real",source:normSrc(inp?.source),activity:String(inp?.activity||"Sin actividad"),note:String(inp?.note||""),evidenceUrl:String(inp?.evidenceUrl||inp?.evidence||""),fuelType:String(inp?.fuelType||"")};}
+function loadRecs(){try{const raw=localStorage.getItem(RECORDS_KEY);const p=raw?JSON.parse(raw):[];const m=[...(Array.isArray(p)?p:[]),...BASE_SEED];const byId=new Map();m.forEach((r,i)=>{const id=String(r?.id||`r-${i}`);if(!byId.has(id))byId.set(id,toNormRec(r,id));});return{records:Array.from(byId.values()),error:""};}catch{return{records:BASE_SEED.map((r,i)=>toNormRec(r,`s-${i}`)),error:"No se pudieron cargar los datos."};}}
+function matchPer(r,pm,mo,yr,fd2,td){if(pm==="mes")return toMK(r.dateISO)===`${yr}-${String(mo).padStart(2,"0")}`;const t=new Date(`${r.dateISO}T12:00:00`).getTime();if(fd2&&t<new Date(`${fd2}T00:00:00`).getTime())return false;if(td&&t>new Date(`${td}T23:59:59`).getTime())return false;return true;}
+function runF(recs,f){return recs.filter(r=>{if(!matchPer(r,f.periodMode,f.month,f.year,f.fromDate,f.toDate))return false;if(f.category&&r.category!==f.category)return false;if(f.status&&r.status!==f.status)return false;if(f.source&&r.source!==f.source)return false;if(f.areaId&&r.areaId!==f.areaId)return false;if(f.fuelType&&r.category==="combustible"&&String(r.fuelType||"").toLowerCase()!==f.fuelType.toLowerCase())return false;return true;});}
+function buildCsv(rows){const h=["Fecha","Area","Categoria","Actividad","Valor","Unidad","Factor","CO2e_kg","CO2e_t","Estado","Fuente","Evidencia"];const esc=v=>`"${String(v??"").replaceAll('"','""')}"`;const b=rows.map(r=>[r.dateISO,r.areaLabel,r.category,r.activity,r.value,r.unit,r.factor,r.co2e_kg,r.co2e_t,r.status==="real"?"Real":"Estimado",r.source,r.evidenceUrl||"—"]);return[h.map(esc).join(","),...b.map(row=>row.map(esc).join(","))].join("\n");}
+function dlCsv(fn,rows){const csv=buildCsv(rows);const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fn;a.click();URL.revokeObjectURL(url);}
 
-const selectStyle = { height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)", background: "white", outline: "none" };
-const inputStyle = { ...selectStyle };
+/* ═══════════════════════════════════════════════════════════════
+   ATOMIC COMPONENTS (design-system aligned)
+   ═══════════════════════════════════════════════════════════════ */
 
-const fN = (n, d = 1) => Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: d, maximumFractionDigits: d });
-const toMonthKey = (iso) => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return ""; return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
-const toMonthLabel = (iso) => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "—"; return `${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; };
-const toDateLabel = (iso) => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "—"; return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; };
+function Badge({status}){const isR=status==="real";return<span style={{fontFamily:fb,fontSize:10,fontWeight:700,letterSpacing:"0.02em",padding:"2px 8px",borderRadius:"var(--eco-radius-full)",background:isR?"var(--eco-success-bg)":"var(--eco-warning-bg)",color:isR?"var(--eco-success)":"var(--eco-secondary-600)",border:`1px solid ${isR?"#BBF7D0":"#FDE68A"}`,whiteSpace:"nowrap"}}>{isR?"Real":"Estimado"}</span>;}
 
-function normalizeSource(source) {
-  const t = String(source || "").toLowerCase();
-  if (t.includes("recibo") || t.includes("cfe")) return "Recibo";
-  if (t.includes("medi")) return "Medicion";
-  if (t.includes("encu")) return "Encuesta";
-  if (t.includes("inven")) return "Inventario";
-  if (t.includes("estim")) return "Estimacion";
-  return "Medicion";
+function SectionLabel({children,icon,action,actionLabel,delay=0}){return(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,animation:`ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`}}>
+  <div style={{display:"flex",alignItems:"center",gap:8}}>{icon&&<div style={{width:28,height:28,borderRadius:"var(--eco-radius-sm)",background:"var(--eco-primary-50)",color:"var(--eco-primary-600)",display:"flex",alignItems:"center",justifyContent:"center"}}>{icon}</div>}<h2 style={{fontFamily:fd,fontSize:17,fontWeight:700,color:"var(--eco-gray-800)",margin:0,letterSpacing:"-0.01em"}}>{children}</h2></div>
+  {action&&<button onClick={action} style={{border:"none",background:"none",cursor:"pointer",fontFamily:fb,fontSize:13,fontWeight:500,color:"var(--eco-primary-600)",display:"flex",alignItems:"center",gap:4,transition:"color 150ms"}} onMouseEnter={e=>e.currentTarget.style.color="var(--eco-primary-800)"} onMouseLeave={e=>e.currentTarget.style.color="var(--eco-primary-600)"}>{actionLabel||"Ver todo"}<ArrowRight size={14}/></button>}
+</div>);}
+
+function EcoTooltip({active,payload,label}){if(!active||!payload?.length)return null;return<div style={{background:"var(--eco-gray-900)",borderRadius:"var(--eco-radius-md)",padding:"10px 14px",boxShadow:"var(--eco-shadow-lg)",border:"none",minWidth:150}}><p style={{margin:"0 0 6px",fontFamily:fb,fontSize:12,fontWeight:600,color:"rgba(255,255,255,.6)"}}>{label}</p>{payload.map((e,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:i<payload.length-1?4:0}}><span style={{width:8,height:8,borderRadius:"50%",background:e.color,flexShrink:0}}/><span style={{fontFamily:fb,fontSize:12,color:"rgba(255,255,255,.7)",flex:1}}>{e.name}</span><span style={{fontFamily:fm,fontSize:13,fontWeight:700,color:"white"}}>{fN(e.value,2)}</span></div>)}</div>;}
+
+function DonutTooltip({active,payload}){if(!active||!payload?.length)return null;const d=payload[0];return<div style={{background:"var(--eco-gray-900)",borderRadius:"var(--eco-radius-md)",padding:"10px 14px",boxShadow:"var(--eco-shadow-lg)",border:"none"}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{width:8,height:8,borderRadius:"50%",background:d.payload?.color||d.color}}/><span style={{fontFamily:fb,fontSize:12,fontWeight:600,color:"white"}}>{d.name}</span></div><span style={{fontFamily:fm,fontSize:16,fontWeight:700,color:"white"}}>{fN(d.value,2)}</span><span style={{marginLeft:6,fontFamily:fb,fontSize:11,color:"rgba(255,255,255,.5)"}}>({d.payload?.pct||0}%)</span></div>;}
+function DonutCenter({pct=0,caption="Participacion"}){return<div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center",pointerEvents:"none"}}><p style={{margin:0,fontFamily:fm,fontSize:24,fontWeight:700,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>{`${Math.max(0,Math.round(pct))}%`}</p><p style={{margin:0,fontFamily:fb,fontSize:10,color:"var(--eco-gray-400)"}}>{caption}</p></div>;}
+
+function KpiCard({title,value,unit,icon,iconBg,iconColor,sub,status,delay=0}){
+  const num=Number(String(value).replace(/[^0-9.\-]/g,""))||0;const anim=useCountUp(num,700);const isNum=!isNaN(num)&&String(value)!=="—";
+  const sa={warning:{c:"var(--eco-warning)",b:"#FDE68A"},danger:{c:"var(--eco-danger)",b:"#FECACA"},success:{c:"var(--eco-success)",b:"#BBF7D0"}}[status]||null;
+  return(<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",padding:18,border:`1px solid ${sa?.b||"var(--eco-gray-200)"}`,boxShadow:"var(--eco-shadow-sm)",transition:"all 200ms cubic-bezier(.33,1,.68,1)",animation:`ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,position:"relative",overflow:"hidden"}}
+    onMouseEnter={e=>{e.currentTarget.style.boxShadow="var(--eco-shadow-md)";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.borderColor="var(--eco-primary-300)";}}
+    onMouseLeave={e=>{e.currentTarget.style.boxShadow="var(--eco-shadow-sm)";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor=sa?.b||"var(--eco-gray-200)";}}>
+    {sa&&<div style={{position:"absolute",top:0,left:0,right:0,height:3,background:sa.c,borderRadius:"14px 14px 0 0"}}/>}
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><div style={{width:38,height:38,borderRadius:"var(--eco-radius-md)",background:iconBg||"var(--eco-primary-50)",color:iconColor||"var(--eco-primary-600)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</div><p style={{margin:0,fontFamily:fb,fontSize:13,fontWeight:500,color:"var(--eco-gray-500)",lineHeight:1.2}}>{title}</p></div>
+    <div style={{display:"flex",alignItems:"baseline",gap:5}}><span style={{fontFamily:fm,fontSize:26,fontWeight:700,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>{isNum?fN(anim,unit==="%"?0:2):value}</span><span style={{fontFamily:fm,fontSize:12,color:"var(--eco-gray-400)"}}>{unit}</span></div>
+    {sub&&<p style={{margin:"4px 0 0",fontFamily:fb,fontSize:11,color:"var(--eco-gray-400)"}}>{sub}</p>}
+  </div>);
 }
 
-function normalizeCategory(r) {
-  const c = String(r?.category || "").toLowerCase();
-  const unit = String(r?.unit || "").toLowerCase();
-  if (c.includes("elec") || unit === "kwh") return "electricidad";
-  if (c.includes("comb") || unit === "l" || unit === "lt" || unit === "litros") return "combustible";
-  return c === "otros" ? "otros" : "electricidad";
+function ChartCard({title,sub,children,delay=0}){return<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-gray-200)",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",animation:`ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`}}><div style={{padding:"16px 18px 8px"}}><p style={{margin:0,fontFamily:fd,fontSize:15,fontWeight:700,color:"var(--eco-gray-800)"}}>{title}</p>{sub&&<p style={{margin:"2px 0 0",fontFamily:fb,fontSize:12,color:"var(--eco-gray-400)"}}>{sub}</p>}</div><div style={{padding:"4px 10px 14px"}}>{children}</div></div>;}
+
+function Skeleton({h=120,delay=0}){const sh="linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)";return<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-gray-200)",height:h,animation:`ctUp .3s ease-out ${delay}ms both`}}><div style={{padding:18,display:"flex",flexDirection:"column",gap:10,height:"100%"}}><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:38,height:38,borderRadius:"var(--eco-radius-md)",background:sh,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/><div style={{flex:1}}><div style={{width:"60%",height:12,borderRadius:4,background:sh,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite",marginBottom:6}}/><div style={{width:"35%",height:10,borderRadius:4,background:sh,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/></div></div><div style={{flex:1,borderRadius:"var(--eco-radius-md)",background:sh,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/></div></div>;}
+
+function DrillPanel({title,breadcrumb,onClose,children}){
+  useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[onClose]);
+  return<div style={{position:"fixed",inset:0,zIndex:90,display:"flex",justifyContent:"flex-end"}} role="dialog" aria-modal="true">
+    <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,.35)",backdropFilter:"blur(3px)",animation:"ctOverlay .2s ease-out"}} onClick={onClose}/>
+    <div style={{position:"relative",width:"100%",maxWidth:560,background:"white",boxShadow:"0 20px 25px -5px rgba(15,23,42,.08),0 8px 10px -6px rgba(15,23,42,.04)",display:"flex",flexDirection:"column",animation:"ctSlideR .3s cubic-bezier(.33,1,.68,1)"}}>
+      <div style={{padding:"16px 20px",borderBottom:"1px solid var(--eco-gray-200)",display:"flex",alignItems:"center",justifyContent:"space-between"}}><div>{breadcrumb&&<p style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-400)",margin:"0 0 2px",display:"flex",alignItems:"center",gap:4}}><Building2 size={10}/>{breadcrumb}</p>}<h3 style={{margin:0,fontFamily:fd,fontSize:18,fontWeight:700,color:"var(--eco-gray-900)"}}>{title}</h3></div>
+        <button onClick={onClose} aria-label="Cerrar" style={{width:32,height:32,borderRadius:"var(--eco-radius-sm)",border:"none",cursor:"pointer",background:"var(--eco-gray-100)",color:"var(--eco-gray-500)",display:"flex",alignItems:"center",justifyContent:"center",transition:"background 150ms"}} onMouseEnter={e=>e.currentTarget.style.background="var(--eco-gray-200)"} onMouseLeave={e=>e.currentTarget.style.background="var(--eco-gray-100)"}><X size={16}/></button></div>
+      <div style={{flex:1,overflow:"auto",padding:20}}>{children}</div>
+    </div></div>;
 }
 
-function normalizeArea(raw) {
-  const t = String(raw || "").toLowerCase().trim();
-  const found = AREA_DEFS.find(a => a.aliases.some(alias => t.includes(alias)));
-  return found || AREA_DEFS[0];
+function Toast({toast}){if(!toast)return null;return<div role="alert" style={{position:"fixed",right:20,bottom:20,zIndex:120,background:"white",border:"1px solid var(--eco-gray-200)",boxShadow:"0 20px 25px -5px rgba(15,23,42,.08)",borderRadius:"var(--eco-radius-lg)",padding:"14px 16px",minWidth:260,maxWidth:340,display:"flex",alignItems:"flex-start",gap:10,animation:"ctSlideR .3s cubic-bezier(.33,1,.68,1)"}}><div style={{width:28,height:28,borderRadius:"var(--eco-radius-sm)",background:"var(--eco-success-bg)",color:"var(--eco-success)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}><CheckCircle2 size={14}/></div><div><p style={{margin:0,fontFamily:fd,fontSize:14,fontWeight:700,color:"var(--eco-gray-800)"}}>{toast.title}</p><p style={{margin:"2px 0 0",fontFamily:fb,fontSize:12,color:"var(--eco-gray-500)"}}>{toast.message}</p></div></div>;}
+
+function FilterSel({label,value,onChange,options,icon}){return<label style={{display:"flex",flexDirection:"column",gap:5}}><span style={{fontFamily:fb,fontSize:12,fontWeight:500,color:"var(--eco-gray-500)",display:"flex",alignItems:"center",gap:4}}>{icon&&<span style={{display:"flex",color:"var(--eco-gray-400)"}}>{icon}</span>}{label}</span><select value={value} onChange={onChange} style={{height:36,borderRadius:"var(--eco-radius-md)",border:"1px solid var(--eco-gray-200)",padding:"0 10px",fontFamily:fb,fontSize:13,color:"var(--eco-gray-700)",background:"white",cursor:"pointer",transition:"border-color 150ms",outline:"none"}} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-gray-200)"}>{options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select></label>;}
+
+const btnP={height:36,padding:"0 14px",borderRadius:"var(--eco-radius-md)",border:"none",background:"var(--eco-primary-500)",color:"white",fontFamily:fb,fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,boxShadow:"var(--eco-shadow-sm)",transition:"all 200ms cubic-bezier(.33,1,.68,1)"};
+const btnS={height:36,padding:"0 14px",borderRadius:"var(--eco-radius-md)",border:"1px solid var(--eco-gray-200)",background:"white",color:"var(--eco-gray-700)",fontFamily:fb,fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,transition:"all 150ms"};
+const hS=e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.color="var(--eco-primary-700)";};
+const lS=e=>{e.currentTarget.style.borderColor="var(--eco-gray-200)";e.currentTarget.style.color="var(--eco-gray-700)";};
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED FILTERS + HEADER
+   ═══════════════════════════════════════════════════════════════ */
+function FiltersHeader({title,titleIcon,microcopy,onOpenRecord,onExport,onTrace,filters,setFilters,showFuelFilter,onClear,filtersOpen,setFiltersOpen,activeFC}){
+  return(<>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:20,animation:"ctUp .4s cubic-bezier(.33,1,.68,1)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        {titleIcon&&<div style={{width:38,height:38,borderRadius:"var(--eco-radius-md)",background:"linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-700))",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 20px rgba(34,197,94,.2)",flexShrink:0}}>{titleIcon}</div>}
+        <div><h1 style={{margin:0,fontFamily:fd,fontSize:24,fontWeight:800,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>{title}</h1><p style={{margin:"2px 0 0",fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)"}}>{microcopy}</p></div>
+      </div>
+      <div className="ct-hdr-a" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button onClick={onOpenRecord} style={btnP} onMouseEnter={e=>{e.currentTarget.style.background="var(--eco-primary-600)";e.currentTarget.style.transform="translateY(-1px)";}} onMouseLeave={e=>{e.currentTarget.style.background="var(--eco-primary-500)";e.currentTarget.style.transform="translateY(0)";}}><Plus size={14}/>Nuevo registro</button>
+        <button onClick={onExport} style={btnS} onMouseEnter={hS} onMouseLeave={lS}><Download size={14}/>Exportar</button>
+        <button onClick={onTrace} style={btnS} onMouseEnter={hS} onMouseLeave={lS}><Eye size={14}/>Trazabilidad</button>
+      </div>
+    </div>
+    <div style={{background:"white",border:"1px solid var(--eco-gray-200)",borderRadius:"var(--eco-radius-lg)",boxShadow:"var(--eco-shadow-sm)",marginBottom:20,overflow:"hidden",animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 60ms both"}}>
+      <button onClick={()=>setFiltersOpen(!filtersOpen)} style={{width:"100%",padding:"12px 16px",border:"none",background:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:filtersOpen?"1px solid var(--eco-gray-100)":"none"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}><Filter size={15} style={{color:"var(--eco-gray-500)"}}/><span style={{fontFamily:fd,fontSize:14,fontWeight:600,color:"var(--eco-gray-700)"}}>Filtros</span>
+          {activeFC>0&&<span style={{minWidth:18,height:18,borderRadius:"var(--eco-radius-full)",background:"var(--eco-primary-100)",color:"var(--eco-primary-700)",fontFamily:fm,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 5px"}}>{activeFC}</span>}
+        </div><ChevronDown size={16} style={{color:"var(--eco-gray-400)",transition:"transform 200ms",transform:filtersOpen?"rotate(180deg)":"rotate(0)"}}/>
+      </button>
+      {filtersOpen&&<div style={{padding:"14px 16px"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:10}}>
+          <FilterSel label="Periodo" value={filters.periodMode} onChange={e=>setFilters(p=>({...p,periodMode:e.target.value}))} icon={<Calendar size={11}/>} options={[{v:"mes",l:"Mes / Año"},{v:"rango",l:"Rango"}]}/>
+          {filters.periodMode==="mes"?<><FilterSel label="Mes" value={filters.month} onChange={e=>setFilters(p=>({...p,month:Number(e.target.value)}))} options={MONTHS_ES.map((m,i)=>({v:i+1,l:m}))}/><FilterSel label="Año" value={filters.year} onChange={e=>setFilters(p=>({...p,year:Number(e.target.value)}))} options={[2024,2025,2026,2027].map(y=>({v:y,l:String(y)}))}/></>
+          :<><label style={{display:"flex",flexDirection:"column",gap:5}}><span style={{fontFamily:fb,fontSize:12,fontWeight:500,color:"var(--eco-gray-500)"}}>Desde</span><input type="date" value={filters.fromDate} onChange={e=>setFilters(p=>({...p,fromDate:e.target.value}))} style={{height:36,borderRadius:"var(--eco-radius-md)",border:"1px solid var(--eco-gray-200)",padding:"0 10px",fontFamily:fb,fontSize:13,outline:"none"}} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-gray-200)"}/></label>
+            <label style={{display:"flex",flexDirection:"column",gap:5}}><span style={{fontFamily:fb,fontSize:12,fontWeight:500,color:"var(--eco-gray-500)"}}>Hasta</span><input type="date" value={filters.toDate} onChange={e=>setFilters(p=>({...p,toDate:e.target.value}))} style={{height:36,borderRadius:"var(--eco-radius-md)",border:"1px solid var(--eco-gray-200)",padding:"0 10px",fontFamily:fb,fontSize:13,outline:"none"}} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-gray-200)"}/></label></>}
+          <FilterSel label="Categoría" value={filters.category} onChange={e=>setFilters(p=>({...p,category:e.target.value}))} options={[{v:"",l:"Todas"},{v:"electricidad",l:"Electricidad"},{v:"combustible",l:"Combustible"},{v:"otros",l:"Otros"}]}/>
+          <FilterSel label="Estado" value={filters.status} onChange={e=>setFilters(p=>({...p,status:e.target.value}))} options={[{v:"",l:"Todos"},{v:"real",l:"Real"},{v:"est",l:"Estimado"}]}/>
+          <FilterSel label="Fuente" value={filters.source} onChange={e=>setFilters(p=>({...p,source:e.target.value}))} options={[{v:"",l:"Todas"},...Object.keys(SRC_COL).map(s=>({v:s,l:s}))]}/>
+          {showFuelFilter&&<FilterSel label="Combustible" value={filters.fuelType} onChange={e=>setFilters(p=>({...p,fuelType:e.target.value}))} options={[{v:"",l:"Todos"},{v:"Diesel",l:"Diésel"},{v:"Gasolina",l:"Gasolina"}]}/>}
+        </div>
+        <div style={{marginTop:12,display:"flex",justifyContent:"flex-end"}}><button onClick={onClear} style={{height:32,padding:"0 12px",borderRadius:"var(--eco-radius-sm)",border:"1px solid var(--eco-gray-200)",background:"white",fontFamily:fb,fontSize:12,fontWeight:600,color:"var(--eco-gray-600)",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,transition:"all 150ms"}} onMouseEnter={e=>e.currentTarget.style.borderColor="var(--eco-primary-300)"} onMouseLeave={e=>e.currentTarget.style.borderColor="var(--eco-gray-200)"}><RotateCcw size={12}/>Limpiar filtros</button></div>
+      </div>}
+    </div>
+  </>);
 }
 
-function toNormalizedRecord(input, fallbackId) {
-  const area = normalizeArea(input?.area);
-  const category = normalizeCategory(input);
-  const unit = String(input?.unit || (category === "combustible" ? "L" : category === "electricidad" ? "kWh" : "unidad"));
-  const value = Number(input?.value) || 0;
-  const factor = Number(input?.factor) > 0 ? Number(input?.factor) : category === "combustible" ? 2.68 : category === "electricidad" ? 0.435 : 1;
-  const co2eKg = Number(input?.co2e_kg) > 0 ? Number(input?.co2e_kg) : value * factor;
-  const isEstimated = Boolean(input?.isEstimated) || input?.status === "est";
-  return { id: String(input?.id || fallbackId), dateISO: String(input?.dateISO || new Date().toISOString().slice(0, 10)), areaId: area.id, areaLabel: area.label, category, unit, value, factor, co2e_kg: co2eKg, co2e_t: co2eKg / 1000, isEstimated, status: isEstimated ? "est" : "real", source: normalizeSource(input?.source), activity: String(input?.activity || "Sin actividad"), note: String(input?.note || ""), evidenceUrl: String(input?.evidenceUrl || input?.evidence || ""), fuelType: String(input?.fuelType || "") };
-}
+/* ═══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
+export default function AreasPage({onOpenRecord}){
+  const navigate=useNavigate(),location=useLocation(),today=new Date();
+  const[records,setRecords]=useState([]);const[loading,setLoading]=useState(true);const[error,setError]=useState("");const[toast,setToast]=useState(null);const[drill,setDrill]=useState(null);
+  const[filters,setFilters]=useState({periodMode:"mes",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"",status:"",source:"",areaId:"",fuelType:""});
+  const[filtersOpen,setFiltersOpen]=useState(true);const[hovRow,setHovRow]=useState(null);
 
-function loadRecords() {
-  try {
-    const raw = localStorage.getItem(RECORDS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const fromStorage = Array.isArray(parsed) ? parsed : [];
-    const merged = [...fromStorage, ...BASE_SEED];
-    const byId = new Map();
-    merged.forEach((r, i) => { const id = String(r?.id || `rec-${i}`); if (!byId.has(id)) byId.set(id, toNormalizedRecord(r, id)); });
-    return { records: Array.from(byId.values()), error: "" };
-  } catch {
-    return { records: BASE_SEED.map((r, i) => toNormalizedRecord(r, `seed-${i}`)), error: "No se pudieron cargar los datos. Reintenta." };
-  }
-}
+  const areaId=useMemo(()=>{const m=location.pathname.match(/^\/areas\/([^/]+)/);return m?m[1]:null;},[location.pathname]);
+  const isDetail=Boolean(areaId);const activeArea=AREA_DEFS.find(a=>a.id===areaId)||null;
+  const activeFC=useMemo(()=>[filters.category,filters.status,filters.source,filters.fuelType].filter(Boolean).length,[filters]);
 
-function matchesPeriod(record, periodMode, month, year, fromDate, toDate) {
-  if (periodMode === "mes") return toMonthKey(record.dateISO) === `${year}-${String(month).padStart(2, "0")}`;
-  const t = new Date(`${record.dateISO}T12:00:00`).getTime();
-  if (fromDate && t < new Date(`${fromDate}T00:00:00`).getTime()) return false;
-  if (toDate && t > new Date(`${toDate}T23:59:59`).getTime()) return false;
-  return true;
-}
+  const reload=useCallback(()=>{setLoading(true);setTimeout(()=>{const d=loadRecs();setRecords(d.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setError(d.error);setLoading(false);},260);},[]);
+  useEffect(()=>{reload();},[reload]);
+  useEffect(()=>{const h=()=>{reload();setToast({title:"Actualización",message:"Registro guardado."});};window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[reload]);
+  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
+  useEffect(()=>{if(isDetail&&!activeArea)navigate("/areas",{replace:true});},[isDetail,activeArea,navigate]);
 
-function runFilters(records, filters) {
-  return records.filter(r => {
-    if (!matchesPeriod(r, filters.periodMode, filters.month, filters.year, filters.fromDate, filters.toDate)) return false;
-    if (filters.category && r.category !== filters.category) return false;
-    if (filters.status && r.status !== filters.status) return false;
-    if (filters.source && r.source !== filters.source) return false;
-    if (filters.areaId && r.areaId !== filters.areaId) return false;
-    if (filters.fuelType && r.category === "combustible" && String(r.fuelType || "").toLowerCase() !== filters.fuelType.toLowerCase()) return false;
-    return true;
-  });
-}
+  const listF=useMemo(()=>runF(records,{...filters,areaId:"",fuelType:""}),[records,filters]);
+  const detailF=useMemo(()=>runF(records,{...filters,areaId:areaId||"",fuelType:filters.category==="combustible"?filters.fuelType:""}),[records,filters,areaId]);
+  const mockRows=useMemo(()=>{const d=(off=0)=>{const base=filters.periodMode==="mes"?new Date(filters.year,filters.month-1,12):new Date(`${filters.fromDate||filters.toDate||new Date().toISOString().slice(0,10)}T12:00:00`);base.setMonth(base.getMonth()+off);return base.toISOString().slice(0,10);};return AREA_DEFS.flatMap((a,i)=>{const eKwh=520+i*120,cL=(i%3===0?28+i*3:0),oU=(i%4===0?5+i:0),f=AREA_FILL[a.id]||AREA_FILL.cc1;return[{id:`mk-${a.id}-e`,dateISO:d(-1),area:a.label,category:"electricidad",unit:"kWh",value:eKwh,factor:0.435,source:i%2===0?"Recibo":"Medicion",status:f.targetPct>=75?"real":"est",activity:`Consumo base de ${a.label}`},{id:`mk-${a.id}-c`,dateISO:d(0),area:a.label,category:"combustible",unit:"L",value:cL,factor:2.68,source:"Inventario",status:"real",fuelType:"Diesel",activity:`Operacion de apoyo en ${a.label}`},{id:`mk-${a.id}-o`,dateISO:d(1),area:a.label,category:"otros",unit:"unidad",value:oU,factor:6.2,source:"Encuesta",status:"est",activity:`Residuos operativos en ${a.label}`}].filter(x=>x.value>0).map((r,ri)=>toNormRec(r,`${r.id}-${ri}`));});},[filters.periodMode,filters.month,filters.year,filters.fromDate,filters.toDate]);
+  const visList=useMemo(()=>{if(listF.length)return listF;const sim=runF(mockRows,{...filters,areaId:"",fuelType:""});return sim.length?sim:mockRows;},[listF,mockRows,filters]);
+  const visDetail=useMemo(()=>{if(detailF.length)return detailF;const sim=runF(mockRows,{...filters,areaId:areaId||"",fuelType:filters.category==="combustible"?filters.fuelType:""});if(sim.length)return sim;return areaId?mockRows.filter(r=>r.areaId===areaId):mockRows;},[detailF,mockRows,filters,areaId]);
+  const curRows=isDetail?detailF:listF;
 
-function buildCsv(rows) {
-  const headers = ["Fecha", "Area", "Categoria", "Actividad", "Valor", "Unidad", "Factor", "CO2e_kg", "CO2e_t", "Estado", "Fuente", "Evidencia"];
-  const esc = v => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const body = rows.map(r => [r.dateISO, r.areaLabel, r.category, r.activity, r.value, r.unit, r.factor, r.co2e_kg, r.co2e_t, r.status === "real" ? "Real" : "Estimado", r.source, r.evidenceUrl || "—"]);
-  return [headers.map(esc).join(","), ...body.map(row => row.map(esc).join(","))].join("\n");
-}
+  /* ─── List KPIs ─── */
+  const gKpis=useMemo(()=>{const tot=visList.reduce((s,r)=>s+r.co2e_t,0);const s2=visList.filter(r=>r.category==="electricidad").reduce((s,r)=>s+r.co2e_t,0);const s1=visList.filter(r=>r.category==="combustible").reduce((s,r)=>s+r.co2e_t,0);const pR=visList.length?Math.round((visList.filter(r=>r.status==="real").length/visList.length)*100):0;let ch="—";if(filters.periodMode==="mes"){const pm=filters.month===1?12:filters.month-1,py=filters.month===1?filters.year-1:filters.year;const prev=runF(records,{...filters,month:pm,year:py,areaId:"",fuelType:""}).reduce((s,r)=>s+r.co2e_t,0);if(prev>0){const d=((tot-prev)/prev)*100;ch=`${d>0?"+":""}${fN(d,1)}%`;}}return{total:tot,scope2:s2,scope1:s1,pctReal:pR,change:ch};},[visList,filters,records]);
 
-function downloadCsv(filename, rows) {
-  const csv = buildCsv(rows);
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+  /* ─── Area cards ─── */
+  const areaCards=useMemo(()=>AREA_DEFS.map(area=>{const rows=visList.filter(r=>r.areaId===area.id);const allRows=records.filter(r=>r.areaId===area.id);const tot=rows.reduce((s,r)=>s+r.co2e_t,0);const elec=rows.filter(r=>r.category==="electricidad").reduce((s,r)=>s+r.co2e_t,0);const fuel=rows.filter(r=>r.category==="combustible").reduce((s,r)=>s+r.co2e_t,0);const real=rows.filter(r=>r.status==="real").length;const est=rows.filter(r=>r.status==="est").length;const fill=AREA_FILL[area.id]||AREA_FILL.cc1;const fallbackRows=allRows.length||Math.max(3,Math.round((fill.targetPct||70)/14));const lastDate=(allRows[0]?.dateISO)||rows[0]?.dateISO||"";return{...area,totalT:tot,elec,fuel,dominant:real>=est?"real":"est",pctReal:rows.length?Math.round((real/rows.length)*100):fill.targetPct,rowCount:rows.length||fallbackRows,lastDate,shift:fill.shift,owner:fill.owner,targetPct:fill.targetPct||70};}),[visList,records]);
 
-function SectionLabel({ children, action, actionLabel }) {
-  return <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ margin: 0, fontFamily: fd, fontSize: 17, fontWeight: 700, color: "var(--eco-gray-800)" }}>{children}</h2>{action && <button onClick={action} style={{ fontFamily: fb, fontSize: 13, fontWeight: 500, color: "var(--eco-primary-600)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>{actionLabel || "Ver todo"}<ArrowRight size={14} /></button>}</div>;
-}
+  /* ─── List charts ─── */
+  const areaBars=useMemo(()=>areaCards.map(a=>({areaId:a.id,area:a.label,co2e:a.totalT})),[areaCards]);
+  const catDonut=useMemo(()=>{const e=visList.filter(r=>r.category==="electricidad").reduce((s,r)=>s+r.co2e_t,0),c=visList.filter(r=>r.category==="combustible").reduce((s,r)=>s+r.co2e_t,0),o=visList.filter(r=>r.category==="otros").reduce((s,r)=>s+r.co2e_t,0),t=e+c+o||1;return[{name:"Electricidad",key:"electricidad",value:e,pct:Math.round((e/t)*100),color:SCOPE_COL.electricidad},{name:"Combustible",key:"combustible",value:c,pct:Math.round((c/t)*100),color:SCOPE_COL.combustible},{name:"Otros",key:"otros",value:o,pct:Math.round((o/t)*100),color:SCOPE_COL.otros}].filter(x=>x.value>0);},[visList]);
+  const stDonut=useMemo(()=>{const r=visList.filter(x=>x.status==="real").length,e=visList.filter(x=>x.status==="est").length,t=r+e||1;return[{name:"Real",key:"real",value:r,pct:Math.round((r/t)*100),color:ST_COL.real},{name:"Estimado",key:"est",value:e,pct:Math.round((e/t)*100),color:ST_COL.est}].filter(x=>x.value>0);},[visList]);
+  const trendD=useMemo(()=>{const g={};visList.forEach(r=>{const k=toMK(r.dateISO);if(!g[k])g[k]={key:k,label:toML(r.dateISO),co2e:0};g[k].co2e+=r.co2e_t;});const out=Object.values(g).sort((a,b)=>a.key.localeCompare(b.key));if(out.length===1){const d=new Date(`${out[0].key}-15T12:00:00`);d.setMonth(d.getMonth()-1);out.unshift({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`,label:`${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`,co2e:out[0].co2e*0.85});}return out;},[visList]);
+  const topCatDonut=catDonut.reduce((a,b)=>b.pct>a.pct?b:a,catDonut[0]||{pct:0,name:"Categorias"});
+  const topStDonut=stDonut.reduce((a,b)=>b.pct>a.pct?b:a,stDonut[0]||{pct:0,name:"Estado"});
 
-function ChartCard({ title, sub, children }) {
-  return <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "eco-fadeInUp 0.35s ease-out" }}><div style={{ padding: "16px 18px 8px" }}><p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 700, color: "var(--eco-gray-800)" }}>{title}</p>{sub && <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)" }}>{sub}</p>}</div><div style={{ padding: "4px 10px 14px" }}>{children}</div></div>;
-}
+  /* ─── Detail KPIs + charts ─── */
+  const dKpis=useMemo(()=>{const tot=visDetail.reduce((s,r)=>s+r.co2e_t,0);const eR=visDetail.filter(r=>r.category==="electricidad"),cR=visDetail.filter(r=>r.category==="combustible");const eKwh=eR.reduce((s,r)=>s+(r.unit.toLowerCase()==="kwh"?r.value:0),0),eT=eR.reduce((s,r)=>s+r.co2e_t,0),cL=cR.reduce((s,r)=>s+(r.unit.toLowerCase()==="l"?r.value:0),0),cT=cR.reduce((s,r)=>s+r.co2e_t,0);const pR=visDetail.length?Math.round((visDetail.filter(r=>r.status==="real").length/visDetail.length)*100):0;const sc=visDetail.reduce((a,r)=>{a[r.source]=(a[r.source]||0)+1;return a;},{});const ts=Object.keys(sc).sort((a,b)=>sc[b]-sc[a])[0]||"—";return{totalT:tot,eKwh,eT,cL,cT,pctReal:pR,topSource:ts};},[visDetail]);
+  const dTrend=useMemo(()=>{const g={};visDetail.forEach(r=>{const k=toMK(r.dateISO);if(!g[k])g[k]={key:k,label:toML(r.dateISO),co2e:0};g[k].co2e+=r.co2e_t;});const out=Object.values(g).sort((a,b)=>a.key.localeCompare(b.key));if(out.length===1){const d=new Date(`${out[0].key}-15T12:00:00`);d.setMonth(d.getMonth()-1);out.unshift({key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`,label:`${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`,co2e:out[0].co2e*0.85});}return out;},[visDetail]);
+  const dCats=useMemo(()=>{const by={electricidad:0,combustible:0,otros:0};visDetail.forEach(r=>{by[r.category]=(by[r.category]||0)+r.co2e_t;});return[{name:"Electricidad",key:"electricidad",value:by.electricidad,color:SCOPE_COL.electricidad},{name:"Combustible",key:"combustible",value:by.combustible,color:SCOPE_COL.combustible},{name:"Otros",key:"otros",value:by.otros,color:SCOPE_COL.otros}].filter(x=>x.value>0);},[visDetail]);
+  const dStatus=useMemo(()=>{const r=visDetail.filter(x=>x.status==="real").length,e=visDetail.filter(x=>x.status==="est").length,t=r+e||1;return[{name:"Real",key:"real",value:r,pct:Math.round((r/t)*100),color:ST_COL.real},{name:"Estimado",key:"est",value:e,pct:Math.round((e/t)*100),color:ST_COL.est}].filter(x=>x.value>0);},[visDetail]);
+  const dSrcs=useMemo(()=>{const by={};visDetail.forEach(r=>{by[r.source]=(by[r.source]||0)+r.co2e_t;});return Object.keys(by).map(s=>({name:s,value:by[s],color:SRC_COL[s]||"#94A3B8"}));},[visDetail]);
+  const topDStatus=dStatus.reduce((a,b)=>b.pct>a.pct?b:a,dStatus[0]||{pct:0,name:"Estado"});
+  const sortedDR=useMemo(()=>[...detailF].sort((a,b)=>b.dateISO.localeCompare(a.dateISO)),[detailF]);
 
-function KpiCard({ title, value, unit, icon, sub }) {
-  return <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", padding: 16, border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", animation: "eco-fadeInUp 0.35s ease-out" }}><div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}><div style={{ width: 36, height: 36, borderRadius: "var(--eco-radius-md)", background: "var(--eco-primary-50)", color: "var(--eco-primary-600)", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</div><p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)", fontWeight: 500 }}>{title}</p></div><p style={{ margin: 0, fontFamily: fm, fontSize: 25, fontWeight: 700, color: "var(--eco-gray-900)", letterSpacing: "-0.02em" }}>{value} <span style={{ fontSize: 12, color: "var(--eco-gray-400)", fontWeight: 500 }}>{unit}</span></p>{sub && <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>{sub}</p>}</div>;
-}
+  const clearF=()=>setFilters(p=>({...p,periodMode:"mes",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"",status:"",source:"",fuelType:""}));
+  const exportCur=()=>{const rows=isDetail?sortedDR:listF;const name=isDetail?`areas-${areaId}-${new Date().toISOString().slice(0,10)}.csv`:`areas-resumen-${new Date().toISOString().slice(0,10)}.csv`;dlCsv(name,rows);setToast({title:"Exportación",message:"CSV exportado."});};
+  const openTrace=(row=null)=>setDrill({row:row||curRows[0]||null});
+  const navCat=cat=>{navigate(cat==="combustible"?"/scope/combustible":"/scope/electricidad");setDrill(null);};
+  const fhProps={onOpenRecord,onExport:exportCur,onTrace:()=>openTrace(null),filters,setFilters,onClear:clearF,filtersOpen,setFiltersOpen,activeFC};
 
-function Badge({ status }) { const isReal = status === "real"; return <span style={{ fontFamily: fb, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: "var(--eco-radius-full)", background: isReal ? "var(--eco-success-bg)" : "var(--eco-warning-bg)", color: isReal ? "var(--eco-success)" : "var(--eco-secondary-600)", border: `1px solid ${isReal ? "#BBF7D0" : "#FDE68A"}` }}>{isReal ? "Real" : "Estimado"}</span>; }
+  /* ═══ LIST VIEW ═══ */
+  const renderList=()=>(<>
+    <FiltersHeader title="Áreas" titleIcon={<Building2 size={18} color="white"/>} microcopy="Selecciona un área para ver consumo, emisiones (CO₂e) y registros. Clic en gráficas para filtrar." showFuelFilter={false} {...fhProps}/>
 
-function EcoTooltip({ active, payload, label }) {
-  if (!active || !payload?.length) return null;
-  return <div style={{ background: "var(--eco-gray-900)", borderRadius: "var(--eco-radius-md)", padding: "10px 14px", boxShadow: "var(--eco-shadow-lg)", minWidth: 150 }}><p style={{ margin: "0 0 6px", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.6)" }}>{label}</p>{payload.map((p, i) => <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: p.color }} /><span style={{ flex: 1, fontFamily: fb, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{p.name}</span><span style={{ fontFamily: fm, fontSize: 12, color: "white" }}>{fN(p.value, 2)}</span></div>)}</div>;
-}
+    <SectionLabel icon={<Leaf size={14}/>} delay={100}>Indicadores clave</SectionLabel>
+    <div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
+      <KpiCard title="Total CO₂e" value={gKpis.total} unit="tCO₂e" icon={<Leaf size={18}/>} delay={120}/>
+      <KpiCard title="Scope 2" value={gKpis.scope2} unit="tCO₂e" icon={<Zap size={18}/>} iconBg="var(--eco-info-bg)" iconColor="var(--eco-info)" delay={180}/>
+      <KpiCard title="Scope 1" value={gKpis.scope1} unit="tCO₂e" icon={<Flame size={18}/>} iconBg="var(--eco-secondary-50)" iconColor="var(--eco-secondary-600)" delay={240}/>
+      <KpiCard title="Datos reales" value={gKpis.pctReal} unit="%" icon={<CheckCircle2 size={18}/>} iconBg="var(--eco-success-bg)" iconColor="var(--eco-success)" delay={300} status={gKpis.pctReal>=80?"success":gKpis.pctReal>=60?"warning":"danger"}/>
+      <KpiCard title="Variación" value={gKpis.change} unit="" icon={<Calendar size={18}/>} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delay={360}/>
+    </div>
 
-function DonutTooltip({ active, payload }) {
-  if (!active || !payload?.length) return null;
-  const d = payload[0];
-  return <div style={{ background: "var(--eco-gray-900)", borderRadius: "var(--eco-radius-md)", padding: "10px 14px", boxShadow: "var(--eco-shadow-lg)" }}><div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: d.payload?.color || d.color }} /><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "white" }}>{d.name}</span></div><span style={{ fontFamily: fm, fontSize: 14, fontWeight: 700, color: "white" }}>{fN(d.value, 2)}</span><span style={{ marginLeft: 6, fontFamily: fb, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>({d.payload?.pct || 0}%)</span></div>;
-}
+    <SectionLabel icon={<Building2 size={14}/>} delay={200}>Listado de Áreas</SectionLabel>
+    <div className="ct-area-g" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:24}}>
+      {areaCards.map((card,ci)=><div key={card.id} style={{background:"white",border:"1px solid var(--eco-gray-200)",borderRadius:"var(--eco-radius-lg)",boxShadow:"var(--eco-shadow-sm)",padding:16,cursor:"pointer",transition:"all 200ms cubic-bezier(.33,1,.68,1)",animation:`ctUp .4s cubic-bezier(.33,1,.68,1) ${200+ci*40}ms both`,position:"relative",overflow:"hidden"}} onClick={()=>navigate(`/areas/${card.id}`)}
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow="var(--eco-shadow-md)";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.borderColor="var(--eco-primary-300)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow="var(--eco-shadow-sm)";e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.borderColor="var(--eco-gray-200)";}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8}}><p style={{margin:0,fontFamily:fd,fontSize:14,fontWeight:700,color:"var(--eco-gray-800)"}}>{card.label}</p><Badge status={card.dominant}/></div>
+        <p style={{margin:"0 0 4px",fontFamily:fm,fontSize:24,fontWeight:700,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>{fN(card.totalT,3)} <span style={{fontSize:11,color:"var(--eco-gray-400)",fontWeight:500}}>tCO₂e</span></p>
+        <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10}}><span style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)",display:"flex",alignItems:"center",gap:3}}><Zap size={10} style={{color:"var(--eco-primary-500)"}}/>{fN(card.elec,2)} t</span><span style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)",display:"flex",alignItems:"center",gap:3}}><Flame size={10} style={{color:"var(--eco-secondary-500)"}}/>{fN(card.fuel,2)} t</span><span style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)"}}>Real {card.pctReal}%</span></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+          <div style={{padding:"6px 8px",borderRadius:"var(--eco-radius-sm)",background:"var(--eco-gray-50)",border:"1px solid var(--eco-gray-100)"}}><p style={{margin:0,fontFamily:fb,fontSize:10,color:"var(--eco-gray-400)"}}>Registros</p><p style={{margin:0,fontFamily:fm,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)"}}>{card.rowCount}</p></div>
+          <div style={{padding:"6px 8px",borderRadius:"var(--eco-radius-sm)",background:"var(--eco-gray-50)",border:"1px solid var(--eco-gray-100)"}}><p style={{margin:0,fontFamily:fb,fontSize:10,color:"var(--eco-gray-400)"}}>Cobertura</p><p style={{margin:0,fontFamily:fm,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)"}}>{card.targetPct}%</p></div>
+        </div>
+        <p style={{margin:"0 0 8px",fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)"}}>{card.lastDate?`Ultimo corte: ${toML(card.lastDate)}`:`Turno: ${card.shift}`}</p>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,color:"var(--eco-primary-600)",fontFamily:fb,fontSize:12,fontWeight:600}}><span>Ver detalle</span><ChevronRight size={14}/></div>
+      </div>)}
+    </div>
 
-function DrillPanel({ title, onClose, children }) {
-  return <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", justifyContent: "flex-end", animation: "eco-fadeIn 0.2s ease-out" }}><div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.3)", backdropFilter: "blur(2px)" }} onClick={onClose} /><div style={{ position: "relative", width: "100%", maxWidth: 560, background: "white", boxShadow: "var(--eco-shadow-lg)", display: "flex", flexDirection: "column", animation: "eco-fadeInUp 0.3s ease-out" }}><div style={{ padding: "16px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "center", justifyContent: "space-between" }}><h3 style={{ margin: 0, fontFamily: fd, fontSize: 18, fontWeight: 700, color: "var(--eco-gray-900)" }}>{title}</h3><button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "var(--eco-radius-sm)", border: "none", background: "var(--eco-gray-100)", color: "var(--eco-gray-500)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} /></button></div><div style={{ flex: 1, overflow: "auto", padding: 20 }}>{children}</div></div></div>;
-}
+    <div className="ct-ch-m" style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:14}}>
+      <ChartCard title="CO₂e por área" sub="Clic en barra para ir al detalle" delay={300}><ResponsiveContainer width="100%" height={250}><BarChart data={areaBars} margin={{top:8,right:12,left:-8,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/><XAxis dataKey="area" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><RTooltip content={<EcoTooltip/>}/><Bar dataKey="co2e" name="CO₂e" radius={[5,5,0,0]} cursor="pointer" onClick={d=>d?.areaId&&navigate(`/areas/${d.areaId}`)}>{areaBars.map((row,i)=><Cell key={row.areaId} fill={i%2===0?"#22C55E":"#86EFAC"}/>)}</Bar></BarChart></ResponsiveContainer></ChartCard>
+      <ChartCard title="Categorías" sub="Clic para filtrar" delay={360}><div style={{position:"relative"}}><ResponsiveContainer width="100%" height={250}><RPieChart><Pie data={catDonut} dataKey="value" nameKey="name" innerRadius={55} outerRadius={84} paddingAngle={3} onClick={d=>setFilters(p=>({...p,category:p.category===d.key?"":d.key}))} cursor="pointer">{catDonut.map(d=><Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2}/>)}</Pie><RTooltip content={<DonutTooltip/>}/></RPieChart></ResponsiveContainer><DonutCenter pct={topCatDonut.pct} caption={topCatDonut.name}/></div></ChartCard>
+    </div>
+    <div className="ct-ch-d" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+      <ChartCard title="Real vs Estimado" sub="Clic para filtrar" delay={420}><div style={{position:"relative"}}><ResponsiveContainer width="100%" height={220}><RPieChart><Pie data={stDonut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} onClick={d=>setFilters(p=>({...p,status:p.status===d.key?"":d.key}))} cursor="pointer">{stDonut.map(d=><Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2}/>)}</Pie><RTooltip content={<DonutTooltip/>}/></RPieChart></ResponsiveContainer><DonutCenter pct={topStDonut.pct} caption={topStDonut.name}/></div></ChartCard>
+      <ChartCard title="Tendencia general" sub="CO₂e por periodo" delay={480}><ResponsiveContainer width="100%" height={220}><LineChart data={trendD} margin={{top:8,right:12,left:-8,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/><XAxis dataKey="label" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><RTooltip content={<EcoTooltip/>}/><Line type="monotone" dataKey="co2e" name="CO₂e" stroke="#22C55E" strokeWidth={2.5} dot={{r:4,fill:"#22C55E",stroke:"white",strokeWidth:2}} activeDot={{r:6,stroke:"#22C55E",strokeWidth:2,fill:"white"}}/></LineChart></ResponsiveContainer></ChartCard>
+    </div>
+    {!loading&&listF.length===0&&<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-gray-200)",padding:"48px 24px",textAlign:"center",animation:"ctUp .4s ease-out"}}><div style={{width:64,height:64,borderRadius:"50%",background:"var(--eco-gray-100)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",color:"var(--eco-gray-400)",animation:"ctFloat 3s ease-in-out infinite"}}><FileX size={28}/></div><p style={{margin:"0 0 4px",fontFamily:fd,fontSize:16,fontWeight:700,color:"var(--eco-gray-700)"}}>Sin resultados</p><p style={{margin:0,fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)",maxWidth:320,marginInline:"auto",lineHeight:1.5}}>No hay registros para los filtros seleccionados.</p></div>}
+  </>);
 
-function Toast({ toast }) {
-  if (!toast) return null;
-  return <div style={{ position: "fixed", right: 20, bottom: 20, zIndex: 120, background: "white", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-lg)", borderRadius: "var(--eco-radius-lg)", padding: "12px 14px", minWidth: 260, animation: "eco-fadeInUp 0.25s ease-out" }}><p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>{toast.title}</p><p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{toast.message}</p></div>;
-}
+  /* ═══ DETAIL VIEW ═══ */
+  const renderDetail=()=>(<>
+    <div style={{marginBottom:14,animation:"ctUp .3s ease-out"}}><button onClick={()=>navigate("/areas")} style={{...btnS,height:32,fontSize:12}} onMouseEnter={hS} onMouseLeave={lS}><ChevronLeft size={12}/>Volver a Áreas</button></div>
+    <FiltersHeader title={`Área: ${activeArea?.label||""}`} titleIcon={<Building2 size={18} color="white"/>} microcopy="Revisa consumo y emisiones. Clic en gráficas para filtrar." showFuelFilter={filters.category==="combustible"} {...fhProps}/>
 
-function SkeletonBlock({ height = 120 }) {
-  return <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", height, overflow: "hidden" }}><div style={{ height: "100%", background: "linear-gradient(90deg, var(--eco-gray-100) 25%, var(--eco-gray-200) 50%, var(--eco-gray-100) 75%)", backgroundSize: "200% 100%", animation: "eco-shimmer 1.6s ease-in-out infinite" }} /></div>;
-}
-function FiltersHeader({ title, microcopy, onOpenRecord, onExport, onTrace, filters, setFilters, showFuelFilter, onClear }) {
-  return (
-    <>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
+    <SectionLabel icon={<Leaf size={14}/>} delay={100}>Indicadores del área</SectionLabel>
+    <div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
+      <KpiCard title="Total CO₂e" value={dKpis.totalT} unit="tCO₂e" icon={<Leaf size={18}/>} delay={120}/>
+      <KpiCard title="Electricidad" value={dKpis.eKwh} unit="kWh" icon={<Zap size={18}/>} iconBg="var(--eco-info-bg)" iconColor="var(--eco-info)" sub={`${fN(dKpis.eT,3)} tCO₂e`} delay={180}/>
+      <KpiCard title="Combustible" value={dKpis.cL} unit="L" icon={<Flame size={18}/>} iconBg="var(--eco-secondary-50)" iconColor="var(--eco-secondary-600)" sub={`${fN(dKpis.cT,3)} tCO₂e`} delay={240}/>
+      <KpiCard title="Datos reales" value={dKpis.pctReal} unit="%" icon={<CheckCircle2 size={18}/>} iconBg="var(--eco-success-bg)" iconColor="var(--eco-success)" delay={300} status={dKpis.pctReal>=80?"success":dKpis.pctReal>=60?"warning":"danger"}/>
+      <KpiCard title="Top fuente" value={dKpis.topSource} unit="" icon={<BarChart3 size={18}/>} delay={360}/>
+    </div>
+
+    <div className="ct-ch-m" style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:14}}>
+      <ChartCard title="Tendencia del área" sub="CO₂e por periodo" delay={250}><ResponsiveContainer width="100%" height={250}><LineChart data={dTrend} margin={{top:8,right:12,left:-8,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/><XAxis dataKey="label" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><RTooltip content={<EcoTooltip/>}/><Line type="monotone" dataKey="co2e" name="CO₂e" stroke="#22C55E" strokeWidth={2.5} dot={{r:4,fill:"#22C55E",stroke:"white",strokeWidth:2}} activeDot={{r:6,stroke:"#22C55E",strokeWidth:2,fill:"white"}}/></LineChart></ResponsiveContainer></ChartCard>
+      <ChartCard title="Por categoría" sub="Clic para filtrar" delay={310}><ResponsiveContainer width="100%" height={250}><BarChart data={dCats} margin={{top:8,right:12,left:-8,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/><XAxis dataKey="name" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><RTooltip content={<EcoTooltip/>}/><Bar dataKey="value" name="CO₂e" radius={[5,5,0,0]} cursor="pointer" onClick={d=>setFilters(p=>({...p,category:p.category===d.key?"":d.key}))}>{dCats.map(d=><Cell key={d.key} fill={d.color}/>)}</Bar></BarChart></ResponsiveContainer></ChartCard>
+    </div>
+    <div className="ct-ch-d" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:24}}>
+      <ChartCard title="Real vs Estimado" sub="Clic para filtrar" delay={370}><div style={{position:"relative"}}><ResponsiveContainer width="100%" height={230}><RPieChart><Pie data={dStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={82} cursor="pointer" onClick={d=>setFilters(p=>({...p,status:p.status===d.key?"":d.key}))}>{dStatus.map(d=><Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2}/>)}</Pie><RTooltip content={<DonutTooltip/>}/></RPieChart></ResponsiveContainer><DonutCenter pct={topDStatus.pct} caption={topDStatus.name}/></div></ChartCard>
+      <ChartCard title="Por fuente" sub="Clic para filtrar" delay={430}><ResponsiveContainer width="100%" height={230}><BarChart data={dSrcs} margin={{top:8,right:12,left:-8,bottom:0}}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/><XAxis dataKey="name" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/><RTooltip content={<EcoTooltip/>}/><Bar dataKey="value" name="CO₂e" radius={[5,5,0,0]} cursor="pointer" onClick={d=>setFilters(p=>({...p,source:p.source===d.name?"":d.name}))}>{dSrcs.map(d=><Cell key={d.name} fill={d.color}/>)}</Bar></BarChart></ResponsiveContainer></ChartCard>
+    </div>
+
+    <SectionLabel icon={<Paperclip size={14}/>} delay={300}>{`Registros (${sortedDR.length})`}</SectionLabel>
+    {sortedDR.length===0?<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-gray-200)",padding:"48px 24px",textAlign:"center",animation:"ctUp .4s ease-out"}}><div style={{width:64,height:64,borderRadius:"50%",background:"var(--eco-gray-100)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",color:"var(--eco-gray-400)",animation:"ctFloat 3s ease-in-out infinite"}}><FileX size={28}/></div><p style={{margin:"0 0 4px",fontFamily:fd,fontSize:16,fontWeight:700,color:"var(--eco-gray-700)"}}>Sin resultados</p><p style={{margin:0,fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)"}}>No hay registros para los filtros seleccionados.</p></div>
+    :<div style={{background:"white",border:"1px solid var(--eco-gray-200)",borderRadius:"var(--eco-radius-lg)",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 350ms both"}}><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontFamily:fb,fontSize:13}}><thead><tr style={{borderBottom:"1px solid var(--eco-gray-200)",background:"var(--eco-gray-50)"}}>
+      {["Fecha","Categoría","Actividad","Valor","Factor","CO₂e","Estado","Fuente","Evidencia",""].map(h=><th key={h} style={{padding:"10px 12px",textAlign:"left",fontFamily:fb,fontSize:11,fontWeight:600,color:"var(--eco-gray-500)",textTransform:"uppercase",letterSpacing:"0.04em",whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead>
+      <tbody>{sortedDR.map((r,i)=><tr key={r.id} style={{borderBottom:i<sortedDR.length-1?"1px solid var(--eco-gray-100)":"none",background:hovRow===r.id?"var(--eco-gray-50)":"white",transition:"background 100ms",cursor:"pointer",animation:`ctRowIn .3s ease-out ${Math.min(i*30,300)}ms both`}}
+        onMouseEnter={()=>setHovRow(r.id)} onMouseLeave={()=>setHovRow(null)} onClick={()=>openTrace(r)}>
+        <td style={{padding:"10px 12px",fontFamily:fm,fontSize:12,color:"var(--eco-gray-600)",whiteSpace:"nowrap"}}>{toDL(r.dateISO)}</td>
+        <td style={{padding:"10px 12px",color:"var(--eco-gray-700)",fontWeight:600}}>{r.category==="electricidad"?"Electricidad":r.category==="combustible"?"Combustible":"Otros"}</td>
+        <td style={{padding:"10px 12px",color:"var(--eco-gray-600)",maxWidth:240,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.activity}</td>
+        <td style={{padding:"10px 12px",fontFamily:fm,color:"var(--eco-gray-700)"}}>{fN(r.value,1)} {r.unit}</td>
+        <td style={{padding:"10px 12px",fontFamily:fm,fontSize:12,color:"var(--eco-gray-500)"}}>{fN(r.factor,3)}</td>
+        <td style={{padding:"10px 12px"}}><span style={{fontFamily:fm,fontSize:13,fontWeight:700,color:"var(--eco-primary-700)"}}>{fN(r.co2e_kg,1)} kg</span><span style={{marginLeft:6,fontFamily:fb,fontSize:11,color:"var(--eco-gray-400)"}}>{fN(r.co2e_t,3)} t</span></td>
+        <td style={{padding:"10px 12px"}}><Badge status={r.status}/></td>
+        <td style={{padding:"10px 12px",fontSize:12,color:"var(--eco-gray-500)"}}>{r.source}</td>
+        <td style={{padding:"10px 12px",fontSize:12,color:"var(--eco-gray-500)"}}>{r.evidenceUrl?<span style={{display:"inline-flex",alignItems:"center",gap:3}}><Paperclip size={11}/>{r.evidenceUrl.length>16?r.evidenceUrl.slice(0,14)+"…":r.evidenceUrl}</span>:"—"}</td>
+        <td style={{padding:"10px 12px"}}><button onClick={e=>{e.stopPropagation();openTrace(r);}} style={{height:28,width:28,borderRadius:"var(--eco-radius-sm)",border:"1px solid var(--eco-gray-200)",background:"white",color:"var(--eco-gray-400)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all 150ms"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.color="var(--eco-primary-600)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--eco-gray-200)";e.currentTarget.style.color="var(--eco-gray-400)";}}><ExternalLink size={13}/></button></td>
+      </tr>)}</tbody></table></div></div>}
+  </>);
+
+  /* ═══ MAIN RETURN ═══ */
+  return(<><style>{CSS}</style>
+    <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}>
+      {loading?<>
+        <Skeleton h={80}/><div style={{height:14}}/>
+        <div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14}}>{[0,1,2,3,4].map(i=><Skeleton key={i} h={140} delay={i*50}/>)}</div>
+        <div style={{height:14}}/><div className="ct-ch-m" style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14}}><Skeleton h={280} delay={250}/><Skeleton h={280} delay={300}/></div>
+      </>:<>
+        {error&&<div style={{marginBottom:14,border:"1px solid #FECACA",background:"var(--eco-danger-bg)",borderRadius:"var(--eco-radius-md)",padding:"10px 14px",fontFamily:fb,fontSize:12,color:"var(--eco-danger)",animation:"ctUp .3s ease-out"}}>{error}</div>}
+        {isDetail?renderDetail():renderList()}
+      </>}
+    </div>
+
+    {drill&&<DrillPanel title="Trazabilidad" breadcrumb={`Áreas → ${activeArea?.label||"Global"} → Detalle`} onClose={()=>setDrill(null)}>
+      <div style={{display:"flex",flexDirection:"column",gap:16}}>
+        {/* Filter summary */}
+        <div style={{background:"var(--eco-primary-50)",border:"1px solid var(--eco-primary-200)",borderRadius:"var(--eco-radius-lg)",padding:14,animation:"ctUp .3s ease-out"}}>
+          <p style={{margin:"0 0 8px",fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-primary-700)",display:"flex",alignItems:"center",gap:6}}><Filter size={12}/>Resumen del filtro</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <p style={{margin:0,fontFamily:fb,fontSize:12,color:"var(--eco-gray-600)"}}>Área: {activeArea?.label||"Global"}</p>
+            <p style={{margin:0,fontFamily:fb,fontSize:12,color:"var(--eco-gray-600)"}}>Registros: {curRows.length}</p>
+            <p style={{margin:0,fontFamily:fb,fontSize:12,color:"var(--eco-gray-600)"}}>Periodo: {filters.periodMode==="mes"?`${MONTHS_ES[filters.month-1]} ${filters.year}`:`${filters.fromDate||"—"} a ${filters.toDate||"—"}`}</p>
+            <p style={{margin:0,fontFamily:fb,fontSize:12,color:"var(--eco-gray-600)"}}>Estado: {filters.status?filters.status==="real"?"Real":"Estimado":"Todos"}</p>
+          </div>
+        </div>
+
+        {/* Calculation */}
+        <div style={{background:"var(--eco-gray-50)",borderRadius:"var(--eco-radius-md)",padding:14,animation:"ctUp .3s ease-out 60ms both"}}>
+          <p style={{margin:"0 0 6px",fontFamily:fd,fontSize:13,color:"var(--eco-gray-700)",fontWeight:700}}>Cálculo</p>
+          {drill.row?<div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}><span style={{fontFamily:fm,fontSize:15,fontWeight:700,color:"var(--eco-gray-800)"}}>{fN(drill.row.value,2)}</span><span style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)"}}>{drill.row.unit}</span><span style={{color:"var(--eco-gray-400)",fontFamily:fm}}>×</span><span style={{fontFamily:fm,fontSize:15,fontWeight:700,color:"var(--eco-gray-800)"}}>{fN(drill.row.factor,3)}</span><span style={{color:"var(--eco-gray-400)",fontFamily:fm}}>=</span><span style={{fontFamily:fm,fontSize:18,fontWeight:700,color:"var(--eco-primary-700)"}}>{fN(drill.row.co2e_kg,2)}</span><span style={{fontFamily:fb,fontSize:12,color:"var(--eco-primary-600)",fontWeight:600}}>kgCO₂e</span></div>
+          :<p style={{margin:0,fontFamily:fb,fontSize:12,color:"var(--eco-gray-500)"}}>Selecciona un registro para ver el cálculo.</p>}
+        </div>
+
+        {/* Related records */}
         <div>
-          <h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-gray-900)" }}>{title}</h1>
-          <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)" }}>{microcopy}</p>
+          <p style={{margin:"0 0 10px",fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)",display:"flex",alignItems:"center",gap:6}}><ArrowRight size={12}/>Registros relevantes</p>
+          {curRows.slice(0,5).map((r,i)=><div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:"var(--eco-radius-md)",border:"1px solid var(--eco-gray-200)",marginBottom:6,background:"white",transition:"all 150ms",cursor:"pointer",animation:`ctUp .3s ease-out ${i*40}ms both`}}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.background="var(--eco-primary-50)";}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--eco-gray-200)";e.currentTarget.style.background="white";}}>
+            <span style={{fontFamily:fm,fontSize:11,color:"var(--eco-gray-500)",minWidth:70}}>{toDL(r.dateISO).slice(0,6)}</span>
+            <span style={{flex:1,fontFamily:fb,fontSize:12,color:"var(--eco-gray-600)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.activity}</span>
+            <Badge status={r.status}/>
+            <span style={{fontFamily:fm,fontSize:12,fontWeight:700,color:"var(--eco-primary-700)"}}>{fN(r.co2e_t,3)} t</span>
+          </div>)}
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button onClick={onOpenRecord} style={{ height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "none", background: "var(--eco-primary-500)", color: "white", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Plus size={14} />Nuevo registro</button>
-          <button onClick={onExport} style={{ height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Download size={14} />Exportar</button>
-          <button onClick={onTrace} style={{ height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><Eye size={14} />Ver trazabilidad</button>
+
+        {/* Navigation buttons */}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={()=>navCat("electricidad")} style={{...btnS,height:34,fontSize:12}} onMouseEnter={hS} onMouseLeave={lS}><Zap size={12}/>Ir a Electricidad</button>
+          <button onClick={()=>navCat("combustible")} style={{...btnS,height:34,fontSize:12}} onMouseEnter={hS} onMouseLeave={lS}><Flame size={12}/>Ir a Combustible</button>
         </div>
       </div>
+    </DrillPanel>}
 
-      <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", padding: 14, marginBottom: 18, animation: "eco-fadeInUp 0.35s ease-out" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}><Filter size={14} style={{ color: "var(--eco-gray-500)" }} /><span style={{ fontFamily: fd, fontSize: 14, color: "var(--eco-gray-700)", fontWeight: 700 }}>Filtros</span></div>
-        <p style={{ margin: "0 0 10px", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>Filtra para ver resultados precisos.</p>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 10 }}>
-          <select value={filters.periodMode} onChange={e => setFilters(prev => ({ ...prev, periodMode: e.target.value }))} style={selectStyle}><option value="mes">Mes / Año</option><option value="rango">Rango</option></select>
-          {filters.periodMode === "mes" ? (
-            <>
-              <select value={filters.month} onChange={e => setFilters(prev => ({ ...prev, month: Number(e.target.value) }))} style={selectStyle}>{MONTHS_ES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
-              <select value={filters.year} onChange={e => setFilters(prev => ({ ...prev, year: Number(e.target.value) }))} style={selectStyle}>{[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}</select>
-            </>
-          ) : (
-            <>
-              <input type="date" value={filters.fromDate} onChange={e => setFilters(prev => ({ ...prev, fromDate: e.target.value }))} style={inputStyle} />
-              <input type="date" value={filters.toDate} onChange={e => setFilters(prev => ({ ...prev, toDate: e.target.value }))} style={inputStyle} />
-            </>
-          )}
-          <select value={filters.category} onChange={e => setFilters(prev => ({ ...prev, category: e.target.value }))} style={selectStyle}><option value="">Todas las categorias</option><option value="electricidad">Electricidad</option><option value="combustible">Combustible</option><option value="otros">Otros</option></select>
-          <select value={filters.status} onChange={e => setFilters(prev => ({ ...prev, status: e.target.value }))} style={selectStyle}><option value="">Real / Estimado</option><option value="real">Real</option><option value="est">Estimado</option></select>
-          <select value={filters.source} onChange={e => setFilters(prev => ({ ...prev, source: e.target.value }))} style={selectStyle}><option value="">Todas las fuentes</option>{Object.keys(SOURCE_COLORS).map(s => <option key={s} value={s}>{s}</option>)}</select>
-          {showFuelFilter && <select value={filters.fuelType} onChange={e => setFilters(prev => ({ ...prev, fuelType: e.target.value }))} style={selectStyle}><option value="">Tipo combustible</option><option value="Diesel">Diesel</option><option value="Gasolina">Gasolina</option></select>}
-        </div>
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}><button onClick={onClear} style={{ height: 32, padding: "0 12px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><RotateCcw size={12} />Limpiar filtros</button></div>
-      </div>
-    </>
-  );
+    <Toast toast={toast}/>
+  </>);
 }
-
-export default function AreasPage({ onOpenRecord }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const today = new Date();
-  const [records, setRecords] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [toast, setToast] = useState(null);
-  const [drill, setDrill] = useState(null);
-  const [filters, setFilters] = useState({ periodMode: "mes", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", areaId: "", fuelType: "" });
-
-  const areaId = useMemo(() => { const m = location.pathname.match(/^\/areas\/([^/]+)/); return m ? m[1] : null; }, [location.pathname]);
-  const isDetail = Boolean(areaId);
-  const activeArea = AREA_DEFS.find(a => a.id === areaId) || null;
-
-  const reload = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      const data = loadRecords();
-      setRecords(data.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO)));
-      setError(data.error);
-      setLoading(false);
-    }, 260);
-  }, []);
-
-  useEffect(() => { reload(); }, [reload]);
-  useEffect(() => {
-    const onNew = () => { reload(); setToast({ title: "Actualización", message: "Registro guardado y aplicado al área." }); };
-    window.addEventListener("carbontrack:newrecord", onNew);
-    window.addEventListener("storage", onNew);
-    return () => { window.removeEventListener("carbontrack:newrecord", onNew); window.removeEventListener("storage", onNew); };
-  }, [reload]);
-  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2400); return () => clearTimeout(t); }, [toast]);
-  useEffect(() => { if (isDetail && !activeArea) navigate("/areas", { replace: true }); }, [isDetail, activeArea, navigate]);
-
-  const listFiltered = useMemo(() => runFilters(records, { ...filters, areaId: "", fuelType: "" }), [records, filters]);
-  const detailFiltered = useMemo(() => runFilters(records, { ...filters, areaId: areaId || "", fuelType: filters.category === "combustible" ? filters.fuelType : "" }), [records, filters, areaId]);
-  const currentRows = isDetail ? detailFiltered : listFiltered;
-
-  const globalKpis = useMemo(() => {
-    const total = listFiltered.reduce((sum, r) => sum + r.co2e_t, 0);
-    const scope2 = listFiltered.filter(r => r.category === "electricidad").reduce((sum, r) => sum + r.co2e_t, 0);
-    const scope1 = listFiltered.filter(r => r.category === "combustible").reduce((sum, r) => sum + r.co2e_t, 0);
-    const pctReal = listFiltered.length ? Math.round((listFiltered.filter(r => r.status === "real").length / listFiltered.length) * 100) : 0;
-    let change = "—";
-    if (filters.periodMode === "mes") {
-      const prevMonth = filters.month === 1 ? 12 : filters.month - 1;
-      const prevYear = filters.month === 1 ? filters.year - 1 : filters.year;
-      const prev = runFilters(records, { ...filters, month: prevMonth, year: prevYear, areaId: "", fuelType: "" }).reduce((sum, r) => sum + r.co2e_t, 0);
-      if (prev > 0) { const delta = ((total - prev) / prev) * 100; change = `${delta > 0 ? "+" : ""}${fN(delta, 1)}%`; }
-    }
-    return { total, scope2, scope1, pctReal, change };
-  }, [listFiltered, filters, records]);
-
-  const areaCards = useMemo(() => AREA_DEFS.map(area => {
-    const rows = listFiltered.filter(r => r.areaId === area.id);
-    const totalT = rows.reduce((sum, r) => sum + r.co2e_t, 0);
-    const elec = rows.filter(r => r.category === "electricidad").reduce((sum, r) => sum + r.co2e_t, 0);
-    const fuel = rows.filter(r => r.category === "combustible").reduce((sum, r) => sum + r.co2e_t, 0);
-    const real = rows.filter(r => r.status === "real").length;
-    const est = rows.filter(r => r.status === "est").length;
-    return { ...area, totalT, elec, fuel, dominant: real >= est ? "real" : "est", pctReal: rows.length ? Math.round((real / rows.length) * 100) : 0 };
-  }), [listFiltered]);
-
-  const areaBars = useMemo(() => areaCards.map(a => ({ areaId: a.id, area: a.label, co2e: a.totalT })), [areaCards]);
-  const categoryDonut = useMemo(() => {
-    const e = listFiltered.filter(r => r.category === "electricidad").reduce((s, r) => s + r.co2e_t, 0);
-    const c = listFiltered.filter(r => r.category === "combustible").reduce((s, r) => s + r.co2e_t, 0);
-    const o = listFiltered.filter(r => r.category === "otros").reduce((s, r) => s + r.co2e_t, 0);
-    const total = e + c + o || 1;
-    return [{ name: "Electricidad", key: "electricidad", value: e, pct: Math.round((e / total) * 100), color: SCOPE_COLORS.electricidad }, { name: "Combustible", key: "combustible", value: c, pct: Math.round((c / total) * 100), color: SCOPE_COLORS.combustible }, { name: "Otros", key: "otros", value: o, pct: Math.round((o / total) * 100), color: SCOPE_COLORS.otros }].filter(x => x.value > 0);
-  }, [listFiltered]);
-  const statusDonut = useMemo(() => {
-    const r = listFiltered.filter(x => x.status === "real").length;
-    const e = listFiltered.filter(x => x.status === "est").length;
-    const total = r + e || 1;
-    return [{ name: "Real", key: "real", value: r, pct: Math.round((r / total) * 100), color: STATUS_COLORS.real }, { name: "Estimado", key: "est", value: e, pct: Math.round((e / total) * 100), color: STATUS_COLORS.est }].filter(x => x.value > 0);
-  }, [listFiltered]);
-  const trendData = useMemo(() => {
-    const grouped = {};
-    listFiltered.forEach(r => { const key = toMonthKey(r.dateISO); if (!grouped[key]) grouped[key] = { key, label: toMonthLabel(r.dateISO), co2e: 0 }; grouped[key].co2e += r.co2e_t; });
-    return Object.values(grouped).sort((a, b) => a.key.localeCompare(b.key));
-  }, [listFiltered]);
-
-  const detailKpis = useMemo(() => {
-    const totalT = detailFiltered.reduce((s, r) => s + r.co2e_t, 0);
-    const eRows = detailFiltered.filter(r => r.category === "electricidad");
-    const cRows = detailFiltered.filter(r => r.category === "combustible");
-    const eKwh = eRows.reduce((s, r) => s + (r.unit.toLowerCase() === "kwh" ? r.value : 0), 0);
-    const eT = eRows.reduce((s, r) => s + r.co2e_t, 0);
-    const cLiters = cRows.reduce((s, r) => s + (r.unit.toLowerCase() === "l" ? r.value : 0), 0);
-    const cT = cRows.reduce((s, r) => s + r.co2e_t, 0);
-    const pctReal = detailFiltered.length ? Math.round((detailFiltered.filter(r => r.status === "real").length / detailFiltered.length) * 100) : 0;
-    const sourceCount = detailFiltered.reduce((acc, r) => { acc[r.source] = (acc[r.source] || 0) + 1; return acc; }, {});
-    const topSource = Object.keys(sourceCount).sort((a, b) => sourceCount[b] - sourceCount[a])[0] || "—";
-    return { totalT, eKwh, eT, cLiters, cT, pctReal, topSource };
-  }, [detailFiltered]);
-
-  const detailTrend = useMemo(() => {
-    const grouped = {};
-    detailFiltered.forEach(r => { const key = toMonthKey(r.dateISO); if (!grouped[key]) grouped[key] = { key, label: toMonthLabel(r.dateISO), co2e: 0 }; grouped[key].co2e += r.co2e_t; });
-    return Object.values(grouped).sort((a, b) => a.key.localeCompare(b.key));
-  }, [detailFiltered]);
-  const detailCategories = useMemo(() => {
-    const by = { electricidad: 0, combustible: 0, otros: 0 };
-    detailFiltered.forEach(r => { by[r.category] = (by[r.category] || 0) + r.co2e_t; });
-    return [{ name: "Electricidad", key: "electricidad", value: by.electricidad, color: SCOPE_COLORS.electricidad }, { name: "Combustible", key: "combustible", value: by.combustible, color: SCOPE_COLORS.combustible }, { name: "Otros", key: "otros", value: by.otros, color: SCOPE_COLORS.otros }].filter(x => x.value > 0);
-  }, [detailFiltered]);
-  const detailStatus = useMemo(() => {
-    const real = detailFiltered.filter(r => r.status === "real").length;
-    const est = detailFiltered.filter(r => r.status === "est").length;
-    const total = real + est || 1;
-    return [{ name: "Real", key: "real", value: real, pct: Math.round((real / total) * 100), color: STATUS_COLORS.real }, { name: "Estimado", key: "est", value: est, pct: Math.round((est / total) * 100), color: STATUS_COLORS.est }].filter(x => x.value > 0);
-  }, [detailFiltered]);
-  const detailSources = useMemo(() => {
-    const by = {};
-    detailFiltered.forEach(r => { by[r.source] = (by[r.source] || 0) + r.co2e_t; });
-    return Object.keys(by).map(s => ({ name: s, value: by[s], color: SOURCE_COLORS[s] || "#94A3B8" }));
-  }, [detailFiltered]);
-  const sortedDetailRows = useMemo(() => [...detailFiltered].sort((a, b) => b.dateISO.localeCompare(a.dateISO)), [detailFiltered]);
-
-  const clearFilters = () => setFilters(prev => ({ ...prev, periodMode: "mes", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", fuelType: "" }));
-  const exportCurrent = () => { const rows = isDetail ? sortedDetailRows : listFiltered; const name = isDetail ? `areas-${areaId}-${new Date().toISOString().slice(0, 10)}.csv` : `areas-resumen-${new Date().toISOString().slice(0, 10)}.csv`; downloadCsv(name, rows); setToast({ title: "Exportación", message: "CSV exportado." }); };
-  const openTrace = (row = null) => setDrill({ row: row || currentRows[0] || null });
-  const navigateCategory = (cat) => { navigate(cat === "combustible" ? "/scope/combustible" : "/scope/electricidad"); setDrill(null); };
-  const renderList = () => (
-    <>
-      <FiltersHeader title="Áreas" microcopy="Selecciona un área para ver consumo, emisiones (CO₂e) y registros. Haz clic en gráficas para filtrar." onOpenRecord={onOpenRecord} onExport={exportCurrent} onTrace={() => openTrace(null)} filters={filters} setFilters={setFilters} showFuelFilter={false} onClear={clearFilters} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginBottom: 18 }}>
-        <KpiCard title="Total CO2e" value={fN(globalKpis.total, 2)} unit="tCO2e" icon={<Leaf size={17} />} />
-        <KpiCard title="Scope 2" value={fN(globalKpis.scope2, 2)} unit="tCO2e" icon={<Zap size={17} />} />
-        <KpiCard title="Scope 1" value={fN(globalKpis.scope1, 2)} unit="tCO2e" icon={<Flame size={17} />} />
-        <KpiCard title="% Real" value={String(globalKpis.pctReal)} unit="%" icon={<CheckCircle2 size={17} />} />
-        <KpiCard title="Cambio vs periodo anterior" value={globalKpis.change} unit="" icon={<Calendar size={17} />} />
-      </div>
-
-      <SectionLabel>Listado de Áreas</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12, marginBottom: 18 }}>
-        {areaCards.map(card => (
-          <div key={card.id} style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", padding: 14, cursor: "pointer", transition: "all 150ms", animation: "eco-fadeInUp 0.35s ease-out" }} onClick={() => navigate(`/areas/${card.id}`)}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, gap: 8 }}><p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>{card.label}</p><Badge status={card.dominant} /></div>
-            <p style={{ margin: "0 0 2px", fontFamily: fm, fontSize: 22, fontWeight: 700, color: "var(--eco-gray-900)" }}>{fN(card.totalT, 3)} <span style={{ fontSize: 11, color: "var(--eco-gray-400)", fontWeight: 500 }}>tCO2e</span></p>
-            <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-500)" }}>Electricidad: {fN(card.elec, 2)} t</span><span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-500)" }}>Combustible: {fN(card.fuel, 2)} t</span><span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-500)" }}>Real {card.pctReal}%</span></div>
-            <button style={{ marginTop: 10, height: 30, padding: "0 10px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-700)", cursor: "pointer" }}>Ver detalle</button>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 18 }}>
-        <ChartCard title="CO2e por area" sub="Click en barra para ir al detalle"><ResponsiveContainer width="100%" height={250}><BarChart data={areaBars} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} /><XAxis dataKey="area" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><RTooltip content={<EcoTooltip />} /><Bar dataKey="co2e" name="CO2e" radius={[4, 4, 0, 0]} cursor="pointer" onClick={d => d?.areaId && navigate(`/areas/${d.areaId}`)}>{areaBars.map((row, i) => <Cell key={row.areaId} fill={i % 2 === 0 ? "#22C55E" : "#86EFAC"} />)}</Bar></BarChart></ResponsiveContainer></ChartCard>
-        <ChartCard title="Categorias" sub="Click para filtrar"><ResponsiveContainer width="100%" height={250}><RPieChart><Pie data={categoryDonut} dataKey="value" nameKey="name" innerRadius={55} outerRadius={84} paddingAngle={3} onClick={d => setFilters(prev => ({ ...prev, category: prev.category === d.key ? "" : d.key }))} cursor="pointer">{categoryDonut.map(d => <Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2} />)}</Pie><RTooltip content={<DonutTooltip />} /></RPieChart></ResponsiveContainer></ChartCard>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <ChartCard title="Real vs Estimado" sub="Click para filtrar estado"><ResponsiveContainer width="100%" height={220}><RPieChart><Pie data={statusDonut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} onClick={d => setFilters(prev => ({ ...prev, status: prev.status === d.key ? "" : d.key }))} cursor="pointer">{statusDonut.map(d => <Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2} />)}</Pie><RTooltip content={<DonutTooltip />} /></RPieChart></ResponsiveContainer></ChartCard>
-        <ChartCard title="Tendencia general" sub="CO2e por tiempo"><ResponsiveContainer width="100%" height={220}><LineChart data={trendData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} /><XAxis dataKey="label" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><RTooltip content={<EcoTooltip />} /><Line type="monotone" dataKey="co2e" name="CO2e" stroke="#22C55E" strokeWidth={2.5} dot={{ r: 4, fill: "#22C55E", stroke: "white", strokeWidth: 2 }} /></LineChart></ResponsiveContainer></ChartCard>
-      </div>
-
-      {!loading && listFiltered.length === 0 && <div style={{ marginTop: 16, background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", padding: "40px 24px", textAlign: "center", animation: "eco-fadeInUp 0.3s ease-out" }}><FileX size={34} style={{ color: "var(--eco-gray-300)", margin: "0 auto 10px", display: "block" }} /><p style={{ margin: "0 0 4px", fontFamily: fd, fontSize: 16, fontWeight: 700, color: "var(--eco-gray-700)" }}>Sin resultados</p><p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)" }}>No hay registros para los filtros seleccionados. Prueba cambiar el periodo, la categoría o el estado.</p></div>}
-    </>
-  );
-
-  const renderDetail = () => (
-    <>
-      <div style={{ marginBottom: 12 }}><button onClick={() => navigate("/areas")} style={{ height: 30, padding: "0 10px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-700)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}><ChevronLeft size={12} />Volver a Áreas</button></div>
-      <FiltersHeader title={`Área: ${activeArea?.label || ""}`} microcopy="Revisa consumo y emisiones. Haz clic en gráficas para filtrar y ver registros relacionados." onOpenRecord={onOpenRecord} onExport={exportCurrent} onTrace={() => openTrace(null)} filters={filters} setFilters={setFilters} showFuelFilter={filters.category === "combustible"} onClear={clearFilters} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12, marginBottom: 16 }}><KpiCard title="Total CO2e" value={fN(detailKpis.totalT, 3)} unit="tCO2e" icon={<Leaf size={17} />} /><KpiCard title="Electricidad" value={fN(detailKpis.eKwh, 1)} unit="kWh" icon={<Zap size={17} />} sub={`${fN(detailKpis.eT, 3)} tCO2e`} /><KpiCard title="Combustible" value={fN(detailKpis.cLiters, 1)} unit="L" icon={<Flame size={17} />} sub={`${fN(detailKpis.cT, 3)} tCO2e`} /><KpiCard title="% Real" value={String(detailKpis.pctReal)} unit="%" icon={<CheckCircle2 size={17} />} /><KpiCard title="Top fuente" value={detailKpis.topSource} unit="" icon={<BarChart3 size={17} />} /></div>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 12 }}>
-        <ChartCard title="Tendencia del area" sub="CO2e por tiempo"><ResponsiveContainer width="100%" height={250}><LineChart data={detailTrend} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} /><XAxis dataKey="label" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><RTooltip content={<EcoTooltip />} /><Line type="monotone" dataKey="co2e" name="CO2e" stroke="#22C55E" strokeWidth={2.5} dot={{ r: 4, fill: "#22C55E", stroke: "white", strokeWidth: 2 }} /></LineChart></ResponsiveContainer></ChartCard>
-        <ChartCard title="Por categoria" sub="Click para filtrar"><ResponsiveContainer width="100%" height={250}><BarChart data={detailCategories} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} /><XAxis dataKey="name" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><RTooltip content={<EcoTooltip />} /><Bar dataKey="value" name="CO2e" radius={[4, 4, 0, 0]} cursor="pointer" onClick={d => setFilters(prev => ({ ...prev, category: prev.category === d.key ? "" : d.key }))}>{detailCategories.map(d => <Cell key={d.key} fill={d.color} />)}</Bar></BarChart></ResponsiveContainer></ChartCard>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-        <ChartCard title="Real vs Estimado" sub="Click para filtrar"><ResponsiveContainer width="100%" height={230}><RPieChart><Pie data={detailStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={82} cursor="pointer" onClick={d => setFilters(prev => ({ ...prev, status: prev.status === d.key ? "" : d.key }))}>{detailStatus.map(d => <Cell key={d.key} fill={d.color} stroke="white" strokeWidth={2} />)}</Pie><RTooltip content={<DonutTooltip />} /></RPieChart></ResponsiveContainer></ChartCard>
-        <ChartCard title="Por fuente" sub="Click para filtrar"><ResponsiveContainer width="100%" height={230}><BarChart data={detailSources} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} /><XAxis dataKey="name" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} /><RTooltip content={<EcoTooltip />} /><Bar dataKey="value" name="CO2e" radius={[4, 4, 0, 0]} cursor="pointer" onClick={d => setFilters(prev => ({ ...prev, source: prev.source === d.name ? "" : d.name }))}>{detailSources.map(d => <Cell key={d.name} fill={d.color} />)}</Bar></BarChart></ResponsiveContainer></ChartCard>
-      </div>
-
-      <SectionLabel>{`Registros (${sortedDetailRows.length})`}</SectionLabel>
-      {sortedDetailRows.length === 0 ? (
-        <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", padding: "40px 24px", textAlign: "center" }}><FileX size={30} style={{ color: "var(--eco-gray-300)", margin: "0 auto 10px", display: "block" }} /><p style={{ margin: "0 0 4px", fontFamily: fd, fontSize: 16, fontWeight: 700, color: "var(--eco-gray-700)" }}>Sin resultados</p><p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)" }}>No hay registros para los filtros seleccionados. Prueba cambiar el periodo, la categoría o el estado.</p></div>
-      ) : (
-        <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden" }}><div style={{ overflowX: "auto" }}><table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}><thead><tr style={{ borderBottom: "1px solid var(--eco-gray-200)", background: "var(--eco-gray-50)" }}>{["Fecha", "Categoria", "Actividad", "Valor", "Factor usado", "CO2e", "Estado", "Fuente", "Evidencia", "Accion"].map(h => <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead><tbody>{sortedDetailRows.map((r, i) => <tr key={r.id} style={{ borderBottom: i < sortedDetailRows.length - 1 ? "1px solid var(--eco-gray-100)" : "none" }}><td style={{ padding: "10px 12px", fontFamily: fm, fontSize: 12, color: "var(--eco-gray-600)" }}>{toDateLabel(r.dateISO)}</td><td style={{ padding: "10px 12px", color: "var(--eco-gray-700)", fontWeight: 600 }}>{r.category === "electricidad" ? "Electricidad" : r.category === "combustible" ? "Combustible" : "Otros"}</td><td style={{ padding: "10px 12px", color: "var(--eco-gray-600)", maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.activity}</td><td style={{ padding: "10px 12px", fontFamily: fm, color: "var(--eco-gray-700)" }}>{fN(r.value, 1)} {r.unit}</td><td style={{ padding: "10px 12px", fontFamily: fm, fontSize: 12, color: "var(--eco-gray-500)" }}>{fN(r.factor, 3)}</td><td style={{ padding: "10px 12px" }}><span style={{ fontFamily: fm, fontSize: 13, fontWeight: 700, color: "var(--eco-primary-700)" }}>{fN(r.co2e_kg, 1)} kg</span><span style={{ marginLeft: 6, fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>{fN(r.co2e_t, 3)} t</span></td><td style={{ padding: "10px 12px" }}><Badge status={r.status} /></td><td style={{ padding: "10px 12px", fontSize: 12, color: "var(--eco-gray-500)" }}>{r.source}</td><td style={{ padding: "10px 12px", fontSize: 12, color: "var(--eco-gray-500)" }}>{r.evidenceUrl || "—"}</td><td style={{ padding: "10px 12px" }}><button onClick={() => openTrace(r)} style={{ height: 28, padding: "0 10px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 11, cursor: "pointer" }}>Ver trazabilidad</button></td></tr>)}</tbody></table></div></div>
-      )}
-    </>
-  );
-
-  return (
-    <>
-      <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", maxWidth: "var(--content-max)", margin: "0 auto" }}>
-        {loading ? (
-          <>
-            <SkeletonBlock height={80} />
-            <div style={{ height: 12 }} />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 12 }}>{[1, 2, 3, 4, 5].map(i => <SkeletonBlock key={i} height={120} />)}</div>
-            <div style={{ height: 12 }} />
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}><SkeletonBlock height={280} /><SkeletonBlock height={280} /></div>
-          </>
-        ) : (
-          <>
-            {error && <div style={{ marginBottom: 12, border: "1px solid #FECACA", background: "var(--eco-danger-bg)", borderRadius: "var(--eco-radius-md)", padding: "10px 12px", fontFamily: fb, fontSize: 12, color: "var(--eco-danger)" }}>{error}</div>}
-            {isDetail ? renderDetail() : renderList()}
-          </>
-        )}
-      </div>
-
-      {drill && (
-        <DrillPanel title="Trazabilidad" onClose={() => setDrill(null)}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: "var(--eco-primary-50)", border: "1px solid var(--eco-primary-200)", borderRadius: "var(--eco-radius-lg)", padding: 14 }}>
-              <p style={{ margin: "0 0 8px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-primary-700)" }}>Resumen del filtro</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Area: {activeArea?.label || "Global"}</p>
-                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Registros: {currentRows.length}</p>
-                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Periodo: {filters.periodMode === "mes" ? `${MONTHS_ES[filters.month - 1]} ${filters.year}` : `${filters.fromDate || "—"} a ${filters.toDate || "—"}`}</p>
-                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Estado: {filters.status ? (filters.status === "real" ? "Real" : "Estimado") : "Todos"}</p>
-              </div>
-            </div>
-
-            <div style={{ background: "var(--eco-gray-50)", borderRadius: "var(--eco-radius-md)", padding: 14 }}>
-              <p style={{ margin: "0 0 6px", fontFamily: fd, fontSize: 13, color: "var(--eco-gray-700)", fontWeight: 700 }}>Calculo</p>
-              {drill.row ? (
-                <p style={{ margin: 0, fontFamily: fm, fontSize: 14, color: "var(--eco-gray-700)" }}>{fN(drill.row.value, 2)} {drill.row.unit} x {fN(drill.row.factor, 3)} = <strong style={{ color: "var(--eco-primary-700)" }}>{fN(drill.row.co2e_kg, 2)} kgCO2e</strong></p>
-              ) : (
-                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>Selecciona un registro para ver el calculo detallado.</p>
-              )}
-            </div>
-
-            <div>
-              <p style={{ margin: "0 0 8px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)" }}>Registros relevantes</p>
-              {currentRows.slice(0, 5).map(r => <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", marginBottom: 6 }}><span style={{ fontFamily: fm, fontSize: 11, color: "var(--eco-gray-500)", minWidth: 68 }}>{toDateLabel(r.dateISO).slice(0, 6)}</span><span style={{ flex: 1, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.activity}</span><span style={{ fontFamily: fm, fontSize: 12, fontWeight: 700, color: "var(--eco-primary-700)" }}>{fN(r.co2e_t, 3)} t</span></div>)}
-            </div>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button onClick={() => navigateCategory("electricidad")} style={{ height: 34, padding: "0 12px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ir a detalle por categoria (Electricidad)</button>
-              <button onClick={() => navigateCategory("combustible")} style={{ height: 34, padding: "0 12px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ir a detalle por categoria (Combustible)</button>
-            </div>
-          </div>
-        </DrillPanel>
-      )}
-
-      <Toast toast={toast} />
-    </>
-  );
-}
-

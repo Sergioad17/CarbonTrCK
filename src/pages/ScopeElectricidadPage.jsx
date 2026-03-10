@@ -505,7 +505,7 @@ export default function Scope2Page({ onOpenRecord }) {
         </div>
 
         <div style={{ background: "var(--eco-gray-50)", borderRadius: "var(--eco-radius-md)", overflow: "hidden" }}>
-          {[{ l: "Fecha", v: fDate(drill.dateISO) }, { l: "Área", v: drill.area }, { l: "Scope", v: "⚡ Scope 2 — Electricidad" }, { l: "Actividad", v: drill.activity }, { l: "Consumo", v: `${fN(drill.value, 0)} kWh` }, { l: "Factor aplicado", v: `${fN(drill.factor, 3)} kgCO₂e/kWh (SEMARNAT 2024)` }, { l: "CO₂e (kg)", v: `${fN(drill.co2e_kg, 1)} kgCO₂e` }, { l: "Estado", v: null, badge: true }, { l: "Fuente", v: drill.source }, { l: "Capturado por", v: drill.by || "—" }].map((row, i) =>
+          {[{ l: "Fecha", v: fDate(drill.dateISO) }, { l: "Área", v: drill.area }, { l: "Scope", v: "Scope 2 - Electricidad" }, { l: "Actividad", v: drill.activity }, { l: "Consumo", v: `${fN(drill.value, 0)} kWh` }, { l: "Factor aplicado", v: `${fN(drill.factor, 3)} kgCO₂e/kWh (SEMARNAT 2024)` }, { l: "CO₂e (kg)", v: `${fN(drill.co2e_kg, 1)} kgCO₂e` }, { l: "Estado", v: null, badge: true }, { l: "Fuente", v: drill.source }, { l: "Capturado por", v: drill.by || "—" }].map((row, i) =>
             <div key={row.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: i < 9 ? "1px solid var(--eco-gray-100)" : "none", animation: `ctFadeUp .3s ease-out ${i * 30}ms both` }}>
               <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{row.l}</span>
               {row.badge ? <Badge status={drill.status} /> : <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-700)", textAlign: "right" }}>{row.v}</span>}

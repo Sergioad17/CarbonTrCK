@@ -12,7 +12,7 @@ export default function FinalCTASection({ onGo }) {
             <Leaf size={16} strokeWidth={2.2} />
             Agendar demo
           </button>
-          <button className="btn2" onClick={onGo}>Ver el producto →</button>
+          <button className="btn2" onClick={onGo}>Ver el producto</button>
         </div>
       </R>
       <R><p className="lnd-hn" style={{ marginTop: 16 }}>Sin promesas vacías: enfoque práctico, medible y escalable.</p></R>
