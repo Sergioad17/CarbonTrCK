@@ -30,6 +30,9 @@ import AreasPage from './AreasPage'
 import MetasPage from './MetasPage'
 import MetasDetailPage from './MetasDetailPage'
 import ReportsPage from './ReportsPage'
+import FactorsPage from './FactorsPage'
+import EquipmentPage from './EquipmentPage'
+import UsersPage from './UsersPage'
 
 
 const fd = "var(--eco-font-display)",
@@ -260,6 +263,9 @@ const NAV_TO_PATH = {
   areas: "/areas",
   goals: "/metas",
   reports: "/reportes",
+  factors: "/catalogos/factores",
+  equipment: "/catalogos/equipos",
+  users: "/admin/usuarios",
 }
 
 function navFromPath(pathname) {
@@ -269,6 +275,9 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/scope/combustible")) return "scope1";
   if (pathname?.startsWith("/emisiones")) return "emissions";
   if (pathname?.startsWith("/reportes")) return "reports";
+  if (pathname?.startsWith("/catalogos/factores")) return "factors";
+  if (pathname?.startsWith("/catalogos/equipos")) return "equipment";
+  if (pathname?.startsWith("/admin/usuarios")) return "users";
   return "dashboard";
 }
 
@@ -1179,7 +1188,7 @@ export default function DashboardPage({ user, onLogout }) {
     setActivity(prev => [nextItem, ...prev]
       .filter((item, idx, arr) => arr.findIndex(x => activityKey(x) === activityKey(item)) === idx)
       .slice(0, 20));
-    // Also save to emissions records store
+    if (!rec?.persisted) {
     try {
       const RKEY = "carbontrack.records";
       const existing = JSON.parse(localStorage.getItem(RKEY) || "[]");
@@ -1187,6 +1196,7 @@ export default function DashboardPage({ user, onLogout }) {
       localStorage.setItem(RKEY, JSON.stringify([newRec, ...existing].slice(0, 200)));
       window.dispatchEvent(new CustomEvent("carbontrack:newrecord", { detail: newRec }));
     } catch {}
+    }
     setNewRecordOpen(false);
     setToast({
       title: "Registro guardado",
@@ -1286,6 +1296,12 @@ export default function DashboardPage({ user, onLogout }) {
                   ? <><Building2 size={13} /> Áreas</>
                   : activeNav === "goals"
                   ? <><Target size={13} /> Metas</>
+                  : activeNav === "factors"
+                  ? <><Beaker size={13} /> Catálogos / Factores</>
+                  : activeNav === "equipment"
+                  ? <><Monitor size={13} /> Catálogos / Equipos</>
+                  : activeNav === "users"
+                  ? <><Users size={13} /> Administración / Usuarios</>
                   : activeNav === "reports"
                   ? <><FileText size={13} /> Reportes</>
                   : <><LayoutDashboard size={13} /> Dashboard</>}
@@ -1479,7 +1495,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -1507,6 +1523,12 @@ export default function DashboardPage({ user, onLogout }) {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
+          ) : activeNav === "factors" ? (
+            <FactorsPage />
+          ) : activeNav === "equipment" ? (
+            <EquipmentPage />
+          ) : activeNav === "users" ? (
+            <UsersPage />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />
