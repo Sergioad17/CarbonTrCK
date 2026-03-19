@@ -7,6 +7,9 @@ export const STORAGE_KEYS = {
   equipment: "carbontrack.equipment",
   users: "carbontrack.users",
   roles: "carbontrack.roles",
+  targets: "carbontrack.targets",
+  actions: "carbontrack.actions",
+  settings: "carbontrack.settings",
 };
 
 export function safeReadJson(key, fallback) {

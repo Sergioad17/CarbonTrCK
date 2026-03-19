@@ -97,7 +97,7 @@ const seedUsers = () => {
     {
       id: "user-admin-demo",
       fullName: "Administrador",
-      email: "admin@carbontrack.lat",
+      email: "admin@itsmante.edu.mx",
       role: "admin",
       campusCode: DEFAULT_CAMPUS,
       areaAccess: { mode: "all", areaCodes: [] },
@@ -110,7 +110,7 @@ const seedUsers = () => {
     {
       id: "user-operativo-demo",
       fullName: "Capturista",
-      email: "capturista@carbontrack.lat",
+      email: "capturista@itsmante.edu.mx",
       role: "operativo",
       campusCode: DEFAULT_CAMPUS,
       areaAccess: { mode: "custom", areaCodes: ["CC1", "Aulas", "Redes"] },
@@ -123,7 +123,7 @@ const seedUsers = () => {
     {
       id: "user-directivo-demo",
       fullName: "Directivo",
-      email: "directivo@carbontrack.lat",
+      email: "directivo@itsmante.edu.mx",
       role: "directivo",
       campusCode: DEFAULT_CAMPUS,
       areaAccess: { mode: "custom", areaCodes: ["Admin", "Industrial"] },

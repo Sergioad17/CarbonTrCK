@@ -33,6 +33,7 @@ import ReportsPage from './ReportsPage'
 import FactorsPage from './FactorsPage'
 import EquipmentPage from './EquipmentPage'
 import UsersPage from './UsersPage'
+import SettingsPage from './SettingsPage'
 
 
 const fd = "var(--eco-font-display)",
@@ -266,6 +267,7 @@ const NAV_TO_PATH = {
   factors: "/catalogos/factores",
   equipment: "/catalogos/equipos",
   users: "/admin/usuarios",
+  settings: "/configuracion",
 }
 
 function navFromPath(pathname) {
@@ -278,6 +280,7 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/catalogos/factores")) return "factors";
   if (pathname?.startsWith("/catalogos/equipos")) return "equipment";
   if (pathname?.startsWith("/admin/usuarios")) return "users";
+  if (pathname?.startsWith("/configuracion")) return "settings";
   return "dashboard";
 }
 
@@ -1304,6 +1307,8 @@ export default function DashboardPage({ user, onLogout }) {
                   ? <><Users size={13} /> Administración / Usuarios</>
                   : activeNav === "reports"
                   ? <><FileText size={13} /> Reportes</>
+                  : activeNav === "settings"
+                  ? <><Settings size={13} /> Configuración</>
                   : <><LayoutDashboard size={13} /> Dashboard</>}
               </li>
             </ol>
@@ -1495,7 +1500,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" || activeNav === "settings" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -1529,6 +1534,8 @@ export default function DashboardPage({ user, onLogout }) {
             <EquipmentPage />
           ) : activeNav === "users" ? (
             <UsersPage />
+          ) : activeNav === "settings" ? (
+            <SettingsPage />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />
