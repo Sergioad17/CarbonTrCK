@@ -97,42 +97,59 @@
 }
 
 :root[data-theme="dark"] {
-  --eco-primary-50: #102218;
-  --eco-primary-100: #163122;
-  --eco-primary-200: #214B31;
-  --eco-primary-300: #2B7147;
-  --eco-primary-400: #3EA965;
+  /* Primary — Green (dark-adapted, brighter accents) */
+  --eco-primary-50: #0C1F17;
+  --eco-primary-100: #132E21;
+  --eco-primary-200: #1A4430;
+  --eco-primary-300: #236B45;
+  --eco-primary-400: #34A862;
   --eco-primary-500: #4ADE80;
   --eco-primary-600: #6EE7A0;
   --eco-primary-700: #A7F3C0;
 
-  --eco-secondary-50: #2A240D;
-  --eco-secondary-100: #3D3512;
-  --eco-secondary-200: #5C4D16;
+  /* Secondary — Yellow (dark-adapted) */
+  --eco-secondary-50: #231E0A;
+  --eco-secondary-100: #362F10;
+  --eco-secondary-200: #544816;
   --eco-secondary-500: #FACC15;
   --eco-secondary-600: #FDE047;
 
-  --eco-danger-bg: rgba(220, 38, 38, 0.16);
-  --eco-success-bg: rgba(34, 197, 94, 0.16);
-  --eco-warning-bg: rgba(234, 179, 8, 0.16);
-  --eco-info-bg: rgba(37, 99, 235, 0.16);
+  /* States (brighter for dark backgrounds, subtle tinted bg) */
+  --eco-danger: #F87171;
+  --eco-danger-bg: rgba(248, 113, 113, 0.12);
+  --eco-success: #4ADE80;
+  --eco-success-bg: rgba(74, 222, 128, 0.12);
+  --eco-warning: #FACC15;
+  --eco-warning-bg: rgba(250, 204, 21, 0.10);
+  --eco-info: #60A5FA;
+  --eco-info-bg: rgba(96, 165, 250, 0.12);
 
-  --eco-shadow-sm: 0 1px 2px 0 rgba(2, 6, 23, 0.35), 0 1px 3px 0 rgba(2, 6, 23, 0.2);
-  --eco-shadow-md: 0 8px 16px -6px rgba(2, 6, 23, 0.45), 0 4px 8px -4px rgba(2, 6, 23, 0.25);
-  --eco-shadow-lg: 0 18px 28px -10px rgba(2, 6, 23, 0.55), 0 10px 14px -8px rgba(2, 6, 23, 0.35);
-  --eco-shadow-xl: 0 28px 40px -14px rgba(2, 6, 23, 0.6), 0 16px 18px -12px rgba(2, 6, 23, 0.4);
+  /* Charts (brighter for dark bg) */
+  --eco-chart-1: #4ADE80;
+  --eco-chart-2: #FACC15;
+  --eco-chart-3: #60A5FA;
+  --eco-chart-4: #A78BFA;
+  --eco-chart-5: #F472B6;
+  --eco-chart-6: #22D3EE;
 
-  --eco-bg: #08111F;
-  --eco-surface: #0F172A;
-  --eco-card: #111827;
-  --eco-card-muted: #0F172A;
+  /* Shadows (deeper, more presence on dark surfaces) */
+  --eco-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3), 0 1px 3px 0 rgba(0, 0, 0, 0.15);
+  --eco-shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+  --eco-shadow-lg: 0 12px 24px -6px rgba(0, 0, 0, 0.5), 0 6px 12px -4px rgba(0, 0, 0, 0.25);
+  --eco-shadow-xl: 0 20px 36px -10px rgba(0, 0, 0, 0.55), 0 10px 16px -8px rgba(0, 0, 0, 0.3);
+
+  /* Semantic surfaces — the core dark palette */
+  --eco-bg: #0B1120;
+  --eco-surface: #111827;
+  --eco-card: #151E2E;
+  --eco-card-muted: #111827;
   --eco-text: #E2E8F0;
   --eco-text-strong: #F8FAFC;
   --eco-text-soft: #94A3B8;
-  --eco-border: #334155;
-  --eco-overlay: rgba(2, 6, 23, 0.6);
-  --eco-input-bg: #0F172A;
-  --eco-table-head: #0B1324;
+  --eco-border: #253248;
+  --eco-overlay: rgba(0, 0, 0, 0.55);
+  --eco-input-bg: #111827;
+  --eco-table-head: #0E1726;
   color-scheme: dark;
 }
 
@@ -178,66 +195,176 @@ a:focus-visible {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--eco-gray-300); border-radius: 3px; }
 
+/* ═══════════════════════════════════════════════════════
+   Dark-mode inline-style overrides
+   Catches hardcoded values used in React inline styles.
+   React renders camelCase → kebab-case in the DOM.
+   ═══════════════════════════════════════════════════════ */
+
+/* — Backgrounds: white / #fff / #FFFFFF → dark card — */
 :root[data-theme="dark"] *[style*="background: white"],
-:root[data-theme="dark"] *[style*="background:white"] {
+:root[data-theme="dark"] *[style*="background:white"],
+:root[data-theme="dark"] *[style*="background: #FFFFFF"],
+:root[data-theme="dark"] *[style*="background: #ffffff"],
+:root[data-theme="dark"] *[style*="background: #fff"],
+:root[data-theme="dark"] *[style*="background: #FFF"],
+:root[data-theme="dark"] *[style*="background-color: white"],
+:root[data-theme="dark"] *[style*="background-color: #FFFFFF"],
+:root[data-theme="dark"] *[style*="background-color: #ffffff"],
+:root[data-theme="dark"] *[style*="background-color: #fff"] {
   background: var(--eco-card) !important;
 }
 
+/* — Backgrounds: gray tones → dark surfaces — */
 :root[data-theme="dark"] *[style*="background: var(--eco-gray-50)"],
-:root[data-theme="dark"] *[style*="background:var(--eco-gray-50)"] {
+:root[data-theme="dark"] *[style*="background:var(--eco-gray-50)"],
+:root[data-theme="dark"] *[style*="background: #F8FAFC"],
+:root[data-theme="dark"] *[style*="background: #f8fafc"] {
   background: var(--eco-card-muted) !important;
 }
 
 :root[data-theme="dark"] *[style*="background: var(--eco-gray-100)"],
-:root[data-theme="dark"] *[style*="background:var(--eco-gray-100)"] {
-  background: #162031 !important;
+:root[data-theme="dark"] *[style*="background:var(--eco-gray-100)"],
+:root[data-theme="dark"] *[style*="background: #F1F5F9"],
+:root[data-theme="dark"] *[style*="background: #f1f5f9"] {
+  background: #141D30 !important;
 }
 
+:root[data-theme="dark"] *[style*="background: var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="background: #E2E8F0"],
+:root[data-theme="dark"] *[style*="background: #e2e8f0"] {
+  background: #1E293B !important;
+}
+
+/* — Borders: gray-200 / gray-100 → dark border — */
 :root[data-theme="dark"] *[style*="border: 1px solid var(--eco-gray-200)"],
-:root[data-theme="dark"] *[style*="border:1px solid var(--eco-gray-200)"] {
+:root[data-theme="dark"] *[style*="border:1px solid var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="border: 1px solid var(--eco-gray-100)"],
+:root[data-theme="dark"] *[style*="border: 1.5px solid var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="border: 1px solid #E2E8F0"],
+:root[data-theme="dark"] *[style*="border: 1px solid #e2e8f0"] {
   border-color: var(--eco-border) !important;
 }
 
-:root[data-theme="dark"] *[style*="borderBottom: 1px solid var(--eco-gray-100)"],
-:root[data-theme="dark"] *[style*="borderTop: 1px solid var(--eco-gray-100)"],
-:root[data-theme="dark"] *[style*="borderBottom: 1px solid var(--eco-gray-200)"],
-:root[data-theme="dark"] *[style*="borderTop: 1px solid var(--eco-gray-200)"] {
+/* React kebab-case: border-bottom / border-top */
+:root[data-theme="dark"] *[style*="border-bottom: 1px solid var(--eco-gray-100)"],
+:root[data-theme="dark"] *[style*="border-top: 1px solid var(--eco-gray-100)"],
+:root[data-theme="dark"] *[style*="border-bottom: 1px solid var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="border-top: 1px solid var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="border-bottom: 1px solid #E2E8F0"],
+:root[data-theme="dark"] *[style*="border-top: 1px solid #E2E8F0"],
+:root[data-theme="dark"] *[style*="border-left: 1px solid var(--eco-gray-200)"],
+:root[data-theme="dark"] *[style*="border-right: 1px solid var(--eco-gray-200)"] {
   border-color: var(--eco-border) !important;
 }
 
+/* Hardcoded badge borders (light-only hex) */
+:root[data-theme="dark"] *[style*="border: 1px solid #BBF7D0"],
+:root[data-theme="dark"] *[style*="border: 1px solid rgb(187, 247, 208)"] {
+  border-color: var(--eco-primary-200) !important;
+}
+:root[data-theme="dark"] *[style*="border: 1px solid #FDE68A"],
+:root[data-theme="dark"] *[style*="border: 1px solid rgb(253, 230, 138)"] {
+  border-color: var(--eco-secondary-200) !important;
+}
+:root[data-theme="dark"] *[style*="border: 1px solid #BFDBFE"],
+:root[data-theme="dark"] *[style*="border: 1px solid rgb(191, 219, 254)"] {
+  border-color: rgba(96, 165, 250, 0.3) !important;
+}
+:root[data-theme="dark"] *[style*="border: 1px solid #FECACA"],
+:root[data-theme="dark"] *[style*="border: 1px solid rgb(254, 202, 202)"] {
+  border-color: rgba(248, 113, 113, 0.3) !important;
+}
+
+/* — Overlays — */
 :root[data-theme="dark"] *[style*="background: rgba(0,0,0,0.4)"],
-:root[data-theme="dark"] *[style*="background: rgba(15,23,42,.35)"] {
+:root[data-theme="dark"] *[style*="background: rgba(0, 0, 0, 0.4)"],
+:root[data-theme="dark"] *[style*="background: rgba(15,23,42,.35)"],
+:root[data-theme="dark"] *[style*="background: rgba(15, 23, 42, 0.35)"] {
   background: var(--eco-overlay) !important;
 }
 
+/* — Text colors: eco-gray-* → dark-adapted — */
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-900)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-900)"] {
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-900)"],
+:root[data-theme="dark"] *[style*="color: #0F172A"],
+:root[data-theme="dark"] *[style*="color: #0f172a"] {
   color: var(--eco-text-strong) !important;
 }
 
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-800)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-800)"] {
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-800)"],
+:root[data-theme="dark"] *[style*="color: #1E293B"],
+:root[data-theme="dark"] *[style*="color: #1e293b"] {
   color: var(--eco-text) !important;
 }
 
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-700)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-700)"] {
-  color: #D8E2F0 !important;
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-700)"],
+:root[data-theme="dark"] *[style*="color: #334155"] {
+  color: #CBD5E1 !important;
 }
 
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-600)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-600)"] {
-  color: #B7C6D8 !important;
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-600)"],
+:root[data-theme="dark"] *[style*="color: #475569"] {
+  color: #B0BEC5 !important;
 }
 
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-500)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-500)"] {
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-500)"],
+:root[data-theme="dark"] *[style*="color: #64748B"],
+:root[data-theme="dark"] *[style*="color: #64748b"] {
   color: var(--eco-text-soft) !important;
 }
 
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-400)"],
-:root[data-theme="dark"] *[style*="color:var(--eco-gray-400)"] {
-  color: #7D8CA0 !important;
+:root[data-theme="dark"] *[style*="color:var(--eco-gray-400)"],
+:root[data-theme="dark"] *[style*="color: #94A3B8"] {
+  color: #7D8FA3 !important;
+}
+
+/* — Scrollbar (dark) — */
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* — Toggle knobs should stay bright in dark mode — */
+:root[data-theme="dark"] *[style*="border-radius: 50%"][style*="background: white"],
+:root[data-theme="dark"] *[style*="border-radius: 50%"][style*="background-color: white"] {
+  background: #E2E8F0 !important;
+}
+
+/* — Inputs, selects, textareas inherit dark bg — */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background-color: var(--eco-input-bg);
+  color: var(--eco-text);
+  border-color: var(--eco-border);
+}
+
+:root[data-theme="dark"] option {
+  background-color: var(--eco-surface);
+  color: var(--eco-text);
+}
+
+/* — Tables — */
+:root[data-theme="dark"] th {
+  color: var(--eco-text-soft) !important;
+}
+
+/* — Recharts / SVG (chart backgrounds) — */
+:root[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
+:root[data-theme="dark"] .recharts-cartesian-grid-vertical line {
+  stroke: var(--eco-border) !important;
+}
+:root[data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: var(--eco-card) !important;
+  border-color: var(--eco-border) !important;
+}
+:root[data-theme="dark"] .recharts-text {
+  fill: var(--eco-text-soft) !important;
 }
 
 :root[data-motion="reduced"] *,

@@ -930,7 +930,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
                       transition: "background 0.25s ease",
                     }}
                   >
-                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: "white", boxShadow: "var(--eco-shadow-sm)", transition: "transform 0.2s ease" }} />
+                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#FAFBFC", boxShadow: "0 1px 3px rgba(0,0,0,0.3)", transition: "transform 0.2s ease" }} />
                   </span>
                 </button>
               </Field>

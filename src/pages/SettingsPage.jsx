@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { getBindingsMap } from "../lib/deviceBinding";
 import { getDefaultFactor } from "../lib/factorsStore";
-import { getSettings, normalizeSettings, resetSettings, saveSettings } from "../lib/settingsStore";
+import { applySettings, getSettings, normalizeSettings, resetSettings, saveSettings } from "../lib/settingsStore";
 import { exportAll, getManagedStorageKeys, getStorageUsageEstimate, importAll, resetAll } from "../lib/storageExportImport";
 
 const fd = "var(--eco-font-display)";
@@ -217,8 +217,8 @@ function ToggleRow({ label, hint, checked, onChange }) {
             width: 20,
             height: 20,
             borderRadius: "50%",
-            background: "white",
-            boxShadow: "var(--eco-shadow-sm)",
+            background: "#FAFBFC",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
             transition: "transform 0.2s cubic-bezier(.4,0,.2,1)",
             transform: checked ? "scale(1.05)" : "scale(1)",
           }}
@@ -561,7 +561,11 @@ export default function SettingsPage() {
   }, [settings]);
 
   const updateSettings = (updater) => {
-    setSettings((current) => normalizeSettings(typeof updater === "function" ? updater(current) : updater));
+    setSettings((current) => {
+      const next = normalizeSettings(typeof updater === "function" ? updater(current) : updater);
+      applySettings(next);
+      return next;
+    });
   };
 
   const restoreDefaults = () => {
