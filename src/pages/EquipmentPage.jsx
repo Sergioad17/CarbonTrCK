@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { add as addNotification } from "../lib/notificationsStore";
 import {
   EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
@@ -64,7 +65,7 @@ const inputStyle = {
   width: "100%",
   height: 40,
   borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   padding: "0 12px",
   outline: "none",
   fontFamily: fb,
@@ -76,7 +77,7 @@ const inputStyle = {
 const textAreaStyle = {
   width: "100%",
   borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   padding: "10px 12px",
   outline: "none",
   fontFamily: fb,
@@ -109,7 +110,7 @@ const secondaryButtonStyle = {
   height: 38,
   padding: "0 14px",
   borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   background: "white",
   color: "var(--eco-gray-700)",
   fontFamily: fb,
@@ -126,7 +127,7 @@ const iconButtonStyle = {
   width: 30,
   height: 30,
   borderRadius: "var(--eco-radius-sm)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   background: "white",
   color: "var(--eco-gray-500)",
   cursor: "pointer",
@@ -181,7 +182,7 @@ function Badge({ tone = "neutral", children }) {
     success: { color: "var(--eco-success)", background: "var(--eco-success-bg)", border: "#BBF7D0" },
     warning: { color: "var(--eco-secondary-600)", background: "var(--eco-warning-bg)", border: "#FDE68A" },
     info: { color: "var(--eco-info)", background: "var(--eco-info-bg)", border: "#BFDBFE" },
-    neutral: { color: "var(--eco-gray-600)", background: "var(--eco-gray-100)", border: "var(--eco-gray-200)" },
+    neutral: { color: "var(--eco-gray-600)", background: "var(--eco-gray-100)", border: "var(--eco-border)" },
   }[tone];
 
   return (
@@ -278,7 +279,7 @@ function Toast({ toast, onDismiss }) {
         minWidth: 260,
         maxWidth: 360,
         background: "white",
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         borderRadius: "var(--eco-radius-lg)",
         boxShadow: "var(--eco-shadow-xl)",
         padding: "14px 16px",
@@ -331,7 +332,7 @@ function ConfirmModal({ modal, onCancel, onConfirm }) {
           background: "white",
           borderRadius: "var(--eco-radius-xl)",
           boxShadow: "var(--eco-shadow-xl)",
-          border: "1px solid var(--eco-gray-200)",
+          border: "1px solid var(--eco-border)",
           padding: 22,
           animation: "ctPop .2s ease-out",
         }}
@@ -384,7 +385,7 @@ function IconActionButton({ label, onClick, icon }) {
         event.currentTarget.style.background = "var(--eco-primary-50)";
       }}
       onMouseLeave={(event) => {
-        event.currentTarget.style.borderColor = "var(--eco-gray-200)";
+        event.currentTarget.style.borderColor = "var(--eco-border)";
         event.currentTarget.style.color = "var(--eco-gray-500)";
         event.currentTarget.style.background = "white";
       }}
@@ -408,7 +409,7 @@ function KpiCard({ icon, title, value, unit, sub, delay = 0, tone = "green" }) {
         background: "white",
         borderRadius: "var(--eco-radius-lg)",
         padding: 18,
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         boxShadow: "var(--eco-shadow-sm)",
         animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,
       }}
@@ -441,7 +442,7 @@ function KpiCard({ icon, title, value, unit, sub, delay = 0, tone = "green" }) {
 }
 
 function SkeletonRows() {
-  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)";
+  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)";
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {[0, 1, 2].map((row) => (
@@ -450,7 +451,7 @@ function SkeletonRows() {
           style={{
             height: 88,
             borderRadius: "var(--eco-radius-lg)",
-            border: "1px solid var(--eco-gray-200)",
+            border: "1px solid var(--eco-border)",
             background: "white",
             padding: 16,
             animation: `ctFadeUp .3s ease-out ${row * 50}ms both`,
@@ -484,12 +485,12 @@ function EquipmentModal({ state, onClose, onSubmit, onFormChange }) {
           background: "white",
           borderRadius: "var(--eco-radius-xl)",
           boxShadow: "var(--eco-shadow-xl)",
-          border: "1px solid var(--eco-gray-200)",
+          border: "1px solid var(--eco-border)",
           animation: "ctPop .2s ease-out",
         }}
       >
         <form onSubmit={onSubmit}>
-          <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
             <div>
               <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>Catálogos / Equipos / {equipment ? "Editar" : "Nuevo"}</p>
               <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-gray-900)" }}>{equipment ? "Editar equipo" : "Nuevo equipo"}</h3>
@@ -567,7 +568,7 @@ function EquipmentModal({ state, onClose, onSubmit, onFormChange }) {
                 <input name="weeksPerMonth" type="number" min="0" step="0.1" defaultValue={form.weeksPerMonth} style={inputStyle} />
               </Field>
               <Field label="Estado">
-                <div style={{ display: "flex", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
+                <div style={{ display: "flex", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
                   <button type="button" onClick={() => onFormChange((prev) => ({ ...prev, isActive: true }))} style={segmentedButtonStyle(form.isActive)}>Activo</button>
                   <button type="button" onClick={() => onFormChange((prev) => ({ ...prev, isActive: false }))} style={segmentedButtonStyle(!form.isActive)}>Inactivo</button>
                 </div>
@@ -613,13 +614,13 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
           height: "100%",
           background: "white",
           boxShadow: "var(--eco-shadow-xl)",
-          borderLeft: "1px solid var(--eco-gray-200)",
+          borderLeft: "1px solid var(--eco-border)",
           display: "flex",
           flexDirection: "column",
           animation: "ctSlideR .25s cubic-bezier(.33,1,.68,1)",
         }}
       >
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>Catálogos / Equipos / Detalle</p>
             <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-gray-900)" }}>{equipment.name}</h3>
@@ -916,6 +917,13 @@ export default function EquipmentPage() {
         { label: "Notas", get: (row) => row.notes },
       ],
     });
+    addNotification({
+      type: "export_done",
+      title: "CSV exportado",
+      message: `Se exportaron ${filtered.length} equipo(s).`,
+      link: "/catalogos/equipos",
+      meta: { count: filtered.length, resource: "equipment" },
+    });
     setToast({ title: "CSV exportado", message: `Se exportaron ${filtered.length} equipo(s).` });
   };
 
@@ -999,7 +1007,7 @@ export default function EquipmentPage() {
         ) : null}
 
         <SectionLabel icon={<Filter size={14} />} delay={140}>Filtros</SectionLabel>
-        <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", marginBottom: 20, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 160ms both" }}>
+        <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", marginBottom: 20, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 160ms both" }}>
           <button type="button" onClick={() => setFiltersOpen((prev) => !prev)} style={{ width: "100%", padding: "12px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: filtersOpen ? "1px solid var(--eco-gray-100)" : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-700)" }}>Refina el inventario</span>
@@ -1042,7 +1050,7 @@ export default function EquipmentPage() {
                   </select>
                 </Field>
                 <Field label="Activos">
-                  <div style={{ display: "flex", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
+                  <div style={{ display: "flex", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyActive: true }))} style={segmentedButtonStyle(filters.onlyActive)}>Activos</button>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyActive: false }))} style={segmentedButtonStyle(!filters.onlyActive)}>Todos</button>
                   </div>
@@ -1070,7 +1078,7 @@ export default function EquipmentPage() {
         {loading ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
-          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", padding: "50px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
+          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", padding: "50px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", margin: "0 auto 14px", display: "grid", placeItems: "center", background: "var(--eco-gray-100)", color: "var(--eco-gray-400)" }}>
               <FileX size={28} />
             </div>
@@ -1080,11 +1088,11 @@ export default function EquipmentPage() {
             </p>
           </div>
         ) : (
-          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 240ms both" }}>
+          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 240ms both" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: "var(--eco-gray-50)", borderBottom: "1px solid var(--eco-gray-200)" }}>
+                  <tr style={{ background: "var(--eco-gray-50)", borderBottom: "1px solid var(--eco-border)" }}>
                     {["Área", "Equipo", "Tipo", "Cantidad", "Potencia (W)", "Uso", "kWh/mes", "CO₂e/mes", "Estado", "Acciones"].map((label) => (
                       <th key={label} style={{ padding: "11px 12px", textAlign: "left", fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{label}</th>
                     ))}

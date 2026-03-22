@@ -12,7 +12,7 @@ import {
   AlertCircle, Info, ArrowRight,
   ExternalLink, FileX, WifiOff,
   Trophy, X, RefreshCw,
-  Eye, Bell, Menu,
+  Eye, Menu,
   LogOut, User, Settings,
   Users, Database, FileText,
   HelpCircle
@@ -34,6 +34,8 @@ import FactorsPage from './FactorsPage'
 import EquipmentPage from './EquipmentPage'
 import UsersPage from './UsersPage'
 import SettingsPage from './SettingsPage'
+import ProfilePage from './ProfilePage'
+import NotificationsBell from '../components/NotificationsBell'
 
 
 const fd = "var(--eco-font-display)",
@@ -271,6 +273,7 @@ const NAV_TO_PATH = {
 }
 
 function navFromPath(pathname) {
+  if (pathname?.startsWith("/perfil")) return "profile";
   if (pathname?.startsWith("/metas")) return "goals";
   if (pathname?.startsWith("/areas")) return "areas";
   if (pathname?.startsWith("/scope/electricidad")) return "scope2";
@@ -663,7 +666,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       background: "white",
       borderRadius: "var(--eco-radius-lg)",
       padding: 18,
-      border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : "var(--eco-gray-200)"}`,
+      border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : "var(--eco-border)"}`,
       boxShadow: "var(--eco-shadow-sm)",
       cursor: onClick ? "pointer" : "default",
       transition: "all 200ms cubic-bezier(0.33,1,0.68,1)",
@@ -810,7 +813,7 @@ function ChartCard({ title, sub, children, delay = 0, onExpand }) {
       style={{
         background: "white",
         borderRadius: "var(--eco-radius-lg)",
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         boxShadow: "var(--eco-shadow-sm)",
         overflow: "hidden",
         animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
@@ -858,7 +861,7 @@ function ChartCard({ title, sub, children, delay = 0, onExpand }) {
               width: 28,
               height: 28,
               borderRadius: "var(--eco-radius-sm)",
-              border: "1px solid var(--eco-gray-200)",
+              border: "1px solid var(--eco-border)",
               background: "white",
               display: "flex",
               alignItems: "center",
@@ -872,7 +875,7 @@ function ChartCard({ title, sub, children, delay = 0, onExpand }) {
               e.currentTarget.style.color = "var(--eco-primary-600)";
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = "var(--eco-gray-200)";
+              e.currentTarget.style.borderColor = "var(--eco-border)";
               e.currentTarget.style.color = "var(--eco-gray-400)";
             }}
           >
@@ -1006,7 +1009,7 @@ function DrillPanel({ title, onClose, children }) {
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid var(--eco-gray-200)",
+            borderBottom: "1px solid var(--eco-border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1097,7 +1100,7 @@ function SectionLabel({ children, action }) {
 
 
 
-export default function DashboardPage({ user, onLogout }) {
+export default function DashboardPage({ user, onLogout, onUserChange }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
@@ -1169,13 +1172,29 @@ export default function DashboardPage({ user, onLogout }) {
     setActiveNav(navFromPath(location.pathname));
   }, [location.pathname]);
 
+  const handleLogout = () => {
+    try {
+      window.sessionStorage.setItem("carbontrack.flash", JSON.stringify({
+        title: "Sesión cerrada",
+        message: "Tu sesión local se cerró correctamente."
+      }));
+    } catch {}
+    onLogout?.();
+  };
+
   const handleNav = (id) => {
     setActiveNav(id);
     if (NAV_TO_PATH[id]) navigate(NAV_TO_PATH[id]);
   };
 
+  const handleNotificationNavigate = (path) => {
+    if (!path) return;
+    setActiveNav(navFromPath(path));
+    navigate(path);
+  };
+
   const initials =
-    user?.name?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
+    (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
   const visibleActivity = activity.slice(0, 6);
   const handleCreateRecord = (rec) => {
     const co2e = Number(rec?.co2e_t);
@@ -1257,7 +1276,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             height: "var(--header-h)",
             background: "white",
-            borderBottom: "1px solid var(--eco-gray-200)",
+            borderBottom: "1px solid var(--eco-border)",
             display: "flex",
             alignItems: "center",
             padding: "0 var(--page-pad-x)",
@@ -1291,6 +1310,8 @@ export default function DashboardPage({ user, onLogout }) {
               >
                 {activeNav === "emissions"
                   ? <><Leaf size={13} /> Emisiones</>
+                  : activeNav === "profile"
+                  ? <><User size={13} /> Mi perfil</>
                   : activeNav === "scope2"
                   ? <><Zap size={13} /> Scope 2 / Electricidad</>
                   : activeNav === "scope1"
@@ -1325,7 +1346,7 @@ export default function DashboardPage({ user, onLogout }) {
                 height: 32,
                 padding: "0 26px 0 6px",
                 borderRadius: "var(--eco-radius-sm)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 fontFamily: fb,
                 fontSize: 13,
                 fontWeight: 500,
@@ -1341,35 +1362,10 @@ export default function DashboardPage({ user, onLogout }) {
             </select>
           </div>
 
-          <button
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "var(--eco-radius-md)",
-              border: "1px solid var(--eco-gray-200)",
-              background: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "var(--eco-gray-500)",
-              position: "relative",
-            }}
-          >
-            <Bell size={16} />
-            <span
-              style={{
-                position: "absolute",
-                top: 5,
-                right: 5,
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "var(--eco-danger)",
-                border: "2px solid white",
-              }}
-            />
-          </button>
+          <NotificationsBell
+            onNavigate={handleNotificationNavigate}
+            onToast={setToast}
+          />
 
           <div style={{ position: "relative" }} ref={profRef}>
             <button
@@ -1380,7 +1376,7 @@ export default function DashboardPage({ user, onLogout }) {
                 gap: 8,
                 padding: "4px 8px 4px 4px",
                 borderRadius: "var(--eco-radius-md)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 background: profileOpen ? "var(--eco-gray-50)" : "white",
                 cursor: "pointer",
               }}
@@ -1414,7 +1410,7 @@ export default function DashboardPage({ user, onLogout }) {
                     lineHeight: 1.2,
                   }}
                 >
-                  {user?.name?.split(" ").slice(0, 2).join(" ")}
+                  {(user?.fullName || user?.name)?.split(" ").slice(0, 2).join(" ")}
                 </p>
                 <p
                   style={{
@@ -1424,7 +1420,7 @@ export default function DashboardPage({ user, onLogout }) {
                     margin: 0,
                   }}
                 >
-                  {user?.role}
+                  {user?.roleLabel || user?.role}
                 </p>
               </div>
 
@@ -1439,7 +1435,7 @@ export default function DashboardPage({ user, onLogout }) {
                   top: "calc(100% + 6px)",
                   width: 190,
                   background: "white",
-                  border: "1px solid var(--eco-gray-200)",
+                  border: "1px solid var(--eco-border)",
                   borderRadius: "var(--eco-radius-md)",
                   boxShadow: "var(--eco-shadow-lg)",
                   animation: "eco-scaleIn 0.15s ease-out",
@@ -1448,6 +1444,10 @@ export default function DashboardPage({ user, onLogout }) {
                 }}
               >
                 <button
+                  onClick={() => {
+                    setProfileOpen(false);
+                    navigate("/perfil");
+                  }}
                   style={{
                     width: "100%",
                     display: "flex",
@@ -1471,7 +1471,7 @@ export default function DashboardPage({ user, onLogout }) {
                 <div style={{ height: 1, background: "var(--eco-gray-100)", margin: "4px 0" }} />
 
                 <button
-                  onClick={onLogout}
+                  onClick={handleLogout}
                   style={{
                     width: "100%",
                     display: "flex",
@@ -1500,7 +1500,7 @@ export default function DashboardPage({ user, onLogout }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" || activeNav === "settings" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -1536,6 +1536,8 @@ export default function DashboardPage({ user, onLogout }) {
             <UsersPage />
           ) : activeNav === "settings" ? (
             <SettingsPage />
+          ) : activeNav === "profile" ? (
+            <ProfilePage user={user} onLogout={handleLogout} onUserChange={onUserChange} />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />
@@ -1588,7 +1590,7 @@ export default function DashboardPage({ user, onLogout }) {
                     padding: "0 12px",
                     borderRadius: "var(--eco-radius-md)",
                     border: `1px solid ${
-                      showEst ? "var(--eco-primary-300)" : "var(--eco-gray-200)"
+                      showEst ? "var(--eco-primary-300)" : "var(--eco-border)"
                     }`,
                     background: showEst ? "var(--eco-primary-50)" : "white",
                     fontFamily: fb,
@@ -1888,7 +1890,7 @@ export default function DashboardPage({ user, onLogout }) {
               style={{
                 background: "white",
                 borderRadius: "var(--eco-radius-lg)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 boxShadow: "var(--eco-shadow-sm)",
                 overflow: "hidden",
                 animation: "eco-fadeInUp 0.4s ease-out 400ms both",
@@ -1977,7 +1979,7 @@ export default function DashboardPage({ user, onLogout }) {
             bottom: 20,
             zIndex: 120,
             background: "white",
-            border: "1px solid var(--eco-gray-200)",
+            border: "1px solid var(--eco-border)",
             boxShadow: "var(--eco-shadow-lg)",
             borderRadius: "var(--eco-radius-lg)",
             padding: "12px 14px",
@@ -2089,7 +2091,7 @@ export default function DashboardPage({ user, onLogout }) {
                 gap: 10,
                 padding: "8px 12px",
                 borderRadius: "var(--eco-radius-md)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 cursor: "pointer",
                 transition: "all 150ms",
                 marginTop: 8,
@@ -2099,7 +2101,7 @@ export default function DashboardPage({ user, onLogout }) {
                 e.currentTarget.style.background = "var(--eco-primary-50)";
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = "var(--eco-gray-200)";
+                e.currentTarget.style.borderColor = "var(--eco-border)";
                 e.currentTarget.style.background = "white";
               }}
             >

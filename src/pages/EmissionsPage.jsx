@@ -48,6 +48,7 @@ import {
   ArrowUpDown,
   ChevronUp,
 } from "lucide-react";
+import { add as addNotification } from "../lib/notificationsStore";
 import {
   LineChart,
   Line,
@@ -474,7 +475,7 @@ function Kpi({
         borderRadius: "var(--eco-radius-lg)",
         padding: 18,
         border: `1.5px solid ${
-          active ? "var(--eco-primary-400)" : status === "warning" ? "#FDE68A" : "var(--eco-gray-200)"
+          active ? "var(--eco-primary-400)" : status === "warning" ? "#FDE68A" : "var(--eco-border)"
         }`,
         boxShadow: active ? "0 0 0 3px var(--eco-primary-100)" : "var(--eco-shadow-sm)",
         cursor: onClick ? "pointer" : "default",
@@ -582,7 +583,7 @@ function ChartCard({ title, sub, children, delay = 0 }) {
       style={{
         background: "white",
         borderRadius: "var(--eco-radius-lg)",
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         boxShadow: "var(--eco-shadow-sm)",
         overflow: "hidden",
         animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
@@ -646,7 +647,7 @@ function DrillPanel({ title, onClose, children }) {
         <div
           style={{
             padding: "16px 20px",
-            borderBottom: "1px solid var(--eco-gray-200)",
+            borderBottom: "1px solid var(--eco-border)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -721,7 +722,7 @@ function FilterPill({ label, value, active, onClick }) {
         height: 32,
         padding: "0 12px",
         borderRadius: "var(--eco-radius-full)",
-        border: `1px solid ${active ? "var(--eco-primary-300)" : "var(--eco-gray-200)"}`,
+        border: `1px solid ${active ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
         background: active ? "var(--eco-primary-50)" : "white",
         fontFamily: fb,
         fontSize: 12,
@@ -738,7 +739,7 @@ function FilterPill({ label, value, active, onClick }) {
         if (!active) e.currentTarget.style.borderColor = "var(--eco-primary-200)";
       }}
       onMouseLeave={e => {
-        if (!active) e.currentTarget.style.borderColor = "var(--eco-gray-200)";
+        if (!active) e.currentTarget.style.borderColor = "var(--eco-border)";
       }}
     >
       {label}
@@ -774,7 +775,7 @@ function FilterSelect({ value, onChange, options, icon, placeholder }) {
           height: 32,
           padding: `0 28px 0 ${icon ? 30 : 10}px`,
           borderRadius: "var(--eco-radius-full)",
-          border: `1px solid ${value ? "var(--eco-primary-300)" : "var(--eco-gray-200)"}`,
+          border: `1px solid ${value ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
           background: value ? "var(--eco-primary-50)" : "white",
           fontFamily: fb,
           fontSize: 12,
@@ -817,7 +818,7 @@ function Badge({ children, variant = "default" }) {
       est: { bg: "var(--eco-warning-bg)", c: "var(--eco-secondary-600)", b: "#FDE68A" },
       electricidad: { bg: "var(--eco-primary-50)", c: "var(--eco-primary-700)", b: "var(--eco-primary-200)" },
       combustible: { bg: "var(--eco-secondary-50)", c: "var(--eco-secondary-600)", b: "#FDE68A" },
-      default: { bg: "var(--eco-gray-100)", c: "var(--eco-gray-600)", b: "var(--eco-gray-200)" },
+      default: { bg: "var(--eco-gray-100)", c: "var(--eco-gray-600)", b: "var(--eco-border)" },
     }[variant] || cfg.default;
 
   return (
@@ -1007,6 +1008,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     a.download = `emisiones_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    addNotification({
+      type: "export_done",
+      title: "CSV exportado",
+      message: `Se exportaron ${filtered.length} registros.`,
+      link: "/emisiones",
+      meta: { count: filtered.length, resource: "records" },
+    });
     setToast({ title: "CSV exportado", message: `${filtered.length} registros descargados` });
   };
 
@@ -1063,7 +1071,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 height: 34,
                 padding: "0 12px",
                 borderRadius: "var(--eco-radius-md)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 background: "white",
                 fontFamily: fb,
                 fontSize: 13,
@@ -1076,7 +1084,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 transition: "all 150ms",
               }}
               onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--eco-primary-300)")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--eco-gray-200)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--eco-border)")}
             >
               <Download size={14} />
               Exportar CSV
@@ -1121,7 +1129,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
           style={{
             background: "white",
             borderRadius: "var(--eco-radius-lg)",
-            border: "1px solid var(--eco-gray-200)",
+            border: "1px solid var(--eco-border)",
             padding: "12px 16px",
             marginBottom: 20,
             display: "flex",
@@ -1221,7 +1229,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 width: 180,
                 padding: "0 10px 0 32px",
                 borderRadius: "var(--eco-radius-full)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 fontFamily: fb,
                 fontSize: 12,
                 outline: "none",
@@ -1238,7 +1246,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 height: 32,
                 padding: "0 10px",
                 borderRadius: "var(--eco-radius-full)",
-                border: "1px solid var(--eco-gray-200)",
+                border: "1px solid var(--eco-border)",
                 background: "var(--eco-danger-bg)",
                 fontFamily: fb,
                 fontSize: 11,
@@ -1496,7 +1504,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             style={{
               background: "white",
               borderRadius: "var(--eco-radius-lg)",
-              border: "1px solid var(--eco-gray-200)",
+              border: "1px solid var(--eco-border)",
               padding: "50px 24px",
               textAlign: "center",
               animation: "eco-fadeInUp 0.3s ease-out",
@@ -1535,7 +1543,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             style={{
               background: "white",
               borderRadius: "var(--eco-radius-lg)",
-              border: "1px solid var(--eco-gray-200)",
+              border: "1px solid var(--eco-border)",
               boxShadow: "var(--eco-shadow-sm)",
               overflow: "hidden",
               animation: "eco-fadeInUp 0.3s ease-out 100ms both",
@@ -1544,7 +1552,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid var(--eco-gray-200)" }}>
+                  <tr style={{ borderBottom: "1px solid var(--eco-border)" }}>
                     {[
                       { key: "dateISO", label: "Fecha", w: 100 },
                       { key: "area", label: "Área", w: 110 },
@@ -1653,7 +1661,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                             width: 28,
                             height: 28,
                             borderRadius: "var(--eco-radius-sm)",
-                            border: "1px solid var(--eco-gray-200)",
+                            border: "1px solid var(--eco-border)",
                             background: "white",
                             display: "flex",
                             alignItems: "center",
@@ -1667,7 +1675,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                             e.currentTarget.style.color = "var(--eco-primary-600)";
                           }}
                           onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = "var(--eco-gray-200)";
+                            e.currentTarget.style.borderColor = "var(--eco-border)";
                             e.currentTarget.style.color = "var(--eco-gray-400)";
                           }}
                         >
@@ -1703,7 +1711,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       width: 30,
                       height: 30,
                       borderRadius: "var(--eco-radius-sm)",
-                      border: "1px solid var(--eco-gray-200)",
+                      border: "1px solid var(--eco-border)",
                       background: "white",
                       cursor: page === 0 ? "not-allowed" : "pointer",
                       display: "flex",
@@ -1724,7 +1732,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                         width: 30,
                         height: 30,
                         borderRadius: "var(--eco-radius-sm)",
-                        border: `1px solid ${page === i ? "var(--eco-primary-300)" : "var(--eco-gray-200)"}`,
+                        border: `1px solid ${page === i ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
                         background: page === i ? "var(--eco-primary-50)" : "white",
                         fontFamily: fm,
                         fontSize: 12,
@@ -1744,7 +1752,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       width: 30,
                       height: 30,
                       borderRadius: "var(--eco-radius-sm)",
-                      border: "1px solid var(--eco-gray-200)",
+                      border: "1px solid var(--eco-border)",
                       background: "white",
                       cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
                       display: "flex",
@@ -1772,7 +1780,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             bottom: 20,
             zIndex: 120,
             background: "white",
-            border: "1px solid var(--eco-gray-200)",
+            border: "1px solid var(--eco-border)",
             boxShadow: "var(--eco-shadow-lg)",
             borderRadius: "var(--eco-radius-lg)",
             padding: "12px 14px",

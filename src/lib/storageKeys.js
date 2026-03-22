@@ -1,5 +1,6 @@
 export const STORAGE_KEYS = {
   records: "carbontrack.records",
+  notifications: "carbontrack.notifications",
   activity: "carbontrack.activity",
   devices: "carbontrack.devices",
   deviceLastTotal: "carbontrack.device_last_total",
@@ -10,6 +11,7 @@ export const STORAGE_KEYS = {
   targets: "carbontrack.targets",
   actions: "carbontrack.actions",
   settings: "carbontrack.settings",
+  session: "carbontrack.session",
 };
 
 export function safeReadJson(key, fallback) {

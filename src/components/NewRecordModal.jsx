@@ -30,6 +30,7 @@ import {
   upsertDeviceBinding,
 } from "../lib/deviceBinding";
 import { parseDevicePayload } from "../lib/deviceParser";
+import { add as addNotification } from "../lib/notificationsStore";
 import { STORAGE_KEYS, safeReadJson, safeWriteJson } from "../lib/storageKeys";
 
 const fd = "var(--eco-font-display)";
@@ -1076,6 +1077,22 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     window.setTimeout(() => {
       if (recordMode === "device") {
         const result = buildDeviceRecords();
+        if (result.createdRecords.length > 0) {
+          addNotification({
+            type: "record_imported",
+            title: result.createdRecords.length > 1 ? "Lecturas importadas" : "Lectura importada",
+            message:
+              result.createdRecords.length > 1
+                ? `${result.createdRecords.length} lecturas del dispositivo se registraron correctamente.`
+                : `Se importó una lectura en ${result.createdRecords[0]?.area || area}.`,
+            link: "/emisiones",
+            meta: {
+              count: result.createdRecords.length,
+              deviceId: result.createdRecords[0]?.deviceId || null,
+              skipped: result.skipped.length,
+            },
+          });
+        }
         result.createdRecords.forEach((record) => notify?.(record));
         setDeviceToast({
           title: result.createdRecords.length > 1 ? `Importadas ${result.createdRecords.length} lecturas` : "Lectura registrada",
@@ -1086,6 +1103,18 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         });
       } else {
         const record = buildManualRecord();
+        addNotification({
+          type: "record_created",
+          title: "Registro guardado",
+          message: `${record.area} · ${formatNumber(record.co2e_t, 3)} tCO2e registradas.`,
+          link: "/emisiones",
+          meta: {
+            category: record.category,
+            area: record.area,
+            source: record.source,
+            isEstimated: record.isEstimated,
+          },
+        });
         notify?.(record);
       }
       setSaving(false);

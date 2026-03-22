@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Leaf, Mail, Lock,
   Eye, EyeOff, Loader2,
@@ -20,7 +21,7 @@ const demoAccounts = {
   "ana@itsmante.edu.mx": {
     pass: "captura1",
     name: "Ana García López",
-    role: "Capturista"
+    role: "Operativo"
   },
   "director@itsmante.edu.mx": {
     pass: "consulta",
@@ -30,6 +31,7 @@ const demoAccounts = {
 }
 
 export default function LoginPage({ onLogin }) {
+  const location = useLocation()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPass, setShowPass] = useState(false)
@@ -42,6 +44,7 @@ export default function LoginPage({ onLogin }) {
   const [forgotSent, setForgotSent] = useState(false)
   const [emailFocused, setEmailFocused] = useState(false)
   const [passFocused, setPassFocused] = useState(false)
+  const [flashToast, setFlashToast] = useState(null)
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const passValid = password.length >= 6
@@ -88,6 +91,23 @@ export default function LoginPage({ onLogin }) {
   const errorMessages = {
     credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseña no coinciden. Verifica e intenta de nuevo." },
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    try {
+      const raw = window.sessionStorage.getItem("carbontrack.flash")
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed?.title) setFlashToast(parsed)
+      window.sessionStorage.removeItem("carbontrack.flash")
+    } catch {}
+  }, [location.key])
+
+  useEffect(() => {
+    if (!flashToast) return undefined
+    const timer = setTimeout(() => setFlashToast(null), 2600)
+    return () => clearTimeout(timer)
+  }, [flashToast])
 
   /* ═══ SUCCESS ═══ */
   if (success) {
@@ -158,7 +178,7 @@ export default function LoginPage({ onLogin }) {
         maxWidth: 1000,
         margin: "auto",
         borderRadius: "var(--eco-radius-xl)", overflow: "hidden",
-        boxShadow: "var(--eco-shadow-xl)", border: "1px solid var(--eco-gray-200)",
+        boxShadow: "var(--eco-shadow-xl)", border: "1px solid var(--eco-border)",
         background: "white", animation: "eco-fadeInUp 0.6s cubic-bezier(0.33,1,0.68,1)",
       }}>
 
@@ -168,8 +188,45 @@ export default function LoginPage({ onLogin }) {
           padding: "40px 40px 32px",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center"
+          justifyContent: "center",
+          position: "relative"
         }}>
+          {flashToast && (
+            <div style={{
+              position: "absolute",
+              top: 20,
+              right: 20,
+              left: 20,
+              background: "var(--eco-card)",
+              border: "1px solid var(--eco-border)",
+              borderRadius: "var(--eco-radius-lg)",
+              boxShadow: "var(--eco-shadow-xl)",
+              padding: "14px 16px",
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              animation: "eco-scaleIn 0.22s ease both",
+              zIndex: 2
+            }}>
+              <div style={{
+                width: 28,
+                height: 28,
+                borderRadius: "var(--eco-radius-sm)",
+                background: "var(--eco-success-bg)",
+                color: "var(--eco-success)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <CheckCircle2 size={15} />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>{flashToast.title}</p>
+                <p style={{ margin: "3px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)" }}>{flashToast.message}</p>
+              </div>
+            </div>
+          )}
           {/* Logo */}
           <div style={{
             display: "flex",

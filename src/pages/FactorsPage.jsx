@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { add as addNotification } from "../lib/notificationsStore";
 import {
   deactivate,
   duplicateAsNewVersion,
@@ -117,7 +118,7 @@ const inputStyle = {
   width: "100%",
   height: 40,
   borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   padding: "0 12px",
   outline: "none",
   fontFamily: fb,
@@ -148,7 +149,7 @@ const secondaryButtonStyle = {
   height: 38,
   padding: "0 14px",
   borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   background: "white",
   color: "var(--eco-gray-700)",
   fontFamily: fb,
@@ -165,7 +166,7 @@ const iconButtonStyle = {
   width: 32,
   height: 32,
   borderRadius: "var(--eco-radius-sm)",
-  border: "1px solid var(--eco-gray-200)",
+  border: "1px solid var(--eco-border)",
   background: "white",
   color: "var(--eco-gray-500)",
   cursor: "pointer",
@@ -189,7 +190,7 @@ const radioCardStyle = (active) => ({
   gap: 10,
   padding: 12,
   borderRadius: "var(--eco-radius-md)",
-  border: `1px solid ${active ? "var(--eco-primary-300)" : "var(--eco-gray-200)"}`,
+  border: `1px solid ${active ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
   background: active ? "var(--eco-primary-50)" : "white",
   cursor: "pointer",
 });
@@ -225,12 +226,12 @@ function Badge({ tone = "neutral", children }) {
     neutral: {
       color: "var(--eco-gray-600)",
       background: "var(--eco-gray-100)",
-      border: "var(--eco-gray-200)",
+      border: "var(--eco-border)",
     },
   }[tone] || {
     color: "var(--eco-gray-600)",
     background: "var(--eco-gray-100)",
-    border: "var(--eco-gray-200)",
+    border: "var(--eco-border)",
   };
 
   return (
@@ -317,7 +318,7 @@ function IconActionButton({ label, onClick, icon }) {
         width: 30,
         height: 30,
         borderRadius: "var(--eco-radius-sm)",
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         background: "white",
         color: "var(--eco-gray-500)",
         cursor: "pointer",
@@ -332,7 +333,7 @@ function IconActionButton({ label, onClick, icon }) {
         event.currentTarget.style.background = "var(--eco-primary-50)";
       }}
       onMouseLeave={(event) => {
-        event.currentTarget.style.borderColor = "var(--eco-gray-200)";
+        event.currentTarget.style.borderColor = "var(--eco-border)";
         event.currentTarget.style.color = "var(--eco-gray-500)";
         event.currentTarget.style.background = "white";
       }}
@@ -361,7 +362,7 @@ function Toast({ toast, onDismiss }) {
         minWidth: 260,
         maxWidth: 360,
         background: "white",
-        border: "1px solid var(--eco-gray-200)",
+        border: "1px solid var(--eco-border)",
         borderRadius: "var(--eco-radius-lg)",
         boxShadow: "var(--eco-shadow-xl)",
         padding: "14px 16px",
@@ -414,7 +415,7 @@ function ConfirmModal({ modal, onCancel, onConfirm }) {
           background: "white",
           borderRadius: "var(--eco-radius-xl)",
           boxShadow: "var(--eco-shadow-xl)",
-          border: "1px solid var(--eco-gray-200)",
+          border: "1px solid var(--eco-border)",
           padding: 22,
           animation: "ctPop .2s ease-out",
         }}
@@ -470,13 +471,13 @@ function Drawer({ factor, onClose }) {
           height: "100%",
           background: "white",
           boxShadow: "var(--eco-shadow-xl)",
-          borderLeft: "1px solid var(--eco-gray-200)",
+          borderLeft: "1px solid var(--eco-border)",
           display: "flex",
           flexDirection: "column",
           animation: "ctSlideR .25s cubic-bezier(.33,1,.68,1)",
         }}
       >
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>
               Catálogos / Factores / Detalle
@@ -555,7 +556,7 @@ function Drawer({ factor, onClose }) {
 }
 
 function SkeletonRows() {
-  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)";
+  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)";
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {[0, 1, 2].map((row) => (
@@ -564,7 +565,7 @@ function SkeletonRows() {
           style={{
             height: 76,
             borderRadius: "var(--eco-radius-lg)",
-            border: "1px solid var(--eco-gray-200)",
+            border: "1px solid var(--eco-border)",
             background: "white",
             padding: 16,
             animation: `ctFadeUp .3s ease-out ${row * 50}ms both`,
@@ -612,13 +613,13 @@ function FactorModal({ state, onClose, onSubmit }) {
           maxHeight: "92vh",
           overflowY: "auto",
           background: "white",
-          border: "1px solid var(--eco-gray-200)",
+          border: "1px solid var(--eco-border)",
           borderRadius: "var(--eco-radius-xl)",
           boxShadow: "var(--eco-shadow-xl)",
           animation: "ctPop .22s ease-out",
         }}
       >
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
             <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-gray-900)" }}>{title}</h3>
             <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)" }}>{helper}</p>
@@ -631,7 +632,7 @@ function FactorModal({ state, onClose, onSubmit }) {
 
         <form onSubmit={onSubmit} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
           {isEdit && (
-            <div style={{ background: "var(--eco-gray-50)", borderRadius: "var(--eco-radius-lg)", padding: 14, border: "1px solid var(--eco-gray-200)" }}>
+            <div style={{ background: "var(--eco-gray-50)", borderRadius: "var(--eco-radius-lg)", padding: 14, border: "1px solid var(--eco-border)" }}>
               <p style={{ margin: "0 0 10px", fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>
                 Modo de edición
               </p>
@@ -912,6 +913,19 @@ export default function FactorsPage() {
 
       setFactors(result.factors);
       closeModal();
+      addNotification({
+        type: "factor_updated",
+        title: factor ? (form.editMode === "newVersion" ? "Nueva versión de factor" : "Factor actualizado") : "Factor guardado",
+        message: `${payload.scope.replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
+        link: "/catalogos/factores",
+        meta: {
+          factorId: result.factor?.id || factor?.id || null,
+          scope: payload.scope,
+          category: payload.category,
+          region: payload.region,
+          isDefault: payload.isDefault,
+        },
+      });
       setToast({
         title: factor ? (form.editMode === "newVersion" ? "Nueva versión creada" : "Factor actualizado") : "Factor guardado",
         message: `${payload.scope.replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
@@ -937,6 +951,13 @@ export default function FactorsPage() {
           const forced = setDefault(factor.id, { force: true });
           if (forced.ok) {
             setFactors(forced.factors);
+            addNotification({
+              type: "factor_updated",
+              title: "Factor predeterminado actualizado",
+              message: `${factor.scope.replace("scope", "Scope ")} / ${factor.category} ahora usa un nuevo predeterminado.`,
+              link: "/catalogos/factores",
+              meta: { factorId: factor.id, isDefault: true },
+            });
             setToast({ title: "Factor predeterminado actualizado", message: "La combinación ya tiene un nuevo predeterminado." });
           }
           setConfirmModal(null);
@@ -946,6 +967,13 @@ export default function FactorsPage() {
     }
     if (result.ok) {
       setFactors(result.factors);
+      addNotification({
+        type: "factor_updated",
+        title: "Factor predeterminado actualizado",
+        message: `${factor.scope.replace("scope", "Scope ")} / ${factor.category} ahora usa un nuevo predeterminado.`,
+        link: "/catalogos/factores",
+        meta: { factorId: factor.id, isDefault: true },
+      });
       setToast({ title: "Factor predeterminado actualizado", message: "La combinación ya tiene un nuevo predeterminado." });
     }
   };
@@ -974,6 +1002,13 @@ export default function FactorsPage() {
         { label: "Fuente", get: (row) => row.sourceUrl },
         { label: "Notas", get: (row) => row.notes },
       ],
+    });
+    addNotification({
+      type: "export_done",
+      title: "CSV exportado",
+      message: `Se exportaron ${filtered.length} factor(es) del catálogo.`,
+      link: "/catalogos/factores",
+      meta: { count: filtered.length, resource: "factors" },
     });
     setToast({ title: "CSV exportado", message: `Se exportaron ${filtered.length} factor(es).` });
   };
@@ -1034,7 +1069,7 @@ export default function FactorsPage() {
         )}
 
         <SectionLabel icon={<Filter size={14} />} delay={140}>Filtros</SectionLabel>
-        <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", marginBottom: 20, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 160ms both" }}>
+        <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", marginBottom: 20, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 160ms both" }}>
           <button type="button" onClick={() => setFiltersOpen((prev) => !prev)} style={{ width: "100%", padding: "12px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: filtersOpen ? "1px solid var(--eco-gray-100)" : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-700)" }}>Refina el catálogo</span>
@@ -1062,13 +1097,13 @@ export default function FactorsPage() {
                   </select>
                 </Field>
                 <Field label="Activos">
-                  <div style={{ display: "flex", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
+                  <div style={{ display: "flex", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyActive: true }))} style={segmentedButtonStyle(filters.onlyActive)}>Activos</button>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyActive: false }))} style={segmentedButtonStyle(!filters.onlyActive)}>Todos</button>
                   </div>
                 </Field>
                 <Field label="Vigencia">
-                  <div style={{ display: "flex", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
+                  <div style={{ display: "flex", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 40 }}>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyCurrent: true }))} style={segmentedButtonStyle(filters.onlyCurrent)}>Vigentes hoy</button>
                     <button type="button" onClick={() => setFilters((prev) => ({ ...prev, onlyCurrent: false }))} style={segmentedButtonStyle(!filters.onlyCurrent)}>Todos</button>
                   </div>
@@ -1088,7 +1123,7 @@ export default function FactorsPage() {
         {loading ? (
           <SkeletonRows />
         ) : filtered.length === 0 ? (
-          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", padding: "50px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
+          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", padding: "50px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", margin: "0 auto 14px", display: "grid", placeItems: "center", background: "var(--eco-gray-100)", color: "var(--eco-gray-400)" }}>
               <FileX size={28} />
             </div>
@@ -1098,11 +1133,11 @@ export default function FactorsPage() {
             </p>
           </div>
         ) : (
-          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 220ms both" }}>
+          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 220ms both" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: "var(--eco-gray-50)", borderBottom: "1px solid var(--eco-gray-200)" }}>
+                  <tr style={{ background: "var(--eco-gray-50)", borderBottom: "1px solid var(--eco-border)" }}>
                     {["Scope", "Categoría", "Valor", "Región", "Vigencia", "Predeterminado", "Estado", "Acciones"].map((label) => (
                       <th key={label} style={{ padding: "11px 12px", textAlign: "left", fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
                         {label}

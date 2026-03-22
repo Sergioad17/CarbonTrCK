@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS, applySettings, saveSettings } from "./settingsStore";
 
 const EXPORT_KEYS = [
   STORAGE_KEYS.records,
+  STORAGE_KEYS.notifications,
   STORAGE_KEYS.activity,
   STORAGE_KEYS.devices,
   STORAGE_KEYS.deviceLastTotal,

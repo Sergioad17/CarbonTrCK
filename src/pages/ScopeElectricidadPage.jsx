@@ -138,9 +138,9 @@ function KpiCard({ title, sub, value, unit, icon, iconBg, iconColor, delta, tren
   const sa = ST_ACC[status] || null;
   const spark = sparkData && sparkData.length > 1 ? (() => { const mx = Math.max(...sparkData), mn = Math.min(...sparkData), rng = mx - mn || 1; return sparkData.map((v, i) => `${(i / (sparkData.length - 1)) * 60},${22 - ((v - mn) / rng) * 22}`).join(" "); })() : null;
 
-  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", padding: 18, border: `1px solid ${sa?.b || "var(--eco-gray-200)"}`, boxShadow: "var(--eco-shadow-sm)", transition: "all 200ms cubic-bezier(.33,1,.68,1)", animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative", overflow: "hidden" }}
+  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", padding: 18, border: `1px solid ${sa?.b || "var(--eco-border)"}`, boxShadow: "var(--eco-shadow-sm)", transition: "all 200ms cubic-bezier(.33,1,.68,1)", animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative", overflow: "hidden" }}
     onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-md)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--eco-primary-300)"; }}
-    onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = sa?.b || "var(--eco-gray-200)"; }}>
+    onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = sa?.b || "var(--eco-border)"; }}>
     {sa && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: sa.c, borderRadius: "14px 14px 0 0" }} />}
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -163,7 +163,7 @@ function KpiCard({ title, sub, value, unit, icon, iconBg, iconColor, delta, tren
 }
 
 function ChartCard({ title, sub, children, delay = 0 }) {
-  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative" }}>
+  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative" }}>
     <div style={{ padding: "16px 18px 8px" }}><p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 700, color: "var(--eco-gray-800)" }}>{title}</p>
     {sub && <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)" }}>{sub}</p>}</div>
     <div style={{ padding: "4px 10px 14px" }}>{children}</div>
@@ -171,8 +171,8 @@ function ChartCard({ title, sub, children, delay = 0 }) {
 }
 
 function Skeleton({ h = 120, delay = 0 }) {
-  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)";
-  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", height: h, animation: `ctFadeUp .3s ease-out ${delay}ms both` }}>
+  const shimmer = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)";
+  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", height: h, animation: `ctFadeUp .3s ease-out ${delay}ms both` }}>
     <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}><div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", background: shimmer, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} /><div style={{ flex: 1 }}><div style={{ width: "60%", height: 12, borderRadius: 4, background: shimmer, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite", marginBottom: 6 }} /><div style={{ width: "35%", height: 10, borderRadius: 4, background: shimmer, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} /></div></div>
       <div style={{ flex: 1, borderRadius: "var(--eco-radius-md)", background: shimmer, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} />
@@ -185,11 +185,11 @@ function DrillPanel({ title, breadcrumb, onClose, children }) {
   return (<div style={{ position: "fixed", inset: 0, zIndex: 90, display: "flex", justifyContent: "flex-end" }} role="dialog" aria-modal="true">
     <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,.35)", backdropFilter: "blur(3px)", animation: "ctOverlay .2s ease-out" }} onClick={onClose} />
     <div style={{ position: "relative", width: "100%", maxWidth: 560, background: "white", boxShadow: "var(--eco-shadow-xl, var(--eco-shadow-lg))", display: "flex", flexDirection: "column", animation: "ctSlideR .3s cubic-bezier(.33,1,.68,1)" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--eco-gray-200)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>{breadcrumb && <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: "0 0 2px", display: "flex", alignItems: "center", gap: 4 }}><Zap size={10} />{breadcrumb}</p>}
           <h3 style={{ margin: 0, fontFamily: fd, fontSize: 18, fontWeight: 700, color: "var(--eco-gray-900)" }}>{title}</h3></div>
         <button onClick={onClose} aria-label="Cerrar" style={{ width: 32, height: 32, borderRadius: "var(--eco-radius-sm)", border: "none", cursor: "pointer", background: "var(--eco-gray-100)", color: "var(--eco-gray-500)", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 150ms" }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--eco-gray-200)"} onMouseLeave={e => e.currentTarget.style.background = "var(--eco-gray-100)"}><X size={16} /></button>
+          onMouseEnter={e => e.currentTarget.style.background = "var(--eco-border)"} onMouseLeave={e => e.currentTarget.style.background = "var(--eco-gray-100)"}><X size={16} /></button>
       </div>
       <div style={{ flex: 1, padding: 20, overflow: "auto" }}>{children}</div>
     </div>
@@ -200,8 +200,8 @@ function FilterSel({ label, value, onChange, options, icon }) {
   return (<label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
     <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)", display: "flex", alignItems: "center", gap: 4 }}>
       {icon && <span style={{ display: "flex", color: "var(--eco-gray-400)" }}>{icon}</span>}{label}</span>
-    <select value={value} onChange={onChange} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)", background: "white", cursor: "pointer", transition: "border-color 150ms", outline: "none" }}
-      onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-gray-200)"}>
+    <select value={value} onChange={onChange} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)", background: "white", cursor: "pointer", transition: "border-color 150ms", outline: "none" }}
+      onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-border)"}>
       {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
     </select>
   </label>);
@@ -209,7 +209,7 @@ function FilterSel({ label, value, onChange, options, icon }) {
 
 function Toast({ toast, onDismiss }) {
   if (!toast) return null;
-  return (<div role="alert" style={{ position: "fixed", right: 20, bottom: 20, zIndex: 120, background: "white", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-xl, var(--eco-shadow-lg))", borderRadius: "var(--eco-radius-lg)", padding: "14px 16px", minWidth: 260, maxWidth: 340, display: "flex", alignItems: "flex-start", gap: 10, animation: "ctSlideR .3s cubic-bezier(.33,1,.68,1)" }}>
+  return (<div role="alert" style={{ position: "fixed", right: 20, bottom: 20, zIndex: 120, background: "white", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-xl, var(--eco-shadow-lg))", borderRadius: "var(--eco-radius-lg)", padding: "14px 16px", minWidth: 260, maxWidth: 340, display: "flex", alignItems: "flex-start", gap: 10, animation: "ctSlideR .3s cubic-bezier(.33,1,.68,1)" }}>
     <div style={{ width: 28, height: 28, borderRadius: "var(--eco-radius-sm)", background: "var(--eco-success-bg)", color: "var(--eco-success)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}><CheckCircle2 size={14} /></div>
     <div style={{ flex: 1 }}><p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>{toast.title}</p><p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{toast.message}</p></div>
     <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--eco-gray-400)", padding: 2, flexShrink: 0, display: "flex" }}><X size={14} /></button>
@@ -305,9 +305,9 @@ export default function Scope2Page({ onOpenRecord }) {
   const toggleSort = (col) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } setPage(0); };
 
   const btnPrimary = { height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "none", background: "var(--eco-primary-500)", color: "white", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "var(--eco-shadow-sm)", transition: "all 200ms cubic-bezier(.33,1,.68,1)" };
-  const btnSec = { height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", background: "white", color: "var(--eco-gray-700)", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, transition: "all 150ms" };
+  const btnSec = { height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", background: "white", color: "var(--eco-gray-700)", fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, transition: "all 150ms" };
   const hoverSec = e => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; e.currentTarget.style.color = "var(--eco-primary-700)"; };
-  const leaveSec = e => { e.currentTarget.style.borderColor = "var(--eco-gray-200)"; e.currentTarget.style.color = "var(--eco-gray-700)"; };
+  const leaveSec = e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.color = "var(--eco-gray-700)"; };
 
   /* ═══ RENDER ═══ */
   return (<>
@@ -333,11 +333,11 @@ export default function Scope2Page({ onOpenRecord }) {
 
         {storageError && <div role="alert" style={{ marginBottom: 14, padding: "10px 14px", borderRadius: "var(--eco-radius-md)", border: "1px solid #FDE68A", background: "var(--eco-warning-bg)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, animation: "ctFadeUp .3s ease-out" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}><AlertTriangle size={14} style={{ color: "var(--eco-warning)", flexShrink: 0 }} /><span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-700)" }}>{storageError}</span></div>
-          <button onClick={loadAll} style={{ border: "1px solid var(--eco-gray-200)", background: "white", borderRadius: "var(--eco-radius-sm)", padding: "4px 10px", fontFamily: fb, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--eco-gray-700)" }}>Reintentar</button>
+          <button onClick={loadAll} style={{ border: "1px solid var(--eco-border)", background: "white", borderRadius: "var(--eco-radius-sm)", padding: "4px 10px", fontFamily: fb, fontSize: 12, fontWeight: 600, cursor: "pointer", color: "var(--eco-gray-700)" }}>Reintentar</button>
         </div>}
 
         {/* ═══ FILTERS (collapsible) ═══ */}
-        <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", marginBottom: 20, overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 60ms both" }}>
+        <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", marginBottom: 20, overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 60ms both" }}>
           <button onClick={() => setFiltersOpen(!filtersOpen)} style={{ width: "100%", padding: "12px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: filtersOpen ? "1px solid var(--eco-gray-100)" : "none" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Filter size={15} style={{ color: "var(--eco-gray-500)" }} />
@@ -353,16 +353,16 @@ export default function Scope2Page({ onOpenRecord }) {
                 <FilterSel label="Mes" value={month} onChange={e => { setMonth(Number(e.target.value)); setPage(0); }} options={MONTHS_ES.map((m, i) => ({ v: i + 1, l: m }))} />
                 <FilterSel label="Año" value={year} onChange={e => { setYear(Number(e.target.value)); setPage(0); }} options={[2025, 2026, 2027].map(y => ({ v: y, l: String(y) }))} />
               </> : periodMode === "rango" ? <>
-                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Desde</span><input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(0); }} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)" }} /></label>
-                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Hasta</span><input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(0); }} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-gray-200)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)" }} /></label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Desde</span><input type="date" value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(0); }} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)" }} /></label>
+                <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Hasta</span><input type="date" value={toDate} onChange={e => { setToDate(e.target.value); setPage(0); }} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-700)" }} /></label>
               </> : null}
               <FilterSel label="Área" value={fArea} onChange={e => { setFArea(e.target.value); setPage(0); }} icon={<Building2 size={11} />} options={[{ v: "", l: "Todas" }, ...areas.map(a => ({ v: a, l: a }))]} />
               <FilterSel label="Estado" value={fStatus} onChange={e => { setFStatus(e.target.value); setPage(0); }} icon={<CheckCircle2 size={11} />} options={[{ v: "", l: "Todos" }, { v: "real", l: "Real" }, { v: "est", l: "Estimado" }]} />
               <FilterSel label="Fuente" value={fSource} onChange={e => { setFSource(e.target.value); setPage(0); }} options={[{ v: "", l: "Todas" }, ...sources.map(s => ({ v: s, l: s }))]} />
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-              <button onClick={clearFilters} style={{ height: 32, padding: "0 12px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, transition: "all 150ms" }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = "var(--eco-primary-300)"} onMouseLeave={e => e.currentTarget.style.borderColor = "var(--eco-gray-200)"}><RotateCcw size={12} />Limpiar filtros</button>
+              <button onClick={clearFilters} style={{ height: 32, padding: "0 12px", borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-600)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, transition: "all 150ms" }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = "var(--eco-primary-300)"} onMouseLeave={e => e.currentTarget.style.borderColor = "var(--eco-border)"}><RotateCcw size={12} />Limpiar filtros</button>
             </div>
           </div>}
         </div>
@@ -443,15 +443,15 @@ export default function Scope2Page({ onOpenRecord }) {
         {/* ═══ TABLE ═══ */}
         <SectionLabel icon={<Activity size={14} />} delay={300}>{`Registros (${filtered.length})`}</SectionLabel>
         {filtered.length === 0 ?
-          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", padding: "48px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
+          <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", padding: "48px 24px", textAlign: "center", animation: "ctFadeUp .4s ease-out" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--eco-gray-100)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", color: "var(--eco-gray-400)", animation: "ctFloat 3s ease-in-out infinite" }}><FileX size={28} /></div>
             <p style={{ margin: "0 0 4px", fontFamily: fd, fontSize: 16, fontWeight: 700, color: "var(--eco-gray-700)" }}>Sin registros</p>
             <p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)", maxWidth: 320, marginInline: "auto", lineHeight: 1.5 }}>No hay resultados para esta combinación de filtros.</p>
           </div>
-        : <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-gray-200)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 350ms both" }}>
+        : <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 350ms both" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}>
-              <thead><tr style={{ borderBottom: "1px solid var(--eco-gray-200)", background: "var(--eco-gray-50)" }}>
+              <thead><tr style={{ borderBottom: "1px solid var(--eco-border)", background: "var(--eco-gray-50)" }}>
                 {[{ k: "dateISO", l: "Fecha" }, { k: "area", l: "Área" }, { k: "activity", l: "Actividad" }, { k: "value", l: "kWh" }, { k: "factor", l: "Factor" }, { k: "co2e_kg", l: "CO₂e (kg)" }, { k: "co2e_t", l: "CO₂e (t)" }, { k: "status", l: "Estado" }, { k: "source", l: "Fuente" }, { k: null, l: "" }].map((col, ci) => <th key={ci} onClick={col.k ? () => toggleSort(col.k) : undefined} style={{ padding: "10px 12px", textAlign: "left", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", cursor: col.k ? "pointer" : "default", userSelect: "none" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{col.l}{sortCol === col.k && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}</span></th>)}
               </tr></thead>
               <tbody>{paged.map((r, i) =>
@@ -466,9 +466,9 @@ export default function Scope2Page({ onOpenRecord }) {
                   <td style={{ padding: "10px 12px", fontFamily: fm, fontWeight: 700, color: "var(--eco-primary-700)" }}>{fN(r.co2e_t, 3)}</td>
                   <td style={{ padding: "10px 12px" }}><Badge status={r.status} /></td>
                   <td style={{ padding: "10px 12px", color: "var(--eco-gray-500)", fontSize: 12 }}>{r.source}</td>
-                  <td style={{ padding: "10px 12px" }}><button onClick={e => { e.stopPropagation(); openTrace(r); }} aria-label={`Ver ${r.activity}`} style={{ height: 28, width: 28, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", color: "var(--eco-gray-400)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}
+                  <td style={{ padding: "10px 12px" }}><button onClick={e => { e.stopPropagation(); openTrace(r); }} aria-label={`Ver ${r.activity}`} style={{ height: 28, width: 28, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", color: "var(--eco-gray-400)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; e.currentTarget.style.color = "var(--eco-primary-600)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-gray-200)"; e.currentTarget.style.color = "var(--eco-gray-400)"; }}><ExternalLink size={13} /></button></td>
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.color = "var(--eco-gray-400)"; }}><ExternalLink size={13} /></button></td>
                 </tr>
               )}</tbody>
             </table>
@@ -476,9 +476,9 @@ export default function Scope2Page({ onOpenRecord }) {
           {totalPages > 1 && <div style={{ padding: "10px 16px", borderTop: "1px solid var(--eco-gray-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, filtered.length)} de {filtered.length}</span>
             <div style={{ display: "flex", gap: 4 }}>
-              <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", cursor: page === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--eco-gray-500)", opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={15} /></button>
-              {Array.from({ length: totalPages }, (_, i) => <button key={i} onClick={() => setPage(i)} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: `1px solid ${page === i ? "var(--eco-info)" : "var(--eco-gray-200)"}`, background: page === i ? "var(--eco-info-bg)" : "white", fontFamily: fm, fontSize: 12, fontWeight: page === i ? 700 : 400, color: page === i ? "var(--eco-info)" : "var(--eco-gray-600)", cursor: "pointer" }}>{i + 1}</button>)}
-              <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-gray-200)", background: "white", cursor: page >= totalPages - 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--eco-gray-500)", opacity: page >= totalPages - 1 ? 0.4 : 1 }}><ChevronRight size={15} /></button>
+              <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", cursor: page === 0 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--eco-gray-500)", opacity: page === 0 ? 0.4 : 1 }}><ChevronLeft size={15} /></button>
+              {Array.from({ length: totalPages }, (_, i) => <button key={i} onClick={() => setPage(i)} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: `1px solid ${page === i ? "var(--eco-info)" : "var(--eco-border)"}`, background: page === i ? "var(--eco-info-bg)" : "white", fontFamily: fm, fontSize: 12, fontWeight: page === i ? 700 : 400, color: page === i ? "var(--eco-info)" : "var(--eco-gray-600)", cursor: "pointer" }}>{i + 1}</button>)}
+              <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} style={{ width: 30, height: 30, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", cursor: page >= totalPages - 1 ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--eco-gray-500)", opacity: page >= totalPages - 1 ? 0.4 : 1 }}><ChevronRight size={15} /></button>
             </div>
           </div>}
         </div>}
@@ -513,7 +513,7 @@ export default function Scope2Page({ onOpenRecord }) {
           )}
         </div>
 
-        <div style={{ background: "white", border: "1px solid var(--eco-gray-200)", borderRadius: "var(--eco-radius-md)", padding: 12 }}>
+        <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", padding: 12 }}>
           <p style={{ margin: "0 0 8px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)", display: "flex", alignItems: "center", gap: 6 }}><Filter size={12} />Filtros activos</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{summaryFilters.map(item => <span key={item} style={{ fontFamily: fb, fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-100)", color: "var(--eco-gray-600)" }}>{item}</span>)}</div>
         </div>
@@ -521,9 +521,9 @@ export default function Scope2Page({ onOpenRecord }) {
         <div>
           <p style={{ margin: "0 0 10px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)", display: "flex", alignItems: "center", gap: 6 }}><ArrowRight size={12} />Registros relacionados</p>
           {related.length ? related.map((row, i) =>
-            <button key={row.id} onClick={() => setDrill(row)} style={{ width: "100%", border: "1px solid var(--eco-gray-200)", background: "white", borderRadius: "var(--eco-radius-md)", padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, marginBottom: 6, transition: "all 150ms", animation: `ctFadeUp .3s ease-out ${i * 40}ms both` }}
+            <button key={row.id} onClick={() => setDrill(row)} style={{ width: "100%", border: "1px solid var(--eco-border)", background: "white", borderRadius: "var(--eco-radius-md)", padding: "10px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, marginBottom: 6, transition: "all 150ms", animation: `ctFadeUp .3s ease-out ${i * 40}ms both` }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; e.currentTarget.style.background = "var(--eco-primary-50)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-gray-200)"; e.currentTarget.style.background = "white"; }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.background = "white"; }}>
               <span style={{ fontFamily: fm, fontSize: 11, color: "var(--eco-gray-500)", minWidth: 70, textAlign: "left" }}>{fDate(row.dateISO).slice(0, 6)}</span>
               <span style={{ flex: 1, textAlign: "left", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>{row.activity}</span>
               <Badge status={row.status} />

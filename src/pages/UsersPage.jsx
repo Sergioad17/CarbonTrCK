@@ -26,6 +26,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { add as addNotification } from "../lib/notificationsStore";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
@@ -220,11 +221,11 @@ function Badge({ tone = "neutral", children, dot }) {
   const theme = {
     primary: { color: "var(--eco-primary-700)", background: "var(--eco-primary-50)", border: "var(--eco-primary-200)", dot: "var(--eco-primary-500)" },
     success: { color: "var(--eco-success)", background: "var(--eco-success-bg)", border: "#BBF7D0", dot: "var(--eco-success)" },
-    neutral: { color: "var(--eco-text-soft)", background: "var(--eco-gray-100)", border: "var(--eco-gray-200)", dot: "var(--eco-gray-400)" },
+    neutral: { color: "var(--eco-text-soft)", background: "var(--eco-gray-100)", border: "var(--eco-border)", dot: "var(--eco-gray-400)" },
     warning: { color: "var(--eco-secondary-600)", background: "var(--eco-warning-bg)", border: "#FDE68A", dot: "var(--eco-warning)" },
     info: { color: "var(--eco-info)", background: "var(--eco-info-bg)", border: "#BFDBFE", dot: "var(--eco-info)" },
     danger: { color: "var(--eco-danger)", background: "var(--eco-danger-bg)", border: "#FECACA", dot: "var(--eco-danger)" },
-  }[tone] || { color: "var(--eco-text-soft)", background: "var(--eco-gray-100)", border: "var(--eco-gray-200)", dot: "var(--eco-gray-400)" };
+  }[tone] || { color: "var(--eco-text-soft)", background: "var(--eco-gray-100)", border: "var(--eco-border)", dot: "var(--eco-gray-400)" };
 
   return (
     <span
@@ -476,7 +477,7 @@ function Toast({ toast, onDismiss }) {
 
 function PageSkeleton() {
   const shimmer = {
-    background: "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)",
+    background: "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)",
     backgroundSize: "200% 100%",
   };
   const shimmerAnim = (delay = 0) => ({ ...shimmer, animation: `ctShimmer 1.4s ease-in-out ${delay}ms infinite` });
@@ -1392,6 +1393,13 @@ export default function UsersPage() {
       ],
     });
     setToast({ title: "CSV exportado", message: "Se exportó el listado filtrado actual." });
+    addNotification({
+      type: "export_done",
+      title: "CSV exportado",
+      message: "Se exportó el listado filtrado actual.",
+      link: "/admin/usuarios",
+      meta: { count: filteredUsers.length, resource: "users" },
+    });
   };
 
   const handleResetPassword = () => {

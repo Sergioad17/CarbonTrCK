@@ -360,7 +360,7 @@ function Toast({ toast }) {
 /* ─── Skeleton loader ─── */
 function SkeletonCard({ delay = 0 }) {
   const shimmer = {
-    background: "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-gray-200) 50%,var(--eco-gray-100) 75%)",
+    background: "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)",
     backgroundSize: "200% 100%",
   };
   return (
@@ -389,7 +389,7 @@ function UsageBar({ used, max = 5120 }) {
         <span style={subtleText}>{used} KB usados</span>
         <span style={subtleText}>{max >= 5120 ? "5 MB" : `${max} KB`} disponibles</span>
       </div>
-      <div style={{ height: 6, borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-200)", overflow: "hidden" }}>
+      <div style={{ height: 6, borderRadius: "var(--eco-radius-full)", background: "var(--eco-border)", overflow: "hidden" }}>
         <div
           style={{
             height: "100%",
@@ -934,7 +934,7 @@ export default function SettingsPage() {
                     width: 42,
                     height: 42,
                     borderRadius: "var(--eco-radius-md)",
-                    background: bindingEntries.length ? "var(--eco-primary-100)" : "var(--eco-gray-200)",
+                    background: bindingEntries.length ? "var(--eco-primary-100)" : "var(--eco-border)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -968,7 +968,7 @@ export default function SettingsPage() {
                         display: "inline-block",
                         padding: "2px 8px",
                         borderRadius: "var(--eco-radius-full)",
-                        background: bindingEntries.length ? "var(--eco-success-bg)" : "var(--eco-gray-200)",
+                        background: bindingEntries.length ? "var(--eco-success-bg)" : "var(--eco-border)",
                         color: bindingEntries.length ? "var(--eco-success)" : "var(--eco-text-soft)",
                         fontFamily: fb,
                         fontSize: 10,
