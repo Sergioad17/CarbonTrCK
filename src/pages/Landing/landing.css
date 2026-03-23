@@ -307,27 +307,134 @@
 }
 
 .btn2 {
+  --btn2-line: 3px;
   height: 48px;
-  padding: 0 28px;
-  border-radius: 12px;
-  border: 1px solid var(--bd2);
+  padding: 0;
+  border-radius: 0;
+  border: none;
   background: rgba(255, 255, 255, 0.04);
   color: var(--tx);
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: background-color 0.25s, color 0.25s;
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  overflow: hidden;
   backdrop-filter: blur(8px);
+  isolation: isolate;
+}
+
+.btn2::before,
+.btn2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--btn2-line);
+  background: rgba(34, 197, 94, 0.38);
+}
+
+.btn2::before {
+  top: 0;
+}
+
+.btn2::after {
+  bottom: 0;
+}
+
+.btn2 > span::before,
+.btn2 > span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: var(--btn2-line);
+  height: 100%;
+  background: rgba(34, 197, 94, 0.38);
+}
+
+.btn2 > span::before {
+  left: 0;
+}
+
+.btn2 > span::after {
+  right: 0;
+}
+
+.btn2 > span,
+.btn2 > span > span,
+.btn2 > span > span > span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.btn2 > span > span > span {
+  padding: 0 28px;
+  color: inherit;
+  z-index: 2;
+}
+
+.btn2 > span > span::before,
+.btn2 > span > span::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  z-index: 1;
+  width: 100%;
+  height: var(--btn2-line);
+  background: var(--gr);
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn2 > span > span::before {
+  top: 0;
+  transform: translate3d(-105%, 0, 0);
+}
+
+.btn2 > span > span::after {
+  bottom: 0;
+  transform: translate3d(105%, 0, 0);
+}
+
+.btn2 > span > span > span::before,
+.btn2 > span > span > span::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  width: var(--btn2-line);
+  height: 100%;
+  background: var(--gr);
+  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn2 > span > span > span::before {
+  left: 0;
+  transform: translate3d(0, 105%, 0);
+}
+
+.btn2 > span > span > span::after {
+  right: 0;
+  transform: translate3d(0, -105%, 0);
 }
 
 .btn2:hover {
-  border-color: var(--gr);
   color: var(--gr);
-  background: var(--grg);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.btn2:hover > span > span::before,
+.btn2:hover > span > span::after,
+.btn2:hover > span > span > span::before,
+.btn2:hover > span > span > span::after {
+  transform: translate3d(0, 0, 0);
 }
 
 .lnd-hn {
@@ -356,16 +463,70 @@
 }
 
 .lnd-pvi {
+  position: relative;
+  z-index: 0;
   width: 100%;
   border-radius: 16px;
-  border: 1px solid var(--bd2);
-  background: var(--sf);
-  overflow: hidden;
+  padding: 2px;
+  background: linear-gradient(0deg, #000, #272727);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.4), 0 0 60px rgba(34, 197, 94, 0.06);
   aspect-ratio: 16/9;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.lnd-pvi::before,
+.lnd-pvi::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  border-radius: 18px;
+  background: linear-gradient(
+    45deg,
+    #fb0094,
+    #0000ff,
+    #00ff00,
+    #ffff00,
+    #ff0000,
+    #fb0094,
+    #0000ff,
+    #00ff00,
+    #ffff00,
+    #ff0000
+  );
+  background-size: 400%;
+  z-index: -1;
+  animation: lndSteam 20s linear infinite;
+}
+
+.lnd-pvi::after {
+  filter: blur(32px);
+  opacity: 0.7;
+}
+
+.lnd-pvii {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  background: var(--sf);
+  border: 1px solid var(--bd2);
+}
+
+@keyframes lndSteam {
+  0% {
+    background-position: 0 0;
+  }
+  50% {
+    background-position: 400% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 /* Trusted strip */
@@ -901,20 +1062,22 @@
 /* Botón secundario legible */
 :root:not([data-theme="dark"]) .btn2 {
   background: rgba(15, 23, 42, 0.04);
-  border-color: rgba(15, 23, 42, 0.15);
   color: var(--tx);
   backdrop-filter: blur(8px);
 }
 :root:not([data-theme="dark"]) .btn2:hover {
   background: var(--grg);
-  border-color: var(--gr);
   color: var(--gr);
 }
 
 /* Preview box */
 :root:not([data-theme="dark"]) .lnd-pvi {
-  background: #fff;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+:root:not([data-theme="dark"]) .lnd-pvii {
+  background: #fff;
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
 /* Glow sutil en claro */

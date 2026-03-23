@@ -71,7 +71,13 @@ export default function HeroSection({ onGo }) {
             <Leaf size={16} strokeWidth={2.2} />
             Agendar demo
           </button>
-          <button className="btn2" onClick={onGo}>Ver el producto</button>
+          <button className="btn2" onClick={onGo}>
+            <span>
+              <span>
+                <span>Ver el producto</span>
+              </span>
+            </span>
+          </button>
         </div>
       </R>
 
@@ -83,9 +89,11 @@ export default function HeroSection({ onGo }) {
         <div className="lnd-pv">
           <div className="lnd-pvg" />
           <div className="lnd-pvi">
-            <Suspense fallback={<HeroModelFallback />}>
-              <HeroModel />
-            </Suspense>
+            <div className="lnd-pvii">
+              <Suspense fallback={<HeroModelFallback />}>
+                <HeroModel />
+              </Suspense>
+            </div>
           </div>
         </div>
       </R>
