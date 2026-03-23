@@ -142,7 +142,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const[filtersOpen,setFiltersOpen]=useState(true);const[drill,setDrill]=useState(null);const[toast,setToast]=useState(null);const[hovRow,setHovRow]=useState(null);
   const[sortCol,setSortCol]=useState("dateISO");const[sortAsc,setSortAsc]=useState(false);const[page,setPage]=useState(0);const PER_PAGE=8;
 
-  const loadAll=useCallback(()=>{setLoading(true);setTimeout(()=>{const ld=loadFuel();setRecords(ld.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setStorageError(ld.storageError);setLoading(false);},420);},[]);
+  const loadAll=useCallback(()=>{setLoading(true);setTimeout(()=>{const ld=loadFuel();setRecords(ld.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setStorageError(ld.storageError);setLoading(false);},600);},[]);
   useEffect(()=>{loadAll();},[loadAll]);
   useEffect(()=>{const h=()=>loadAll();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[loadAll]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);

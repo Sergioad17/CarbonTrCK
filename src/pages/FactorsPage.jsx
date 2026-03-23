@@ -783,7 +783,7 @@ export default function FactorsPage() {
     } catch {
       setError("No se pudieron cargar los factores. Intenta de nuevo.");
     } finally {
-      setTimeout(() => setLoading(false), 220);
+      setTimeout(() => setLoading(false), 600);
     }
   };
 

@@ -1152,7 +1152,7 @@ function SectionLabel({ children, action }) {
 
 function DashboardSkeleton() {
   const shimmerStyle = {
-    background: "linear-gradient(90deg, var(--eco-gray-100) 25%, var(--eco-gray-50) 50%, var(--eco-gray-100) 75%)",
+    background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
     backgroundSize: "200% 100%",
     animation: "eco-shimmer 1.4s ease-in-out infinite",
     borderRadius: "var(--eco-radius-md)",
@@ -1183,7 +1183,7 @@ function DashboardSkeleton() {
       }}>
         {[0, 1, 2, 3].map(i => (
           <div key={i} style={{
-            background: "white",
+            background: "var(--eco-surface)",
             borderRadius: "var(--eco-radius-lg)",
             border: "1px solid var(--eco-border)",
             padding: 20,
@@ -1211,7 +1211,7 @@ function DashboardSkeleton() {
       }}>
         {[0, 1, 2, 3].map(i => (
           <div key={i} style={{
-            background: "white",
+            background: "var(--eco-surface)",
             borderRadius: "var(--eco-radius-lg)",
             border: "1px solid var(--eco-border)",
             padding: "14px 16px",
@@ -1237,7 +1237,7 @@ function DashboardSkeleton() {
       }}>
         {[0, 1].map(i => (
           <div key={i} style={{
-            background: "white",
+            background: "var(--eco-surface)",
             borderRadius: "var(--eco-radius-lg)",
             border: "1px solid var(--eco-border)",
             padding: 20,

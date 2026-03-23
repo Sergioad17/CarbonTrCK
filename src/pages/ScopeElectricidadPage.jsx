@@ -242,7 +242,7 @@ export default function Scope2Page({ onOpenRecord }) {
   const [page, setPage] = useState(0);
   const PER_PAGE = 8;
 
-  const loadAll = useCallback(() => { setLoading(true); setTimeout(() => { const ld = loadElec(); setRecords(ld.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO))); setStorageError(ld.storageError); setLoading(false); }, 420); }, []);
+  const loadAll = useCallback(() => { setLoading(true); setTimeout(() => { const ld = loadElec(); setRecords(ld.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO))); setStorageError(ld.storageError); setLoading(false); }, 600); }, []);
   useEffect(() => { loadAll(); }, [loadAll]);
   useEffect(() => { const h = () => loadAll(); window.addEventListener("carbontrack:newrecord", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("storage", h); }; }, [loadAll]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);

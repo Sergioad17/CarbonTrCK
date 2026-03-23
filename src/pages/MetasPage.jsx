@@ -43,7 +43,7 @@ export default function MetasPage(){
   const[tf,setTf]=useState({id:"",title:"",scope:"all",category:"all",areaId:"all",type:"reduction_percent",baselineStart:"",baselineEnd:"",baselineValue:"",targetStart:"",targetEnd:"",targetValue:"",description:"",status:"active"});
   const[af,setAf]=useState({id:"",targetId:"",title:"",owner:"",status:"planned",startDate:"",endDate:"",impact_tco2e:"",evidence:"",notes:""});
 
-  useEffect(()=>{const t=setTimeout(()=>{const a=loadTargets(),b=loadActions(),c=loadRecords();const baseTargets=a.targets.length?a.targets:[DEFAULT_TARGET];if(!a.targets.length)saveTargets(baseTargets);setTargets(baseTargets);setActions(b.actions);setRecords(c.records);setError(a.error||b.error||c.error||"");setLoading(false);},260);return()=>clearTimeout(t);},[]);
+  useEffect(()=>{const t=setTimeout(()=>{const a=loadTargets(),b=loadActions(),c=loadRecords();const baseTargets=a.targets.length?a.targets:[DEFAULT_TARGET];if(!a.targets.length)saveTargets(baseTargets);setTargets(baseTargets);setActions(b.actions);setRecords(c.records);setError(a.error||b.error||c.error||"");setLoading(false);},600);return()=>clearTimeout(t);},[]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
 
   const areas=useMemo(()=>Array.from(new Set([...records.map(r=>r.area),...targets.map(r=>r.areaId).filter(x=>x&&x!=="all")])).sort(),[records,targets]);

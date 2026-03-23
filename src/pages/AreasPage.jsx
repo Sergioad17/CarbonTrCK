@@ -180,7 +180,7 @@ export default function AreasPage({ onOpenRecord }) {
   const isDetail = Boolean(areaId); const activeArea = AREA_DEFS.find(a => a.id === areaId) || null;
   const activeFC = useMemo(() => [filters.category, filters.status, filters.source, filters.fuelType].filter(Boolean).length, [filters]);
 
-  const reload = useCallback(() => { setLoading(true); setTimeout(() => { const d = loadRecs(); setRecords(d.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO))); setError(d.error); setLoading(false); }, 260); }, []);
+  const reload = useCallback(() => { setLoading(true); setTimeout(() => { const d = loadRecs(); setRecords(d.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO))); setError(d.error); setLoading(false); }, 600); }, []);
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => { const h = () => { reload(); setToast({ title: "Actualización", message: "Registro guardado." }); }; window.addEventListener("carbontrack:newrecord", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("storage", h); }; }, [reload]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);
