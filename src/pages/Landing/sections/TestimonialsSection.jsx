@@ -2,7 +2,8 @@ import { R } from "../components/Reveal";
 
 export default function TestimonialsSection({ tests }) {
   return (
-    <section id="testimonials" className="lnd-sec lnd-c">
+    <section id="testimonials" className="lnd-sec">
+      <div className="lnd-c">
       <R><div className="lnd-sl">Prototipo</div></R>
       <R><h2 className="lnd-st">Medición automatica por área</h2></R>
       <R>
@@ -15,6 +16,7 @@ export default function TestimonialsSection({ tests }) {
           ))}
         </div>
       </R>
+      </div>
     </section>
   );
 }

@@ -825,3 +825,206 @@
   transform: translateY(0) scale(1);
   filter: blur(0);
 }
+
+/* ═══════════════════════════════════════════════════════
+   MODO CLARO — Solo se aplica cuando NO es dark mode
+   ═══════════════════════════════════════════════════════ */
+:root:not([data-theme="dark"]) .lnd {
+  --bg: transparent;
+  --sf: #f1f5f9;
+  --tx: #0f172a;
+  --mt: #475569;
+  --dm: #64748b;
+  --bd: rgba(34, 197, 94, 0.25);
+  --bd2: rgba(15, 23, 42, 0.1);
+  --grg: rgba(34, 197, 94, 0.08);
+}
+
+/* Navbar claro */
+:root:not([data-theme="dark"]) .lnd-nav {
+  background: rgba(255, 255, 255, 0.75);
+}
+:root:not([data-theme="dark"]) .lnd-nav.sc {
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* Hero h1 gradient legible en claro — !important para ganar al inline style */
+:root:not([data-theme="dark"]) .lnd-hero h1 {
+  background: linear-gradient(135deg, #0f172a 0%, #16a34a 50%, #22c55e 100%) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+/* Hero meta pill */
+:root:not([data-theme="dark"]) .lnd-hm {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+/* Botón secundario legible */
+:root:not([data-theme="dark"]) .btn2 {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.15);
+  color: var(--tx);
+  backdrop-filter: blur(8px);
+}
+:root:not([data-theme="dark"]) .btn2:hover {
+  background: var(--grg);
+  border-color: var(--gr);
+  color: var(--gr);
+}
+
+/* Preview box */
+:root:not([data-theme="dark"]) .lnd-pvi {
+  background: #fff;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.06);
+}
+
+/* Glow sutil en claro */
+:root:not([data-theme="dark"]) .lnd-pvg {
+  background: radial-gradient(ellipse, rgba(34, 197, 94, 0.06), transparent);
+}
+
+/* Cards: problem, feature, formula, steps, differentiation, use cases, testimonials */
+:root:not([data-theme="dark"]) .lnd-pc,
+:root:not([data-theme="dark"]) .lnd-fc,
+:root:not([data-theme="dark"]) .lnd-fbc,
+:root:not([data-theme="dark"]) .lnd-stp,
+:root:not([data-theme="dark"]) .lnd-di,
+:root:not([data-theme="dark"]) .lnd-ci,
+:root:not([data-theme="dark"]) .lnd-tc {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+:root:not([data-theme="dark"]) .lnd-pc:hover,
+:root:not([data-theme="dark"]) .lnd-fc:hover,
+:root:not([data-theme="dark"]) .lnd-stp:hover,
+:root:not([data-theme="dark"]) .lnd-di:hover,
+:root:not([data-theme="dark"]) .lnd-ci:hover,
+:root:not([data-theme="dark"]) .lnd-tc:hover {
+  border-color: var(--bd);
+  background: rgba(34, 197, 94, 0.04);
+}
+
+/* Feature card hover shadow claro */
+:root:not([data-theme="dark"]) .lnd-fc:hover {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.06);
+}
+
+/* CTA final h2 gradient legible — !important para ganar al CSS base */
+:root:not([data-theme="dark"]) .lnd-cf h2 {
+  background: linear-gradient(135deg, #0f172a, #16a34a) !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+}
+
+/* Subtítulo del CTA final más legible */
+:root:not([data-theme="dark"]) .lnd-cf .lnd-ss {
+  color: #334155;
+}
+:root:not([data-theme="dark"]) .lnd-cf .lnd-hn {
+  color: #475569;
+}
+
+/* CTA glow sutil */
+:root:not([data-theme="dark"]) .lnd-cf::before {
+  background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(34, 197, 94, 0.05), transparent);
+}
+
+/* Footer — fondo oscuro opaco para cierre visual */
+:root:not([data-theme="dark"]) .lnd-ft {
+  background: #0f172a;
+  border-top: none;
+  padding: 48px 0;
+}
+:root:not([data-theme="dark"]) .lnd-ft .lnd-ftb {
+  color: #f8fafc;
+}
+:root:not([data-theme="dark"]) .lnd-ft .lnd-ftd {
+  color: #94a3b8;
+}
+:root:not([data-theme="dark"]) .lnd-ft .lnd-ftc h4 {
+  color: #cbd5e1;
+}
+:root:not([data-theme="dark"]) .lnd-ft .lnd-ftc a {
+  color: #94a3b8;
+}
+:root:not([data-theme="dark"]) .lnd-ft .lnd-ftc a:hover {
+  color: var(--gr);
+}
+:root:not([data-theme="dark"]) .lnd-fcp {
+  color: #64748b;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Trusted strip — fondo blanco semitransparente para que el patrón se vea */
+:root:not([data-theme="dark"]) .lnd-tr {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  border-color: rgba(15, 23, 42, 0.08);
+  border-radius: 1px;
+  max-width: 2250px;
+  margin: 0 auto;
+}
+
+/* Solution section — mismo efecto de cuadro semitransparente */
+:root:not([data-theme="dark"]) #solution {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  max-width: 2250px;
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1px;
+}
+
+/* Testimonials/Prototipo section — mismo efecto de cuadro semitransparente */
+:root:not([data-theme="dark"]) #testimonials {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  max-width: 2250px;
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1px;
+}
+
+/* Differentiation section — mismo efecto de cuadro semitransparente */
+:root:not([data-theme="dark"]) #differentiation {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  max-width: 2250px;
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1px;
+}
+
+/* Formulas section — mismo efecto de cuadro semitransparente */
+:root:not([data-theme="dark"]) #formulas {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  max-width: 2250px;
+  margin: 0 auto;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 1px;
+}
+
+/* Background glow más sutil en claro */
+:root:not([data-theme="dark"]) .lnd::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(34, 197, 94, 0.03), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(59, 130, 246, 0.02), transparent),
+    radial-gradient(ellipse 50% 40% at 50% 80%, rgba(234, 179, 8, 0.02), transparent);
+}
+
+/* Partículas más sutiles en claro */
+:root:not([data-theme="dark"]) .lnd-pd {
+  opacity: 0.12;
+  background: #16a34a;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+}
+
+/* Botón navbar */
+:root:not([data-theme="dark"]) .lnd-nb {
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
+}

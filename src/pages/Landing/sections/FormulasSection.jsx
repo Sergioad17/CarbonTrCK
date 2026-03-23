@@ -2,7 +2,8 @@ import { R } from "../components/Reveal";
 
 export default function FormulasSection() {
   return (
-    <section id="formulas" className="lnd-sec lnd-c">
+    <section id="formulas" className="lnd-sec">
+      <div className="lnd-c">
       <R><div className="lnd-sl">Cálculos</div></R>
       <R><h2 className="lnd-st">Cálculos transparentes (sin caja negra)</h2></R>
       <R><p className="lnd-ss">Enfoque estándar: dato de actividad × factor de emisión = CO₂ equivalente.</p></R>
@@ -34,6 +35,7 @@ export default function FormulasSection() {
           </div>
         </div>
       </R>
+      </div>
     </section>
   );
 }

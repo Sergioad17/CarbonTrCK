@@ -1,0 +1,154 @@
+/* ═══════════════════════════════════════════════════════
+   Pattern3 — Green/Yellow Geometric Tiles
+   Infinite drift animation + 3D Elevation & cursor contrast
+   ═══════════════════════════════════════════════════════ */
+
+.eco-pattern3 {
+  --s: 206px; /* Controla el tamaño */
+  --c1: #e8ecf0;
+  --c2: #d4dbe4;
+  --c3: #c2cbd6;
+
+  /* Variables del cursor (actualizadas vía JS) */
+  --glow-x: -9999px;
+  --glow-y: -9999px;
+
+  /* Variables de construcción del patrón */
+  --_l: #0000 calc(25%/3), var(--c1) 0 25%, #0000 0;
+  --_g: conic-gradient(from 120deg at 50% 87.5%, var(--c1) 120deg, #0000 0);
+
+  /* Separamos las imágenes de fondo para poder animarlas juntas */
+  --pattern-bg:
+    var(--_g),
+    var(--_g),
+    conic-gradient(from 180deg at 75%, var(--c2) 60deg, #0000 0),
+    conic-gradient(from 60deg at 75% 75%, var(--c1) 0 60deg, #0000 0),
+    linear-gradient(150deg, var(--_l)),
+    conic-gradient(at 25% 25%, #0000 50%, var(--c2) 0 240deg, var(--c1) 0 300deg, var(--c2) 0),
+    linear-gradient(-150deg, var(--_l));
+
+  /* Separamos las posiciones iniciales de cada capa */
+  --pattern-pos:
+    0 0,
+    0 calc(var(--s) / 2),
+    0 0,
+    0 0,
+    0 calc(var(--s) / 2),
+    0 0,
+    0 0;
+
+  position: relative;
+  overflow: hidden;
+  
+  /* Aplicamos color base y capas de imagen */
+  background-color: var(--c3);
+  background-image: var(--pattern-bg);
+  background-position: var(--pattern-pos);
+  background-size: calc(0.866 * var(--s)) var(--s);
+  
+  /* La animación de desplazamiento infinito */
+  animation: eco-patternDrift3 40s linear infinite;
+}
+
+/* LA MAGIA: Capa de elevación 3D que sigue al cursor */
+.eco-pattern3::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+
+  /* Clona exactamente el mismo fondo, color y animación */
+  background-color: var(--c3);
+  background-image: var(--pattern-bg);
+  background-position: var(--pattern-pos);
+  background-size: calc(0.866 * var(--s)) var(--s);
+  animation: eco-patternDrift3 40s linear infinite;
+
+  /* Aplica el efecto de "Lupa" o elevación desde el cursor */
+  transform-origin: var(--glow-x) var(--glow-y);
+  transform: scale(1.08);
+  filter: brightness(1.06); 
+
+  /* Máscara circular para que el efecto solo ocurra cerca del ratón */
+  -webkit-mask-image: radial-gradient(
+    300px circle at var(--glow-x) var(--glow-y),
+    black 10%,
+    rgba(0, 0, 0, 0.5) 45%,
+    transparent 75%
+  );
+  mask-image: radial-gradient(
+    300px circle at var(--glow-x) var(--glow-y),
+    black 10%,
+    rgba(0, 0, 0, 0.5) 45%,
+    transparent 75%
+  );
+}
+
+/* Capa de luz: Brillo extra que reacciona al cursor */
+.eco-pattern3::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    500px circle at var(--glow-x) var(--glow-y),
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.1) 25%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  transition: opacity 0.4s ease;
+}
+
+/* Protege el contenido interno para que no quede detrás de los efectos */
+.eco-pattern3 > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Animación matemática para el desplazamiento infinito perfecto */
+@keyframes eco-patternDrift3 {
+  from {
+    background-position: var(--pattern-pos);
+  }
+  to {
+    /* Desplaza todas las capas el equivalente exacto a un bloque de background-size */
+    background-position: 
+      calc(0.866 * var(--s)) var(--s),
+      calc(0.866 * var(--s)) calc(var(--s) * 1.5),
+      calc(0.866 * var(--s)) var(--s),
+      calc(0.866 * var(--s)) var(--s),
+      calc(0.866 * var(--s)) calc(var(--s) * 1.5),
+      calc(0.866 * var(--s)) var(--s),
+      calc(0.866 * var(--s)) var(--s);
+  }
+}
+
+/* Modo oscuro */
+:root[data-theme="dark"] .eco-pattern3 {
+  --c1: #1a2332;
+  --c2: #141c28;
+  --c3: #0e1520;
+}
+
+:root[data-theme="dark"] .eco-pattern3::after {
+  filter: brightness(1.2);
+}
+
+:root[data-theme="dark"] .eco-pattern3::before {
+  background: radial-gradient(
+    500px circle at var(--glow-x) var(--glow-y),
+    rgba(34, 197, 94, 0.18) 0%,
+    rgba(34, 197, 94, 0.06) 30%,
+    transparent 60%
+  );
+  mix-blend-mode: screen;
+}
+
+/* Accesibilidad: Reducción de movimiento */
+:root[data-motion="reduced"] .eco-pattern3,
+:root[data-motion="reduced"] .eco-pattern3::after {
+  animation: none;
+}

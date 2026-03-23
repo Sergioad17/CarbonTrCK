@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import "./landing.css";
+import "../BackgroundPatterns/Pattern3_Landing.css";
 
 import useScrolled from "./hooks/useScrolled";
 import Particles from "./components/Particles";
@@ -35,7 +36,22 @@ export default function LandingPage() {
   const tests = useMemo(() => TESTS, []);
 
   return (
-    <div className="lnd">
+    <div
+      className="lnd eco-pattern3"
+      onMouseMove={(e) => {
+        const el = e.currentTarget;
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top + el.scrollTop;
+        el.style.setProperty("--glow-x", x + "px");
+        el.style.setProperty("--glow-y", y + "px");
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.setProperty("--glow-x", "-9999px");
+        el.style.setProperty("--glow-y", "-9999px");
+      }}
+    >
       <Particles />
 
       <Navbar scrolled={scrolled} onGo={go} />

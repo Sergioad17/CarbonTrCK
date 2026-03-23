@@ -13,7 +13,7 @@ function HeroModelFallback() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "rgba(241,245,249,.72)",
+        color: "var(--dm)",
         fontSize: 12,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
