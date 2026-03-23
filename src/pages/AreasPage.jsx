@@ -106,7 +106,136 @@ function KpiCard({ title, value, unit, icon, iconBg, iconColor, sub, status, del
 
 function ChartCard({ title, sub, children, delay = 0 }) { return <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: `ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both` }}><div style={{ padding: "16px 18px 8px" }}><p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 700, color: "var(--eco-gray-800)" }}>{title}</p>{sub && <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)" }}>{sub}</p>}</div><div style={{ padding: "4px 10px 14px" }}>{children}</div></div>; }
 
-function Skeleton({ h = 120, delay = 0 }) { const sh = "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)"; return <div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)", height: h, animation: `ctUp .3s ease-out ${delay}ms both` }}><div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}><div style={{ display: "flex", gap: 10, alignItems: "center" }}><div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", background: sh, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} /><div style={{ flex: 1 }}><div style={{ width: "60%", height: 12, borderRadius: 4, background: sh, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite", marginBottom: 6 }} /><div style={{ width: "35%", height: 10, borderRadius: 4, background: sh, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} /></div></div><div style={{ flex: 1, borderRadius: "var(--eco-radius-md)", background: sh, backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite" }} /></div></div>; }
+function PageSkeleton() {
+  const sh = { background: "linear-gradient(90deg,var(--eco-border) 25%,var(--eco-surface) 50%,var(--eco-border) 75%)", backgroundSize: "200% 100%", animation: "ctShimmer 1.5s ease-in-out infinite", borderRadius: "var(--eco-radius-md)" };
+  const card = { background: "var(--eco-surface)", borderRadius: "var(--eco-radius-lg)", border: "1px solid var(--eco-border)" };
+  return (
+    <div style={{ padding: "var(--page-pad-y,24px) var(--page-pad-x,24px)", maxWidth: "var(--content-max,1440px)", margin: "0 auto" }}>
+      {/* FiltersHeader skeleton */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14, animation: "ctUp .3s ease-out" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ ...sh, width: 38, height: 38, borderRadius: "var(--eco-radius-md)" }} />
+          <div>
+            <div style={{ ...sh, width: 100, height: 24, marginBottom: 6 }} />
+            <div style={{ ...sh, width: 340, height: 13 }} />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ ...sh, width: 130, height: 36 }} />
+          <div style={{ ...sh, width: 100, height: 36 }} />
+          <div style={{ ...sh, width: 110, height: 36 }} />
+        </div>
+      </div>
+      {/* Collapsible filters */}
+      <div style={{ ...card, boxShadow: "var(--eco-shadow-sm)", marginBottom: 20, overflow: "hidden" }}>
+        <div style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ ...sh, width: 15, height: 15, borderRadius: 3 }} />
+            <div style={{ ...sh, width: 60, height: 14 }} />
+          </div>
+          <div style={{ ...sh, width: 16, height: 16, borderRadius: 3 }} />
+        </div>
+        <div style={{ padding: "14px 16px", borderTop: "1px solid var(--eco-border)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10 }}>
+            {[90, 70, 70, 90, 70, 70].map((w, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <div style={{ ...sh, width: w * 0.6, height: 12 }} />
+                <div style={{ ...sh, width: "100%", height: 36 }} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+            <div style={{ ...sh, width: 120, height: 32, borderRadius: "var(--eco-radius-sm)" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* SectionLabel: Indicadores clave */}
+      <div style={{ ...sh, width: 150, height: 18, marginBottom: 12 }} />
+      {/* 5 KPIs */}
+      <div className="ct-kpi-g" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 24 }}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} style={{ ...card, padding: 18, animation: `ctUp .3s ease-out ${100 + i * 50}ms both` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ ...sh, width: 38, height: 38, borderRadius: "var(--eco-radius-md)" }} />
+              <div style={{ ...sh, width: 80, height: 13 }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginBottom: 4 }}>
+              <div style={{ ...sh, width: 70, height: 26 }} />
+              <div style={{ ...sh, width: 40, height: 12 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* SectionLabel: Listado de Áreas */}
+      <div style={{ ...sh, width: 140, height: 18, marginBottom: 12 }} />
+      {/* Area cards */}
+      <div className="ct-area-g" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 14, marginBottom: 24 }}>
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <div key={i} style={{ ...card, boxShadow: "var(--eco-shadow-sm)", padding: 16, animation: `ctUp .3s ease-out ${200 + i * 40}ms both` }}>
+            {/* Title + badge */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 8 }}>
+              <div style={{ ...sh, width: 100, height: 14 }} />
+              <div style={{ ...sh, width: 54, height: 20, borderRadius: "var(--eco-radius-full)" }} />
+            </div>
+            {/* Big value */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginBottom: 4 }}>
+              <div style={{ ...sh, width: 90, height: 24 }} />
+              <div style={{ ...sh, width: 35, height: 11 }} />
+            </div>
+            {/* Elec / Fuel / Real % */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+              <div style={{ ...sh, width: 50, height: 11 }} />
+              <div style={{ ...sh, width: 50, height: 11 }} />
+              <div style={{ ...sh, width: 60, height: 11 }} />
+            </div>
+            {/* 2-col stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
+              <div style={{ ...sh, width: "100%", height: 44, borderRadius: "var(--eco-radius-sm)" }} />
+              <div style={{ ...sh, width: "100%", height: 44, borderRadius: "var(--eco-radius-sm)" }} />
+            </div>
+            {/* Last date */}
+            <div style={{ ...sh, width: 140, height: 11, marginBottom: 8 }} />
+            {/* Ver detalle */}
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ ...sh, width: 80, height: 12 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts row 1: 2fr 1fr */}
+      <div className="ct-ch-m" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14, marginBottom: 14 }}>
+        {[0, 1].map(i => (
+          <div key={i} style={{ ...card, boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: `ctUp .3s ease-out ${500 + i * 60}ms both` }}>
+            <div style={{ padding: "16px 18px 8px" }}>
+              <div style={{ ...sh, width: i === 0 ? 140 : 100, height: 15, marginBottom: 4 }} />
+              <div style={{ ...sh, width: i === 0 ? 180 : 90, height: 12 }} />
+            </div>
+            <div style={{ padding: "4px 10px 14px" }}>
+              <div style={{ ...sh, width: "100%", height: 250 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Charts row 2: 1fr 1fr */}
+      <div className="ct-ch-d" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
+        {[0, 1].map(i => (
+          <div key={i} style={{ ...card, boxShadow: "var(--eco-shadow-sm)", overflow: "hidden", animation: `ctUp .3s ease-out ${620 + i * 60}ms both` }}>
+            <div style={{ padding: "16px 18px 8px" }}>
+              <div style={{ ...sh, width: i === 0 ? 120 : 140, height: 15, marginBottom: 4 }} />
+              <div style={{ ...sh, width: 100, height: 12 }} />
+            </div>
+            <div style={{ padding: "4px 10px 14px" }}>
+              <div style={{ ...sh, width: "100%", height: 220 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function DrillPanel({ title, breadcrumb, onClose, children }) {
   useEffect(() => { const h = e => { if (e.key === "Escape") onClose(); }; document.addEventListener("keydown", h); return () => document.removeEventListener("keydown", h); }, [onClose]);
@@ -144,7 +273,7 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
         <button onClick={onTrace} style={btnS} onMouseEnter={hS} onMouseLeave={lS}><Eye size={14} />Trazabilidad</button>
       </div>
     </div>
-    <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", marginBottom: 20, overflow: "hidden", animation: "ctUp .4s cubic-bezier(.33,1,.68,1) 60ms both" }}>
+    <div style={{ background: "white", border: "1.5px solid var(--eco-primary-500)", borderRadius: "var(--eco-radius-lg)", boxShadow: "var(--eco-shadow-sm)", marginBottom: 20, overflow: "hidden", animation: "ctUp .4s cubic-bezier(.33,1,.68,1) 60ms both" }}>
       <button onClick={() => setFiltersOpen(!filtersOpen)} style={{ width: "100%", padding: "12px 16px", border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: filtersOpen ? "1px solid var(--eco-gray-100)" : "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Filter size={15} style={{ color: "var(--eco-gray-500)" }} /><span style={{ fontFamily: fd, fontSize: 14, fontWeight: 600, color: "var(--eco-gray-700)" }}>Filtros</span>
           {activeFC > 0 && <span style={{ minWidth: 18, height: 18, borderRadius: "var(--eco-radius-full)", background: "var(--eco-primary-100)", color: "var(--eco-primary-700)", fontFamily: fm, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{activeFC}</span>}
@@ -306,16 +435,11 @@ export default function AreasPage({ onOpenRecord }) {
   </>);
 
   /* ═══ MAIN RETURN ═══ */
+  if (loading) return (<><style>{CSS}</style><PageSkeleton /></>);
   return (<><style>{CSS}</style>
     <div style={{ padding: "var(--page-pad-y,24px) var(--page-pad-x,24px)", maxWidth: "var(--content-max,1440px)", margin: "0 auto" }}>
-      {loading ? <>
-        <Skeleton h={80} /><div style={{ height: 14 }} />
-        <div className="ct-kpi-g" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14 }}>{[0, 1, 2, 3, 4].map(i => <Skeleton key={i} h={140} delay={i * 50} />)}</div>
-        <div style={{ height: 14 }} /><div className="ct-ch-m" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}><Skeleton h={280} delay={250} /><Skeleton h={280} delay={300} /></div>
-      </> : <>
-        {error && <div style={{ marginBottom: 14, border: "1px solid #FECACA", background: "var(--eco-danger-bg)", borderRadius: "var(--eco-radius-md)", padding: "10px 14px", fontFamily: fb, fontSize: 12, color: "var(--eco-danger)", animation: "ctUp .3s ease-out" }}>{error}</div>}
-        {isDetail ? renderDetail() : renderList()}
-      </>}
+      {error && <div style={{ marginBottom: 14, border: "1px solid #FECACA", background: "var(--eco-danger-bg)", borderRadius: "var(--eco-radius-md)", padding: "10px 14px", fontFamily: fb, fontSize: 12, color: "var(--eco-danger)", animation: "ctUp .3s ease-out" }}>{error}</div>}
+      {isDetail ? renderDetail() : renderList()}
     </div>
 
     {drill && <DrillPanel title="Trazabilidad" breadcrumb={`Áreas → ${activeArea?.label || "Global"} → Detalle`} onClose={() => setDrill(null)}>

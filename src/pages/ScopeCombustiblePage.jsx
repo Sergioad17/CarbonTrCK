@@ -109,7 +109,102 @@ function KpiCard({title,sub,value,unit,icon,iconBg,iconColor,delta,trend="neutra
 
 function ChartCard({title,sub,children,delay=0}){return(<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",animation:`ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,position:"relative"}}><div style={{padding:"16px 18px 8px"}}><p style={{margin:0,fontFamily:fd,fontSize:15,fontWeight:700,color:"var(--eco-gray-800)"}}>{title}</p>{sub&&<p style={{margin:"2px 0 0",fontFamily:fb,fontSize:12,color:"var(--eco-gray-400)"}}>{sub}</p>}</div><div style={{padding:"4px 10px 14px"}}>{children}</div></div>)}
 
-function Skeleton({h=120,delay=0}){const shimmer="linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)";return(<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",height:h,animation:`ctFadeUp .3s ease-out ${delay}ms both`}}><div style={{padding:18,display:"flex",flexDirection:"column",gap:10,height:"100%"}}><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:38,height:38,borderRadius:"var(--eco-radius-md)",background:shimmer,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/><div style={{flex:1}}><div style={{width:"60%",height:12,borderRadius:4,background:shimmer,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite",marginBottom:6}}/><div style={{width:"35%",height:10,borderRadius:4,background:shimmer,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/></div></div><div style={{flex:1,borderRadius:"var(--eco-radius-md)",background:shimmer,backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite"}}/></div></div>)}
+function PageSkeleton(){
+  const sh={background:"linear-gradient(90deg,var(--eco-border) 25%,var(--eco-surface) 50%,var(--eco-border) 75%)",backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite",borderRadius:"var(--eco-radius-md)"};
+  const card={background:"var(--eco-surface)",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)"};
+  return(
+    <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)"}}>
+      <div style={{maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}>
+        {/* Header */}
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{...sh,width:38,height:38,borderRadius:"var(--eco-radius-md)"}}/>
+            <div>
+              <div style={{...sh,width:160,height:24,marginBottom:6}}/>
+              <div style={{...sh,width:280,height:14}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{...sh,width:120,height:34}}/>
+            <div style={{...sh,width:100,height:34}}/>
+            <div style={{...sh,width:110,height:34}}/>
+          </div>
+        </div>
+        {/* Filters */}
+        <div style={{...card,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+          <div style={{...sh,width:28,height:28,borderRadius:"var(--eco-radius-sm)"}}/>
+          <div style={{...sh,width:100,height:14}}/>
+          <div style={{flex:1}}/>
+          <div style={{...sh,width:80,height:30,borderRadius:"var(--eco-radius-sm)"}}/>
+        </div>
+        {/* KPI label */}
+        <div style={{...sh,width:140,height:18,marginBottom:12}}/>
+        {/* KPIs */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
+          {[0,1,2,3,4].map(i=>(
+            <div key={i} style={{...card,padding:20,animation:`ctFadeUp .3s ease-out ${i*50}ms both`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                <div style={{...sh,width:38,height:38,borderRadius:10}}/>
+                <div>
+                  <div style={{...sh,width:80,height:12,marginBottom:6}}/>
+                  <div style={{...sh,width:50,height:10}}/>
+                </div>
+              </div>
+              <div style={{...sh,width:90,height:24,marginBottom:8}}/>
+              <div style={{...sh,width:60,height:16,borderRadius:"var(--eco-radius-full)"}}/>
+            </div>
+          ))}
+        </div>
+        {/* Charts label */}
+        <div style={{...sh,width:100,height:18,marginBottom:12}}/>
+        {/* Charts row 1 */}
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:14}}>
+          {[0,1].map(i=>(
+            <div key={i} style={{...card,overflow:"hidden",animation:`ctFadeUp .3s ease-out ${250+i*60}ms both`}}>
+              <div style={{padding:"16px 18px 10px"}}>
+                <div style={{...sh,width:180,height:14,marginBottom:4}}/>
+                <div style={{...sh,width:120,height:10}}/>
+              </div>
+              <div style={{padding:"6px 12px 16px"}}>
+                <div style={{...sh,width:"100%",height:250}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Charts row 2 (donuts) */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:24}}>
+          {[0,1].map(i=>(
+            <div key={i} style={{...card,overflow:"hidden",animation:`ctFadeUp .3s ease-out ${370+i*60}ms both`}}>
+              <div style={{padding:"16px 18px 10px"}}>
+                <div style={{...sh,width:140,height:14,marginBottom:4}}/>
+                <div style={{...sh,width:100,height:10}}/>
+              </div>
+              <div style={{padding:"6px 12px 16px"}}>
+                <div style={{...sh,width:"100%",height:240}}/>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Table label */}
+        <div style={{...sh,width:120,height:18,marginBottom:12}}/>
+        {/* Table */}
+        <div style={{...card,overflow:"hidden",animation:"ctFadeUp .3s ease-out 500ms both"}}>
+          <div style={{...sh,width:"100%",height:40,borderRadius:0}}/>
+          {[0,1,2,3,4].map(i=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:16,padding:"12px 16px",borderBottom:i<4?"1px solid var(--eco-border)":"none"}}>
+              <div style={{...sh,width:70,height:14}}/>
+              <div style={{...sh,width:60,height:14}}/>
+              <div style={{...sh,width:140,height:14,flex:1}}/>
+              <div style={{...sh,width:50,height:14}}/>
+              <div style={{...sh,width:50,height:14}}/>
+              <div style={{...sh,width:60,height:20,borderRadius:"var(--eco-radius-full)"}}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function DrillPanel({title,breadcrumb,onClose,children}){
   useEffect(()=>{const h=e=>{if(e.key==="Escape")onClose();};document.addEventListener("keydown",h);return()=>document.removeEventListener("keydown",h);},[onClose]);
@@ -195,6 +290,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const leaveSec=e=>{e.currentTarget.style.borderColor="var(--eco-border)";e.currentTarget.style.color="var(--eco-gray-700)";};
 
   /* ═══ RENDER ═══ */
+  if(loading)return(<><style>{ANIM_CSS}</style><PageSkeleton/></>);
   return(<>
     <style>{ANIM_CSS}</style>
     <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)"}}>
@@ -219,7 +315,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
         {storageError&&<div role="alert" style={{marginBottom:14,padding:"10px 14px",borderRadius:"var(--eco-radius-md)",border:"1px solid #FDE68A",background:"var(--eco-warning-bg)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,animation:"ctFadeUp .3s ease-out"}}><div style={{display:"flex",alignItems:"center",gap:8}}><AlertTriangle size={14} style={{color:"var(--eco-warning)",flexShrink:0}}/><span style={{fontFamily:fb,fontSize:12,color:"var(--eco-gray-700)"}}>{storageError}</span></div><button onClick={loadAll} style={{border:"1px solid var(--eco-border)",background:"white",borderRadius:"var(--eco-radius-sm)",padding:"4px 10px",fontFamily:fb,fontSize:12,fontWeight:600,cursor:"pointer",color:"var(--eco-gray-700)"}}>Reintentar</button></div>}
 
         {/* ═══ FILTERS (collapsible) ═══ */}
-        <div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)",marginBottom:20,overflow:"hidden",animation:"ctFadeUp .4s cubic-bezier(.33,1,.68,1) 60ms both"}}>
+        <div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1.5px solid var(--eco-primary-500)",boxShadow:"var(--eco-shadow-sm)",marginBottom:20,overflow:"hidden",animation:"ctFadeUp .4s cubic-bezier(.33,1,.68,1) 60ms both"}}>
           <button onClick={()=>setFiltersOpen(!filtersOpen)} style={{width:"100%",padding:"12px 16px",border:"none",background:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:filtersOpen?"1px solid var(--eco-gray-100)":"none"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <Filter size={15} style={{color:"var(--eco-gray-500)"}}/>
@@ -252,14 +348,13 @@ export default function ScopeCombustiblePage({onOpenRecord}){
 
         {/* ═══ KPIs ═══ */}
         <SectionLabel icon={<Flame size={14}/>} delay={100}>Indicadores clave</SectionLabel>
-        {loading?<div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>{[0,1,2,3,4].map(i=><Skeleton key={i} h={140} delay={i*50}/>)}</div>
-        :<div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
+        <div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
           <KpiCard title="Litros totales" sub={`${filtered.length} registros`} value={kpis.liters} unit="L" icon={<Droplets size={18}/>} delay={120} sparkData={lineData.map(d=>d.litros)}/>
           <KpiCard title="CO₂e total" sub="Emisiones directas" value={kpis.co2T} unit="tCO₂e" icon={<Flame size={18}/>} iconBg="var(--eco-danger-bg)" iconColor="var(--eco-danger)" delay={180} sparkData={lineData.map(d=>d.co2e)} status={kpis.co2T>0.3?"danger":kpis.co2T>0.15?"warning":undefined}/>
           <KpiCard title="Factor promedio" value={kpis.factorAvg?fN(kpis.factorAvg,3):"-"} unit="kgCO₂e/L" icon={<Fuel size={18}/>} delay={240}/>
           <KpiCard title="Datos reales" sub="Calidad de datos" value={kpis.pctReal} unit="%" icon={<CheckCircle2 size={18}/>} iconBg="var(--eco-success-bg)" iconColor="var(--eco-success)" delay={300} status={kpis.pctReal>=80?"success":kpis.pctReal>=60?"warning":"danger"}/>
           <KpiCard title="Variación" sub="vs periodo anterior" value={kpis.change||"-"} unit="" icon={<Calendar size={18}/>} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delta={kpis.change} trend={kpis.trend} delay={360}/>
-        </div>}
+        </div>
 
         {/* ═══ CHARTS ═══ */}
         <SectionLabel icon={<TrendingDown size={14}/>} delay={200}>Gráficas</SectionLabel>

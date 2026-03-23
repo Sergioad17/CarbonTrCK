@@ -31,6 +31,95 @@ function KpiCard({title,value,unit,icon,iconBg,iconColor,sub,status,delay=0}){co
 
 function ChartCard({title,sub,children,delay=0}){return<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",animation:`ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`}}><div style={{padding:"16px 18px 8px"}}><p style={{margin:0,fontFamily:fd,fontSize:15,fontWeight:700,color:"var(--eco-gray-800)"}}>{title}</p>{sub&&<p style={{margin:"2px 0 0",fontFamily:fb,fontSize:12,color:"var(--eco-gray-400)"}}>{sub}</p>}</div><div style={{padding:"4px 10px 14px"}}>{children}</div></div>;}
 
+function PageSkeleton(){
+  const sh={background:"linear-gradient(90deg,var(--eco-border) 25%,var(--eco-surface) 50%,var(--eco-border) 75%)",backgroundSize:"200% 100%",animation:"ctShimmer 1.5s ease-in-out infinite",borderRadius:"var(--eco-radius-md)"};
+  const card={background:"var(--eco-surface)",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)"};
+  return(
+    <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{...sh,width:38,height:38,borderRadius:"var(--eco-radius-md)"}}/>
+          <div>
+            <div style={{...sh,width:120,height:24,marginBottom:6}}/>
+            <div style={{...sh,width:300,height:14}}/>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{...sh,width:110,height:34}}/>
+          <div style={{...sh,width:110,height:34}}/>
+          <div style={{...sh,width:100,height:34}}/>
+          <div style={{...sh,width:110,height:34}}/>
+        </div>
+      </div>
+      {/* Filters */}
+      <div style={{...card,padding:"14px 18px",marginBottom:20,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{...sh,width:28,height:28,borderRadius:"var(--eco-radius-sm)"}}/>
+        <div style={{...sh,width:80,height:14}}/>
+        <div style={{flex:1}}/>
+        <div style={{...sh,width:80,height:30,borderRadius:"var(--eco-radius-sm)"}}/>
+      </div>
+      {/* KPIs */}
+      <div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
+        {[0,1,2,3].map(i=>(
+          <div key={i} style={{...card,padding:20,animation:`ctUp .3s ease-out ${i*50}ms both`}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <div style={{...sh,width:38,height:38,borderRadius:10}}/>
+              <div style={{...sh,width:90,height:12}}/>
+            </div>
+            <div style={{...sh,width:80,height:26,marginBottom:6}}/>
+            <div style={{...sh,width:50,height:12}}/>
+          </div>
+        ))}
+      </div>
+      {/* Charts */}
+      <div className="ct-ch-m" style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:14}}>
+        {[0,1].map(i=>(
+          <div key={i} style={{...card,overflow:"hidden",animation:`ctUp .3s ease-out ${250+i*60}ms both`}}>
+            <div style={{padding:"16px 18px 10px"}}>
+              <div style={{...sh,width:160,height:14,marginBottom:4}}/>
+              <div style={{...sh,width:100,height:10}}/>
+            </div>
+            <div style={{padding:"6px 12px 16px"}}>
+              <div style={{...sh,width:"100%",height:250}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Line chart */}
+      <div style={{...card,overflow:"hidden",marginBottom:20,animation:"ctUp .3s ease-out 400ms both"}}>
+        <div style={{padding:"16px 18px 10px"}}>
+          <div style={{...sh,width:200,height:14,marginBottom:4}}/>
+          <div style={{...sh,width:120,height:10}}/>
+        </div>
+        <div style={{padding:"6px 12px 16px"}}>
+          <div style={{...sh,width:"100%",height:240}}/>
+        </div>
+      </div>
+      {/* Target cards */}
+      <div className="ct-cards-g" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))",gap:14}}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{...card,padding:16,animation:`ctUp .3s ease-out ${500+i*50}ms both`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <div style={{...sh,width:140,height:14,marginBottom:6}}/>
+                <div style={{...sh,width:180,height:10}}/>
+              </div>
+              <div style={{...sh,width:60,height:20,borderRadius:"var(--eco-radius-full)"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+              <div style={{...sh,width:"100%",height:60,borderRadius:"var(--eco-radius-md)"}}/>
+              <div style={{...sh,width:"100%",height:60,borderRadius:"var(--eco-radius-md)"}}/>
+            </div>
+            <div style={{...sh,width:"100%",height:8,borderRadius:4,marginBottom:10}}/>
+            <div style={{...sh,width:"100%",height:30,borderRadius:"var(--eco-radius-md)"}}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Toast({toast}){if(!toast)return null;return<div role="alert" style={{position:"fixed",right:20,bottom:20,zIndex:120,background:"white",border:"1px solid var(--eco-border)",boxShadow:"0 20px 25px -5px rgba(15,23,42,.08)",borderRadius:"var(--eco-radius-lg)",padding:"14px 16px",minWidth:260,maxWidth:340,display:"flex",alignItems:"flex-start",gap:10,animation:"ctSlideR .3s cubic-bezier(.33,1,.68,1)"}}><div style={{width:28,height:28,borderRadius:"var(--eco-radius-sm)",background:"var(--eco-success-bg)",color:"var(--eco-success)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1}}><CheckCircle2 size={14}/></div><div><p style={{margin:0,fontFamily:fd,fontSize:14,fontWeight:700,color:"var(--eco-gray-800)"}}>{toast.title}</p><p style={{margin:"2px 0 0",fontFamily:fb,fontSize:12,color:"var(--eco-gray-500)"}}>{toast.message}</p></div></div>;}
 
 function FilterSel({label,value,onChange,options,icon}){return<label style={{display:"flex",flexDirection:"column",gap:5}}><span style={{fontFamily:fb,fontSize:12,fontWeight:500,color:"var(--eco-gray-500)",display:"flex",alignItems:"center",gap:4}}>{icon&&<span style={{display:"flex",color:"var(--eco-gray-400)"}}>{icon}</span>}{label}</span><select value={value} onChange={onChange} style={inStyle} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-border)"}>{options.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select></label>;}
@@ -67,6 +156,7 @@ export default function MetasPage(){
   const del=t=>{if(!window.confirm(`Eliminar meta "${t.title}"?`))return;const next=removeTarget(targets,actions,t.id);setTargets(next.targets);setActions(next.actions);saveTargets(next.targets);saveActions(next.actions);setToast({title:"Meta eliminada",message:t.title});};
   const exp=()=>{const csv=buildCsv(filtered,[{label:"Meta",get:r=>r.title},{label:"Scope",get:r=>r.scope},{label:"Categoria",get:r=>r.category},{label:"Area",get:r=>r.areaId},{label:"Baseline",get:r=>r.summary.baseline.toFixed(3)},{label:"Objetivo",get:r=>r.summary.targetAbsolute.toFixed(3)},{label:"Actual",get:r=>r.summary.actual.toFixed(3)},{label:"Avance%",get:r=>r.summary.progressPct.toFixed(1)}]);downloadCsv(`metas-${Date.now()}.csv`,csv);setToast({title:"Exportado",message:`${filtered.length} metas`});};
 
+  if(loading)return<><style>{CSS}</style><PageSkeleton/></>;
   return<><style>{CSS}</style>
     <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}>
       {/* Header */}
@@ -81,7 +171,7 @@ export default function MetasPage(){
       </div>
 
       {/* Collapsible filters */}
-      <div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)",marginBottom:20,overflow:"hidden",animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 60ms both"}}>
+      <div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1.5px solid var(--eco-primary-500)",boxShadow:"var(--eco-shadow-sm)",marginBottom:20,overflow:"hidden",animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 60ms both"}}>
         <button onClick={()=>setFiltersOpen(!filtersOpen)} style={{width:"100%",padding:"12px 16px",border:"none",background:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:filtersOpen?"1px solid var(--eco-gray-100)":"none"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}><Filter size={15} style={{color:"var(--eco-gray-500)"}}/><span style={{fontFamily:fd,fontSize:14,fontWeight:600,color:"var(--eco-gray-700)"}}>Filtros</span>{activeFC>0&&<span style={{minWidth:18,height:18,borderRadius:"var(--eco-radius-full)",background:"var(--eco-primary-100)",color:"var(--eco-primary-700)",fontFamily:fm,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 5px"}}>{activeFC}</span>}</div>
           <ChevronDown size={16} style={{color:"var(--eco-gray-400)",transition:"transform 200ms",transform:filtersOpen?"rotate(180deg)":"rotate(0)"}}/>

@@ -1255,7 +1255,7 @@ function DashboardSkeleton() {
         <div style={{ ...shimmerStyle, width: 150, height: 20, marginBottom: 12 }} />
       </div>
       <div style={{
-        background: "white",
+        background: "var(--eco-surface)",
         borderRadius: "var(--eco-radius-lg)",
         border: "1px solid var(--eco-border)",
         overflow: "hidden",
