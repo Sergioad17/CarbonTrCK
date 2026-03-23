@@ -7,6 +7,7 @@ import {
   Zap, Flame, TreePine,
   BarChart3, Shield, Building2
 } from 'lucide-react'
+import './BackgroundPatterns/Pattern2_Login.css'
 
 const fd = "var(--eco-font-display)"
 const fb = "var(--eco-font-body)"
@@ -171,7 +172,22 @@ export default function LoginPage({ onLogin }) {
 
   /* ═══ LOGIN FORM ═══ */
   return (
-    <div style={{ minHeight: "100vh", display: "flex", background: "var(--eco-gray-50)" }}>
+    <div
+      className="eco-pattern2"
+      onMouseMove={(e) => {
+        const el = e.currentTarget;
+        const rect = el.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top + el.scrollTop;
+        el.style.setProperty("--glow-x", x + "px");
+        el.style.setProperty("--glow-y", y + "px");
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.setProperty("--glow-x", "-9999px");
+        el.style.setProperty("--glow-y", "-9999px");
+      }}
+      style={{ minHeight: "100vh", display: "flex" }}>
       <div style={{
         display: "flex",
         width: "100%",

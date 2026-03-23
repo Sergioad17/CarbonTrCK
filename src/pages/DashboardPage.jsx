@@ -36,6 +36,7 @@ import UsersPage from './UsersPage'
 import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
+import './BackgroundPatterns/Pattern1.css'
 
 
 const fd = "var(--eco-font-display)",
@@ -1263,6 +1264,20 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
       )}
 
       <div
+        className="eco-pattern1"
+        onMouseMove={(e) => {
+          const el = e.currentTarget;
+          const rect = el.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top + el.scrollTop;
+          el.style.setProperty("--glow-x", x + "px");
+          el.style.setProperty("--glow-y", y + "px");
+        }}
+        onMouseLeave={(e) => {
+          const el = e.currentTarget;
+          el.style.setProperty("--glow-x", "-9999px");
+          el.style.setProperty("--glow-y", "-9999px");
+        }}
         style={{
           flex: 1,
           display: "flex",

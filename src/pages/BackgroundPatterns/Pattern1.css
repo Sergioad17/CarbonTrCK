@@ -1,0 +1,125 @@
+/* ═══════════════════════════════════════════════════════
+   Pattern1 — Geometric hexagonal/triangular tiling
+   Diagonal infinite carousel + 3D Elevation & cursor contrast
+   ═══════════════════════════════════════════════════════ */
+
+.eco-pattern1 {
+  --s: 174px;
+  --c1: #f4f5f6;
+  --c2: #ecebed;
+  --c3: #e3e2e3;
+
+  /* Posición del cursor (actualizada vía JS) */
+  --glow-x: -9999px;
+  --glow-y: -9999px;
+
+  --_g: 0 120deg, #0000 0;
+  
+  /* Agrupamos el fondo en una variable para no repetir código */
+  --pattern-bg: 
+    conic-gradient(            at calc(250%/3) calc(100%/3), var(--c3) var(--_g)),
+    conic-gradient(from -120deg at calc( 50%/3) calc(100%/3), var(--c2) var(--_g)),
+    conic-gradient(from  120deg at calc(100%/3) calc(250%/3), var(--c1) var(--_g)),
+    conic-gradient(from  120deg at calc(200%/3) calc(250%/3), var(--c1) var(--_g)),
+    conic-gradient(from -180deg at calc(100%/3) 50%, var(--c2) 60deg, var(--c1) var(--_g)),
+    conic-gradient(from   60deg at calc(200%/3) 50%, var(--c1) 60deg, var(--c3) var(--_g)),
+    conic-gradient(from  -60deg at 50% calc(100%/3), var(--c1) 120deg, var(--c2) 0 240deg, var(--c3) 0);
+
+  position: relative;
+  overflow: hidden; /* Evita que el efecto de elevación deforme el contenedor */
+  background: var(--pattern-bg);
+  background-size: calc(var(--s) * 1.732) var(--s);
+  animation: eco-patternDriftDiag 40s linear infinite;
+}
+
+/* Capa de elevación (Efecto de relieve/zoom en el cursor) */
+.eco-pattern1::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+
+  /* Clona el mismo fondo y la misma animación */
+  background: var(--pattern-bg);
+  background-size: calc(var(--s) * 1.732) var(--s);
+  animation: eco-patternDriftDiag 40s linear infinite;
+
+  /* Hace que el centro de la "elevación" sea exactamente tu cursor */
+  transform-origin: var(--glow-x) var(--glow-y);
+  /* Escala ligeramente el fondo para simular que "sobresale" hacia ti */
+  transform: scale(1.08);
+  /* Un toque de brillo extra para enfatizar el volumen */
+  filter: brightness(1.03); 
+
+  /* Oculta esta capa elevada en todos lados, EXCEPTO cerca del cursor */
+  -webkit-mask-image: radial-gradient(
+    280px circle at var(--glow-x) var(--glow-y),
+    black 10%,
+    rgba(0, 0, 0, 0.5) 45%,
+    transparent 75%
+  );
+  mask-image: radial-gradient(
+    280px circle at var(--glow-x) var(--glow-y),
+    black 10%,
+    rgba(0, 0, 0, 0.5) 45%,
+    transparent 75%
+  );
+}
+
+/* Capa de luz original: Ilumina y oscurece */
+.eco-pattern1::before {
+  content: "";
+  position: absolute; /* Cambiado a absolute para que siga al contenedor perfecto */
+  inset: 0;
+  pointer-events: none;
+  z-index: 1; /* Por encima de la capa de elevación */
+  background: radial-gradient(
+    500px circle at var(--glow-x) var(--glow-y),
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  transition: opacity 0.4s ease;
+}
+
+/* Todos los hijos directos quedan por encima de los efectos */
+.eco-pattern1 > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Modo oscuro: Colores ajustados y mayor contraste */
+:root[data-theme="dark"] .eco-pattern1 {
+  --c1: #0e1522;
+  --c2: #121a2b;
+  --c3: #0b1120;
+}
+
+/* Ajuste de brillo para que la capa elevada resalte más en modo oscuro */
+:root[data-theme="dark"] .eco-pattern1::after {
+  filter: brightness(1.15);
+}
+
+:root[data-theme="dark"] .eco-pattern1::before {
+  background: radial-gradient(
+    500px circle at var(--glow-x) var(--glow-y),
+    rgba(34, 197, 94, 0.18) 0%,
+    rgba(34, 197, 94, 0.06) 30%,
+    transparent 60%
+  );
+  mix-blend-mode: screen;
+}
+
+/* Reducción de movimiento: desactiva la animación en ambas capas */
+:root[data-motion="reduced"] .eco-pattern1,
+:root[data-motion="reduced"] .eco-pattern1::after {
+  animation: none;
+}
+
+/* Diagonal drift — movimiento original intacto */
+@keyframes eco-patternDriftDiag {
+  from { background-position: 0 0; }
+  to   { background-position: calc(var(--s) * -3.464) calc(var(--s) * 2); }
+}
