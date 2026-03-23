@@ -581,7 +581,7 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav }) {
         color: "white",
         margin: 0,
         lineHeight: 1.2
-      }}>CarbónTrack</p>
+      }}>CarbonTrack</p>
         <p style={{
           fontFamily: fb,
           fontSize: 10,
@@ -657,28 +657,37 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       mn = Math.min(...spark),
       rng = mx - mn || 1;
     return spark.map(
-      (v, i) => `${(i / (spark.length - 1)) * 60},${22 - ((v - mn) / rng) * 22}`).join(" ")
+      (v, i) => `${(i / (spark.length - 1)) * 80},${28 - ((v - mn) / rng) * 28}`).join(" ")
   }
-  )() : null; return (<div
+  )() : null;
+  const sparkArea = spark?.length > 1 ? (() => {
+    const mx = Math.max(...spark),
+      mn = Math.min(...spark),
+      rng = mx - mn || 1;
+    const pts = spark.map(
+      (v, i) => `${(i / (spark.length - 1)) * 80},${28 - ((v - mn) / rng) * 28}`);
+    return `0,28 ${pts.join(" ")} 80,28`;
+  })() : null;
+  return (<div
     onClick={onClick}
     tabIndex={onClick ? 0 : undefined}
     role={onClick ? "button" : undefined}
     style={{
       background: "white",
       borderRadius: "var(--eco-radius-lg)",
-      padding: 18,
+      padding: 20,
       border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : "var(--eco-border)"}`,
       boxShadow: "var(--eco-shadow-sm)",
       cursor: onClick ? "pointer" : "default",
-      transition: "all 200ms cubic-bezier(0.33,1,0.68,1)",
+      transition: "all 250ms cubic-bezier(0.33,1,0.68,1)",
       animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
       position: "relative",
       overflow: "hidden"
     }}
     onMouseEnter={e => {
       if (onClick) {
-        e.currentTarget.style.boxShadow = "var(--eco-shadow-md)";
-        e.currentTarget.style.transform = "translateY(-2px)"
+        e.currentTarget.style.boxShadow = "0 8px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -5px rgba(0,0,0,0.04)";
+        e.currentTarget.style.transform = "translateY(-3px)"
       }
     }}
     onMouseLeave={e => {
@@ -698,27 +707,28 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
     <div
       style={{
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "space-between",
-        marginBottom: 12
+        marginBottom: 14
       }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10
+          gap: 12
         }}>
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: "var(--eco-radius-md)",
-            background: iconBg || "var(--eco-primary-50)",
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: iconBg ? `linear-gradient(135deg, ${iconBg}, ${iconBg}dd)` : "linear-gradient(135deg, var(--eco-primary-50), var(--eco-primary-100))",
             color: iconColor || "var(--eco-primary-600)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            flexShrink: 0
+            flexShrink: 0,
+            boxShadow: `0 2px 8px ${iconBg ? iconBg + "40" : "rgba(34,197,94,0.15)"}`
           }}>
           {icon}
         </div>
@@ -736,38 +746,52 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
             fontFamily: fb,
             fontSize: 11,
             color: "var(--eco-gray-400)",
-            margin: 0
+            margin: "2px 0 0"
           }}>
             {sub}
           </p>}
         </div>
-      </div>{sparkPts &&
+      </div>
+      {sparkPts &&
         <svg
-          width={60}
-          height={22}
+          width={80}
+          height={28}
           style={{
-            opacity: 0.5,
-            flexShrink: 0
+            flexShrink: 0,
+            marginTop: 2
           }}>
+          <defs>
+            <linearGradient id={`sparkGrad-${title?.replace(/\s/g,"")}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {sparkArea && <polygon
+            points={sparkArea}
+            fill={`url(#sparkGrad-${title?.replace(/\s/g,"")})`}
+          />}
           <polyline
             points={sparkPts}
             fill="none"
-            stroke={tc.c}
-            strokeWidth="1.5"
+            stroke={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"}
+            strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round" />
-        </svg>}</div><div style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 5,
-          marginBottom: 6
-        }}>
+        </svg>}
+    </div>
+    <div style={{
+      display: "flex",
+      alignItems: "baseline",
+      gap: 6,
+      marginBottom: 8
+    }}>
       <span style={{
         fontFamily: fm,
-        fontSize: 26,
+        fontSize: 28,
         fontWeight: 700,
         color: "var(--eco-gray-900)",
-        letterSpacing: "-0.02em"
+        letterSpacing: "-0.02em",
+        lineHeight: 1
       }}>
         {fN(av)}
       </span>
@@ -783,7 +807,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       display: "inline-flex",
       alignItems: "center",
       gap: 4,
-      padding: "2px 8px",
+      padding: "3px 10px",
       borderRadius: "var(--eco-radius-full)",
       background: trend === "down" ? "var(--eco-success-bg)" : trend === "up" ? "var(--eco-danger-bg)" : "var(--eco-gray-100)",
       animation: "eco-deltaPop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.5s both"
@@ -808,7 +832,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
   </div>)
 }
 
-function ChartCard({ title, sub, children, delay = 0, onExpand }) {
+function ChartCard({ title, sub, children, delay = 0, onExpand, legend }) {
   return (
     <div
       style={{
@@ -818,11 +842,18 @@ function ChartCard({ title, sub, children, delay = 0, onExpand }) {
         boxShadow: "var(--eco-shadow-sm)",
         overflow: "hidden",
         animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
+        transition: "box-shadow 250ms, transform 250ms",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = "0 4px 16px -4px rgba(0,0,0,0.08)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
       }}
     >
       <div
         style={{
-          padding: "16px 18px 8px",
+          padding: "18px 20px 8px",
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
@@ -885,7 +916,25 @@ function ChartCard({ title, sub, children, delay = 0, onExpand }) {
         )}
       </div>
 
-      <div style={{ padding: "4px 10px 14px" }}>{children}</div>
+      {legend && (
+        <div style={{ padding: "4px 20px 0", display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {legend.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{
+                width: 10,
+                height: 3,
+                borderRadius: 2,
+                background: item.color,
+                display: "inline-block",
+                ...(item.dashed ? { backgroundImage: `repeating-linear-gradient(90deg, ${item.color} 0, ${item.color} 4px, transparent 4px, transparent 7px)`, background: "transparent" } : {})
+              }} />
+              <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-500)" }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ padding: "4px 10px 16px" }}>{children}</div>
     </div>
   );
 }
@@ -1070,6 +1119,8 @@ function SectionLabel({ children, action }) {
           fontWeight: 700,
           color: "var(--eco-gray-800)",
           margin: 0,
+          paddingLeft: 12,
+          borderLeft: "3px solid var(--eco-primary-500)",
         }}
       >
         {children}
@@ -1099,6 +1150,199 @@ function SectionLabel({ children, action }) {
   );
 }
 
+function DashboardSkeleton() {
+  const shimmerStyle = {
+    background: "linear-gradient(90deg, var(--eco-gray-100) 25%, var(--eco-gray-50) 50%, var(--eco-gray-100) 75%)",
+    backgroundSize: "200% 100%",
+    animation: "eco-shimmer 1.4s ease-in-out infinite",
+    borderRadius: "var(--eco-radius-md)",
+  };
+  return (
+    <div style={{ maxWidth: "var(--content-max)", margin: "0 auto", animation: "eco-fadeIn 0.3s ease-out" }}>
+      {/* Header skeleton */}
+      <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <div style={{ ...shimmerStyle, width: 280, height: 28, marginBottom: 8 }} />
+          <div style={{ ...shimmerStyle, width: 200, height: 16 }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ ...shimmerStyle, width: 120, height: 34 }} />
+          <div style={{ ...shimmerStyle, width: 130, height: 34 }} />
+        </div>
+      </div>
+
+      {/* KPI skeletons */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ ...shimmerStyle, width: 140, height: 20, marginBottom: 12 }} />
+      </div>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
+        gap: 16,
+        marginBottom: 28,
+      }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            background: "white",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1px solid var(--eco-border)",
+            padding: 20,
+            animation: `eco-fadeInUp 0.4s ease-out ${i * 80}ms both`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <div style={{ ...shimmerStyle, width: 42, height: 42, borderRadius: 12 }} />
+              <div>
+                <div style={{ ...shimmerStyle, width: 90, height: 14, marginBottom: 4 }} />
+                <div style={{ ...shimmerStyle, width: 60, height: 10 }} />
+              </div>
+            </div>
+            <div style={{ ...shimmerStyle, width: 100, height: 28, marginBottom: 8 }} />
+            <div style={{ ...shimmerStyle, width: 70, height: 20 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions skeleton */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4,1fr)",
+        gap: 12,
+        marginBottom: 28,
+      }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            background: "white",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1px solid var(--eco-border)",
+            padding: "14px 16px",
+            animation: `eco-fadeInUp 0.4s ease-out ${350 + i * 60}ms both`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ ...shimmerStyle, width: 36, height: 36, borderRadius: 10 }} />
+              <div style={{ ...shimmerStyle, width: 80, height: 14 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chart skeletons */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ ...shimmerStyle, width: 160, height: 20, marginBottom: 12 }} />
+      </div>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr",
+        gap: 16,
+        marginBottom: 28,
+      }}>
+        {[0, 1].map(i => (
+          <div key={i} style={{
+            background: "white",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1px solid var(--eco-border)",
+            padding: 20,
+            animation: `eco-fadeInUp 0.4s ease-out ${600 + i * 80}ms both`,
+          }}>
+            <div style={{ ...shimmerStyle, width: 140, height: 16, marginBottom: 6 }} />
+            <div style={{ ...shimmerStyle, width: 200, height: 12, marginBottom: 16 }} />
+            <div style={{ ...shimmerStyle, width: "100%", height: 200 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Activity skeleton */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ ...shimmerStyle, width: 150, height: 20, marginBottom: 12 }} />
+      </div>
+      <div style={{
+        background: "white",
+        borderRadius: "var(--eco-radius-lg)",
+        border: "1px solid var(--eco-border)",
+        overflow: "hidden",
+        animation: "eco-fadeInUp 0.4s ease-out 800ms both",
+      }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            padding: "14px 18px",
+            borderBottom: i < 3 ? "1px solid var(--eco-gray-100)" : "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}>
+            <div style={{ ...shimmerStyle, width: 10, height: 10, borderRadius: "50%" }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ ...shimmerStyle, width: "70%", height: 14, marginBottom: 4 }} />
+              <div style={{ ...shimmerStyle, width: "40%", height: 10 }} />
+            </div>
+            <div style={{ ...shimmerStyle, width: 60, height: 20 }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function QuickActionCard({ icon, label, primary, onClick }) {
+  const Icon = icon;
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 16px",
+        borderRadius: "var(--eco-radius-lg)",
+        border: primary ? "1px solid var(--eco-primary-500)" : "1px solid var(--eco-border)",
+        background: primary ? "var(--eco-primary-500)" : "var(--eco-bg, white)",
+        cursor: "pointer",
+        fontFamily: fb,
+        fontSize: 13,
+        fontWeight: 500,
+        color: primary ? "white" : "var(--eco-gray-700)",
+        transition: "all 200ms cubic-bezier(0.33,1,0.68,1)",
+        boxShadow: "var(--eco-shadow-sm)",
+        textAlign: "left",
+        width: "100%",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = "translateY(-2px)";
+        if (primary) {
+          e.currentTarget.style.background = "#16a34a";
+          e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(34,197,94,0.35)";
+        } else {
+          e.currentTarget.style.boxShadow = "0 4px 12px -2px rgba(0,0,0,0.08)";
+          e.currentTarget.style.borderColor = "var(--eco-primary-200)";
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
+        if (primary) {
+          e.currentTarget.style.background = "var(--eco-primary-500)";
+          e.currentTarget.style.borderColor = "var(--eco-primary-500)";
+        } else {
+          e.currentTarget.style.borderColor = "var(--eco-border)";
+        }
+      }}
+    >
+      <div style={{
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        background: primary ? "rgba(255,255,255,0.2)" : "var(--eco-gray-100)",
+        color: primary ? "white" : "var(--eco-gray-600)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}>
+        <Icon size={17} />
+      </div>
+      <span>{label}</span>
+    </button>
+  );
+}
 
 
 export default function DashboardPage({ user, onLogout, onUserChange }) {
@@ -1115,8 +1359,14 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [toast, setToast] = useState(null);
   const [activity, setActivity] = useState(BASE_ACTIVITY);
   const [NewRecordModalComponent, setNewRecordModalComponent] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const profRef = useRef(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const h = e => {
@@ -1197,6 +1447,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const initials =
     (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
   const visibleActivity = activity.slice(0, 6);
+
   const handleCreateRecord = (rec) => {
     const co2e = Number(rec?.co2e_t);
     const nextItem = normalizeActivityItem({
@@ -1226,6 +1477,11 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
       message: `${nextItem.area} - ${fN(nextItem.co2e_t, 3)} tCO2e`
     });
   };
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
+  const firstName = (user?.fullName || user?.name)?.split(" ")[0] || "Usuario";
+  const todayFormatted = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div
@@ -1559,8 +1815,11 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             ) : (
               <MetasPage />
             )
+          ) : loading ? (
+            <DashboardSkeleton />
           ) : (
           <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
+            {/* Welcome Header */}
             <div
               style={{
                 display: "flex",
@@ -1568,20 +1827,22 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 justifyContent: "space-between",
                 flexWrap: "wrap",
                 gap: 12,
-                marginBottom: 20,
+                marginBottom: 24,
+                animation: "eco-fadeInUp 0.4s ease-out both",
               }}
             >
               <div>
                 <h1
                   style={{
                     fontFamily: fd,
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: 800,
                     color: "var(--eco-gray-900)",
                     margin: 0,
+                    lineHeight: 1.2,
                   }}
                 >
-                  Dashboard de Emisiones
+                  {greeting}, {firstName}
                 </h1>
 
                 <p
@@ -1589,11 +1850,14 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                     fontFamily: fb,
                     fontSize: 14,
                     color: "var(--eco-gray-500)",
-                    margin: "4px 0 0",
+                    margin: "6px 0 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                   }}
                 >
-                  Instituto Tecnológico Superior de El Mante ·{" "}
-                  {periodo === "ene-jun-2026" ? "Enero – Junio 2026" : "Julio – Diciembre 2025"}
+                  <Calendar size={13} style={{ opacity: 0.6 }} />
+                  {todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1)} · {periodo === "ene-jun-2026" ? "Enero – Junio 2026" : "Julio – Diciembre 2025"}
                 </p>
               </div>
 
@@ -1635,7 +1899,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                   }}
                   style={{
                     height: 34,
-                    padding: "0 12px",
+                    padding: "0 14px",
                     borderRadius: "var(--eco-radius-md)",
                     background: "var(--eco-primary-500)",
                     color: "white",
@@ -1647,7 +1911,16 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
-                    boxShadow: "var(--eco-shadow-sm)",
+                    boxShadow: "0 2px 8px rgba(34,197,94,0.25)",
+                    transition: "all 200ms",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.boxShadow = "0 4px 14px rgba(34,197,94,0.35)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(34,197,94,0.25)";
+                    e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
                   <Plus size={14} />
@@ -1656,14 +1929,15 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               </div>
             </div>
 
+            {/* KPI Section */}
             <SectionLabel>Indicadores clave</SectionLabel>
 
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))",
-                gap: "var(--card-gap)",
-                marginBottom: "var(--section-gap)",
+                gap: 16,
+                marginBottom: 24,
               }}
             >
               <Kpi
@@ -1722,19 +1996,71 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               />
             </div>
 
+            {/* Quick Actions Strip */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4,1fr)",
+                gap: 12,
+                marginBottom: 24,
+                animation: "eco-fadeInUp 0.4s ease-out 200ms both",
+              }}
+            >
+              <QuickActionCard
+                icon={Plus}
+                label="Nuevo registro"
+                primary
+                onClick={() => {
+                  if (NewRecordModalComponent) {
+                    setNewRecordOpen(true);
+                    return;
+                  }
+                  setToast({
+                    title: "Modal no disponible",
+                    message: "NewRecordModal.jsx no exporta un componente utilizable."
+                  });
+                }}
+              />
+              <QuickActionCard
+                icon={FileText}
+                label="Ver reportes"
+                onClick={() => handleNav("reports")}
+              />
+              <QuickActionCard
+                icon={Target}
+                label="Gestionar metas"
+                onClick={() => handleNav("goals")}
+              />
+              <QuickActionCard
+                icon={Download}
+                label="Exportar datos"
+                onClick={() => {
+                  setToast({ title: "Exportar", message: "Ve a Reportes para exportar datos." });
+                }}
+              />
+            </div>
+
+            {/* Charts Row 1 */}
+            <SectionLabel>Tendencias y distribución</SectionLabel>
+
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1fr",
-                gap: "var(--card-gap)",
-                marginBottom: "var(--section-gap)",
+                gap: 16,
+                marginBottom: 24,
               }}
             >
               <ChartCard
                 title="Tendencia mensual"
                 sub="tCO₂e por scope — Ene a Jun 2026"
-                delay={200}
+                delay={250}
                 onExpand={() => setDrill({ type: "trend" })}
+                legend={[
+                  { label: "Scope 2", color: "#22C55E" },
+                  { label: "Scope 1", color: "#EAB308" },
+                  ...(showEst ? [{ label: "Estimado", color: "#94A3B8", dashed: true }] : []),
+                ]}
               >
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={monthlyData} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
@@ -1783,7 +2109,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Por scope" sub="Periodo actual" delay={260}>
+              <ChartCard title="Por scope" sub="Periodo actual" delay={310}>
                 <div style={{ position: "relative" }}>
                   <ResponsiveContainer width="100%" height={240}>
                     <RPieChart>
@@ -1836,18 +2162,19 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               </ChartCard>
             </div>
 
+            {/* Charts Row 2 */}
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1fr",
-                gap: "var(--card-gap)",
-                marginBottom: "var(--section-gap)",
+                gap: 16,
+                marginBottom: 24,
               }}
             >
               <ChartCard
                 title="Emisiones por área"
                 sub="Top 8 áreas — tCO₂e"
-                delay={300}
+                delay={350}
                 onExpand={() => setDrill({ type: "areas" })}
               >
                 <ResponsiveContainer width="100%" height={240}>
@@ -1884,7 +2211,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Metas de reducción" sub="Progreso del periodo" delay={360}>
+              <ChartCard title="Metas de reducción" sub="Progreso del periodo" delay={400}>
                 <div style={{ padding: "0 4px" }}>
                   <GoalMini title="Reducción anual 10%" current={15.2} target={20} deadline="Dic 2026" />
                   <GoalMini
@@ -1899,6 +2226,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               </ChartCard>
             </div>
 
+            {/* Activity Feed */}
             <SectionLabel action={() => {}}>Actividad reciente</SectionLabel>
 
             <div
@@ -1908,35 +2236,55 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 border: "1px solid var(--eco-border)",
                 boxShadow: "var(--eco-shadow-sm)",
                 overflow: "hidden",
-                animation: "eco-fadeInUp 0.4s ease-out 400ms both",
+                animation: "eco-fadeInUp 0.4s ease-out 450ms both",
               }}
             >
-              {visibleActivity.map((a, i) => (
+              {visibleActivity.length === 0 ? (
+                <div style={{
+                  padding: "40px 20px",
+                  textAlign: "center",
+                }}>
+                  <ClipboardList size={36} style={{ color: "var(--eco-gray-300)", marginBottom: 10 }} />
+                  <p style={{ fontFamily: fb, fontSize: 14, fontWeight: 600, color: "var(--eco-gray-500)", margin: "0 0 4px" }}>
+                    Sin actividad reciente
+                  </p>
+                  <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)", margin: 0 }}>
+                    Los nuevos registros de emisiones aparecerán aquí.
+                  </p>
+                </div>
+              ) : (
+                visibleActivity.map((a, i) => (
                 <div
                   key={activityKey(a)}
                   style={{
-                    padding: "11px 16px",
+                    padding: "13px 18px",
                     borderBottom: i < visibleActivity.length - 1 ? "1px solid var(--eco-gray-100)" : "none",
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
+                    gap: 12,
                     cursor: "pointer",
                     transition: "background 100ms",
+                    background: i % 2 === 1 ? "var(--eco-gray-50)" : "white",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "var(--eco-gray-50)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "white")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(34,197,94,0.04)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? "var(--eco-gray-50)" : "white")}
                 >
-                  {a.status === "real" ? (
-                    <CheckCircle2 size={14} style={{ color: "var(--eco-success)" }} />
-                  ) : (
-                    <AlertTriangle size={14} style={{ color: "var(--eco-warning)" }} />
-                  )}
+                  {/* Status indicator dot */}
+                  <div style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: a.status === "real" ? "var(--eco-success)" : "var(--eco-warning)",
+                    flexShrink: 0,
+                    boxShadow: a.status === "real" ? "0 0 0 3px rgba(34,197,94,0.15)" : "0 0 0 3px rgba(234,179,8,0.15)",
+                  }} />
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p
                       style={{
                         fontFamily: fb,
                         fontSize: 13,
+                        fontWeight: 500,
                         color: "var(--eco-gray-700)",
                         margin: 0,
                         overflow: "hidden",
@@ -1946,8 +2294,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                     >
                       {`${a.area} - ${toMonthEs(a.dateISO)} - ${fN(a.co2e_t, 3)} tCO2e`}
                     </p>
-                    <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: 0 }}>
-                      {a.by} - {a.time}
+                    <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: "2px 0 0" }}>
+                      {a.by} · {a.time}
                     </p>
                   </div>
 
@@ -1956,7 +2304,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                       fontFamily: fb,
                       fontSize: 10,
                       fontWeight: 600,
-                      padding: "2px 7px",
+                      padding: "3px 8px",
                       borderRadius: "var(--eco-radius-full)",
                       background: a.status === "real" ? "var(--eco-success-bg)" : "var(--eco-warning-bg)",
                       color: a.status === "real" ? "var(--eco-success)" : "var(--eco-secondary-600)",
@@ -1968,7 +2316,31 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
                   <ChevronRight size={14} style={{ color: "var(--eco-gray-300)" }} />
                 </div>
-              ))}
+              )))}
+            </div>
+
+            {/* Footer Info Strip */}
+            <div
+              style={{
+                marginTop: 24,
+                padding: "12px 0",
+                textAlign: "center",
+                animation: "eco-fadeIn 0.4s ease-out 600ms both",
+              }}
+            >
+              <p style={{
+                fontFamily: fb,
+                fontSize: 11,
+                color: "var(--eco-gray-400)",
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+              }}>
+                <RefreshCw size={11} style={{ opacity: 0.5 }} />
+                Última actualización: hace 5 min
+              </p>
             </div>
             </div>
           )}
@@ -1997,17 +2369,57 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             border: "1px solid var(--eco-border)",
             boxShadow: "var(--eco-shadow-lg)",
             borderRadius: "var(--eco-radius-lg)",
-            padding: "12px 14px",
-            minWidth: 260,
-            animation: "eco-fadeInUp 0.25s ease-out"
+            padding: "0",
+            minWidth: 280,
+            animation: "eco-fadeInUp 0.25s ease-out",
+            overflow: "hidden",
+            display: "flex",
           }}
         >
-          <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>
-            {toast.title}
-          </p>
-          <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>
-            {toast.message}
-          </p>
+          {/* Green left accent */}
+          <div style={{
+            width: 4,
+            background: "var(--eco-success)",
+            flexShrink: 0,
+            borderRadius: "var(--eco-radius-lg) 0 0 var(--eco-radius-lg)",
+          }} />
+          <div style={{ flex: 1, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>
+                {toast.title}
+              </p>
+              <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>
+                {toast.message}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: "var(--eco-radius-sm)",
+                border: "none",
+                background: "var(--eco-gray-100)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--eco-gray-400)",
+                flexShrink: 0,
+                transition: "all 150ms",
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = "var(--eco-gray-200)";
+                e.currentTarget.style.color = "var(--eco-gray-600)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = "var(--eco-gray-100)";
+                e.currentTarget.style.color = "var(--eco-gray-400)";
+              }}
+            >
+              <X size={12} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -2135,8 +2547,3 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     </div>
   );
 }
-
-
-
-
-
