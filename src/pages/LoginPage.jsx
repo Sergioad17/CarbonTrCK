@@ -8,6 +8,7 @@ import {
   BarChart3, Shield, Building2
 } from 'lucide-react'
 import './BackgroundPatterns/Pattern2_Login.css'
+import './Animations.css'
 
 const fd = "var(--eco-font-display)"
 const fb = "var(--eco-font-body)"
@@ -495,7 +496,7 @@ export default function LoginPage({ onLogin }) {
                   }}>¿Olvidaste tu contraseña?</button>
               </div>
 
-              <Btn onClick={handleLogin} loading={loading}>
+              <Btn onClick={handleLogin} loading={loading} animated>
                 {loading ? "Verificando…" : "Iniciar sesión"}
                 {!loading && <ArrowRight size={16} />}
               </Btn>
@@ -862,7 +863,22 @@ function InputField({ type, placeholder, value, onChange, onKeyDown, error, focu
   )
 }
 
-function Btn({ onClick, loading, children }) {
+function Btn({ onClick, loading, children, animated = false }) {
+  if (animated) {
+    return (
+      <button
+        onClick={onClick}
+        disabled={loading}
+        className="example-2 eco-login-btn"
+      >
+        <span className="inner">
+          {loading && <Loader2 size={18} style={{ animation: "eco-spin 0.8s linear infinite" }} />}
+          {children}
+        </span>
+      </button>
+    )
+  }
+
   return (
     <button onClick={onClick} disabled={loading} style={{
       width: "100%",
