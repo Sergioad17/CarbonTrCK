@@ -284,7 +284,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false}/>
                 <XAxis dataKey="area" tick={{fontFamily:"var(--eco-font-body)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/>
                 <YAxis tick={{fontFamily:"var(--eco-font-mono)",fontSize:11,fill:"#94A3B8"}} axisLine={false} tickLine={false}/>
-                <RTooltip content={<EcoTooltip/>}/>
+                <RTooltip content={<EcoTooltip/>} cursor={{ fill: "rgba(136,136,136,0.15)" }}/>
                 <Bar dataKey="co2e" name="CO₂e (kg)" radius={[5,5,0,0]} cursor="pointer" onClick={d=>{setFArea(p=>p===d.area?"":d.area);setPage(0);}}>
                   {areaBars.map((row,i)=><Cell key={row.area} fill={fArea===row.area?"#CA8A04":i%2?"#FDE68A":"#EAB308"}/>)}
                 </Bar>

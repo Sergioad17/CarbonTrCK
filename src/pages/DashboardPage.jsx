@@ -2195,7 +2195,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                       axisLine={false}
                       tickLine={false}
                     />
-                    <RTooltip content={<EcoTooltip />} />
+                    <RTooltip content={<EcoTooltip />} cursor={{ fill: "rgba(136,136,136,0.15)" }} />
                     <Bar
                       dataKey="co2e"
                       name="CO₂e"

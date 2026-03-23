@@ -1377,7 +1377,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--eco-gray-100)" vertical={false} />
                 <XAxis dataKey="area" tick={{ fontFamily: "DM Sans", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontFamily: "JetBrains Mono", fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
-                <RTooltip content={<EcoTooltip />} />
+                <RTooltip content={<EcoTooltip />} cursor={{ fill: "rgba(136,136,136,0.15)" }} />
                 <Bar
                   dataKey="co2e"
                   name="CO₂e"
