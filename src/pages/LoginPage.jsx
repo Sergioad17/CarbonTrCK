@@ -198,7 +198,7 @@ export default function LoginPage({ onLogin }) {
         background: "white", animation: "eco-fadeInUp 0.6s cubic-bezier(0.33,1,0.68,1)",
       }}>
 
-        {/* LEFT — FORM */}
+        {/* LEFT - FORM */}
         <div style={{
           flex: "0 0 440px",
           padding: "40px 40px 32px",
@@ -584,7 +584,7 @@ export default function LoginPage({ onLogin }) {
           }}>© 2026 Instituto Tecnológico Superior de El Mante</p>
         </div>
 
-        {/* RIGHT — HERO */}
+        {/* RIGHT - HERO */}
         <div style={{
           flex: 1,
           minHeight: 560,

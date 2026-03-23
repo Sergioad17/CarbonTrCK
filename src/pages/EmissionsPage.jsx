@@ -74,7 +74,7 @@ const RECORDS_KEY = "carbontrack.records";
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 /* ═══════════════════════════════════════════════════════════════
-   SEED DATA — matches Dashboard's style
+   SEED DATA - matches Dashboard's style
    ═══════════════════════════════════════════════════════════════ */
 const SEED_RECORDS = [
   {
@@ -142,7 +142,7 @@ const SEED_RECORDS = [
     dateISO: "2026-02-15",
     area: "Agrícola",
     category: "combustible",
-    activity: "Tractor — riego y traslado",
+    activity: "Tractor - riego y traslado",
     value: 35,
     unit: "L",
     factor: 2.68,
@@ -187,7 +187,7 @@ const SEED_RECORDS = [
     dateISO: "2026-03-20",
     area: "Agrícola",
     category: "combustible",
-    activity: "Tractor — preparación de tierra",
+    activity: "Tractor - preparación de tierra",
     value: 42,
     unit: "L",
     factor: 2.68,
@@ -232,7 +232,7 @@ const SEED_RECORDS = [
     dateISO: "2026-05-02",
     area: "Aulas",
     category: "electricidad",
-    activity: "Aulas — periodo de exámenes",
+    activity: "Aulas - periodo de exámenes",
     value: 290,
     unit: "kWh",
     factor: 0.435,
@@ -247,7 +247,7 @@ const SEED_RECORDS = [
     dateISO: "2026-05-15",
     area: "Agrícola",
     category: "combustible",
-    activity: "Tractor — cosecha",
+    activity: "Tractor - cosecha",
     value: 28,
     unit: "L",
     factor: 2.68,
@@ -262,7 +262,7 @@ const SEED_RECORDS = [
     dateISO: "2026-06-01",
     area: "CC 2",
     category: "electricidad",
-    activity: "Upgrade de equipos — mayor consumo",
+    activity: "Upgrade de equipos - mayor consumo",
     value: 1420,
     unit: "kWh",
     factor: 0.435,
@@ -325,13 +325,13 @@ function saveRecords(recs) {
 }
 
 const fmtDate = iso => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso + "T12:00:00");
   return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;
 };
 
 const fmtMonth = iso => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso + "T12:00:00");
   return `${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;
 };
@@ -473,7 +473,7 @@ function Kpi({
       style={{
         background: "white",
         borderRadius: "var(--eco-radius-lg)",
-        padding: 18,
+        padding: 20,
         border: `1.5px solid ${
           active ? "var(--eco-primary-400)" : status === "warning" ? "#FDE68A" : "var(--eco-border)"
         }`,
@@ -486,8 +486,10 @@ function Kpi({
       }}
       onMouseEnter={e => {
         if (onClick) {
-          e.currentTarget.style.boxShadow = active ? "0 0 0 3px var(--eco-primary-200)" : "var(--eco-shadow-md)";
-          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.boxShadow = active
+            ? "0 0 0 3px var(--eco-primary-200)"
+            : "0 4px 16px -4px rgba(0,0,0,0.1), 0 2px 6px -2px rgba(0,0,0,0.06)";
+          e.currentTarget.style.transform = "translateY(-3px)";
         }
       }}
       onMouseLeave={e => {
@@ -504,15 +506,16 @@ function Kpi({
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div
           style={{
-            width: 38,
-            height: 38,
-            borderRadius: "var(--eco-radius-md)",
-            background: iconBg || "var(--eco-primary-50)",
+            width: 42,
+            height: 42,
+            borderRadius: 12,
+            background: `linear-gradient(135deg, ${iconBg || "var(--eco-primary-50)"}, transparent)`,
             color: iconColor || "var(--eco-primary-600)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
+            boxShadow: "0 2px 8px -2px rgba(0,0,0,0.06)",
           }}
         >
           {icon}
@@ -587,11 +590,18 @@ function ChartCard({ title, sub, children, delay = 0 }) {
         boxShadow: "var(--eco-shadow-sm)",
         overflow: "hidden",
         animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
+        transition: "box-shadow 200ms ease",
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.boxShadow = "0 4px 16px -4px rgba(0,0,0,0.08), 0 2px 6px -2px rgba(0,0,0,0.04)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
       }}
     >
       <div
         style={{
-          padding: "16px 18px 8px",
+          padding: "18px 20px 10px",
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "space-between",
@@ -605,7 +615,7 @@ function ChartCard({ title, sub, children, delay = 0 }) {
         </div>
       </div>
 
-      <div style={{ padding: "4px 10px 14px" }}>{children}</div>
+      <div style={{ padding: "6px 12px 16px" }}>{children}</div>
     </div>
   );
 }
@@ -685,7 +695,16 @@ function DrillPanel({ title, onClose, children }) {
 function SectionLabel({ children, action, actionLabel }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-      <h2 style={{ fontFamily: fd, fontSize: 17, fontWeight: 700, color: "var(--eco-gray-800)", margin: 0 }}>
+      <h2
+        style={{
+          fontFamily: fd,
+          fontSize: 17,
+          fontWeight: 700,
+          color: "var(--eco-gray-800)",
+          margin: 0,
+          paddingLeft: 0,
+        }}
+      >
         {children}
       </h2>
 
@@ -833,10 +852,163 @@ function Badge({ children, variant = "default" }) {
         color: cfg.c,
         border: `1px solid ${cfg.b}`,
         whiteSpace: "nowrap",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 3,
       }}
     >
       {children}
     </span>
+  );
+}
+
+/* ─── Page Skeleton ─── */
+function PageSkeleton() {
+  const shimmer = {
+    background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
+    backgroundSize: "200% 100%",
+    animation: "eco-shimmer 1.4s ease-in-out infinite",
+    borderRadius: "var(--eco-radius-md)",
+  };
+
+  return (
+    <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)" }}>
+      <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
+        {/* Header skeleton */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ ...shimmer, width: 180, height: 28, marginBottom: 8 }} />
+            <div style={{ ...shimmer, width: 320, height: 16 }} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ ...shimmer, width: 120, height: 34, borderRadius: "var(--eco-radius-md)" }} />
+            <div style={{ ...shimmer, width: 140, height: 34, borderRadius: "var(--eco-radius-md)" }} />
+          </div>
+        </div>
+
+        {/* Filter bar skeleton */}
+        <div
+          style={{
+            background: "var(--eco-surface)",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1px solid var(--eco-border)",
+            padding: "12px 16px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          {[90, 100, 70, 80, 70].map((w, i) => (
+            <div key={i} style={{ ...shimmer, width: w, height: 32, borderRadius: "var(--eco-radius-full)" }} />
+          ))}
+          <div style={{ flex: 1 }} />
+          <div style={{ ...shimmer, width: 180, height: 32, borderRadius: "var(--eco-radius-full)" }} />
+        </div>
+
+        {/* KPI cards skeleton */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+            gap: "var(--card-gap)",
+            marginBottom: "var(--section-gap)",
+          }}
+        >
+          {[0, 1, 2, 3].map(i => (
+            <div
+              key={i}
+              style={{
+                background: "var(--eco-surface)",
+                borderRadius: "var(--eco-radius-lg)",
+                padding: 20,
+                border: "1px solid var(--eco-border)",
+                animation: `eco-fadeInUp 0.4s ease-out ${i * 60}ms both`,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+                <div style={{ ...shimmer, width: 42, height: 42, borderRadius: 12 }} />
+                <div>
+                  <div style={{ ...shimmer, width: 80, height: 14, marginBottom: 4 }} />
+                  <div style={{ ...shimmer, width: 50, height: 10 }} />
+                </div>
+              </div>
+              <div style={{ ...shimmer, width: 100, height: 28, marginBottom: 8 }} />
+              <div style={{ ...shimmer, width: 60, height: 20, borderRadius: "var(--eco-radius-full)" }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Charts skeleton */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "var(--card-gap)",
+            marginBottom: "var(--section-gap)",
+          }}
+        >
+          {[0, 1].map(i => (
+            <div
+              key={i}
+              style={{
+                background: "var(--eco-surface)",
+                borderRadius: "var(--eco-radius-lg)",
+                border: "1px solid var(--eco-border)",
+                overflow: "hidden",
+                animation: `eco-fadeInUp 0.4s ease-out ${200 + i * 60}ms both`,
+              }}
+            >
+              <div style={{ padding: "18px 20px 10px" }}>
+                <div style={{ ...shimmer, width: 140, height: 16, marginBottom: 4 }} />
+                <div style={{ ...shimmer, width: 100, height: 12 }} />
+              </div>
+              <div style={{ padding: "6px 12px 16px" }}>
+                <div style={{ ...shimmer, width: "100%", height: 220 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Table skeleton */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ ...shimmer, width: 120, height: 20 }} />
+        </div>
+        <div
+          style={{
+            background: "var(--eco-surface)",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1px solid var(--eco-border)",
+            overflow: "hidden",
+            animation: "eco-fadeInUp 0.4s ease-out 350ms both",
+          }}
+        >
+          {/* Table header */}
+          <div style={{ ...shimmer, width: "100%", height: 40, borderRadius: 0 }} />
+          {/* Table rows */}
+          {[0, 1, 2, 3, 4].map(i => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                padding: "12px 16px",
+                borderBottom: i < 4 ? "1px solid var(--eco-gray-100)" : "none",
+              }}
+            >
+              <div style={{ ...shimmer, width: 70, height: 14 }} />
+              <div style={{ ...shimmer, width: 60, height: 14 }} />
+              <div style={{ ...shimmer, width: 80, height: 20, borderRadius: "var(--eco-radius-full)" }} />
+              <div style={{ ...shimmer, width: 160, height: 14, flex: 1 }} />
+              <div style={{ ...shimmer, width: 50, height: 14 }} />
+              <div style={{ ...shimmer, width: 40, height: 14 }} />
+              <div style={{ ...shimmer, width: 60, height: 14 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -856,7 +1028,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   const [drill, setDrill] = useState(null);
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
   const PER_PAGE = 8;
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     saveRecords(records);
@@ -1029,6 +1207,8 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   const areas = [...new Set(records.map(r => r.area))].sort();
   const sources = [...new Set(records.map(r => r.source))].filter(Boolean).sort();
 
+  if (loading) return <PageSkeleton />;
+
   return (
     <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)" }}>
       <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
@@ -1062,6 +1242,12 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             <p style={{ fontFamily: fb, fontSize: 14, color: "var(--eco-gray-500)", margin: "4px 0 0" }}>
               Explora emisiones por periodo, área y categoría. Haz clic en gráficas para filtrar.
             </p>
+
+            <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)", margin: "2px 0 0" }}>
+              {hasFilters
+                ? `Mostrando ${filtered.length} de ${records.length} registros filtrados`
+                : `${records.length} registros totales`}
+            </p>
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1083,8 +1269,14 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 gap: 6,
                 transition: "all 150ms",
               }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--eco-primary-300)")}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--eco-border)")}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = "var(--eco-primary-300)";
+                e.currentTarget.style.background = "var(--eco-primary-50)";
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = "var(--eco-border)";
+                e.currentTarget.style.background = "white";
+              }}
             >
               <Download size={14} />
               Exportar CSV
@@ -1129,17 +1321,18 @@ export default function EmissionsPage({ user, onOpenRecord }) {
           style={{
             background: "white",
             borderRadius: "var(--eco-radius-lg)",
-            border: "1px solid var(--eco-border)",
+            border: "1.5px solid var(--eco-primary-500)",
             padding: "12px 16px",
             marginBottom: 20,
             display: "flex",
             alignItems: "center",
-            gap: 8,
+            gap: 10,
             flexWrap: "wrap",
             boxShadow: "var(--eco-shadow-sm)",
             animation: "eco-fadeInUp 0.3s ease-out",
           }}
         >
+
           <Filter size={15} style={{ color: "var(--eco-gray-400)", flexShrink: 0 }} />
 
           <FilterSelect
@@ -1505,25 +1698,38 @@ export default function EmissionsPage({ user, onOpenRecord }) {
               background: "white",
               borderRadius: "var(--eco-radius-lg)",
               border: "1px solid var(--eco-border)",
-              padding: "50px 24px",
+              padding: "60px 24px",
               textAlign: "center",
               animation: "eco-fadeInUp 0.3s ease-out",
             }}
           >
-            <FileX size={36} style={{ color: "var(--eco-gray-300)", margin: "0 auto 12px", display: "block" }} />
-            <p style={{ fontFamily: fd, fontSize: 16, fontWeight: 700, color: "var(--eco-gray-700)", margin: "0 0 4px" }}>
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: "var(--eco-gray-50)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+              }}
+            >
+              <FileX size={32} style={{ color: "var(--eco-gray-300)" }} />
+            </div>
+            <p style={{ fontFamily: fd, fontSize: 18, fontWeight: 700, color: "var(--eco-gray-700)", margin: "0 0 6px" }}>
               Sin resultados
             </p>
-            <p style={{ fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)", margin: 0 }}>
+            <p style={{ fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)", margin: "0 0 4px", maxWidth: 340, marginLeft: "auto", marginRight: "auto" }}>
               No hay registros con estos filtros. Prueba otra combinación.
             </p>
             {hasFilters && (
               <button
                 onClick={clearFilters}
                 style={{
-                  marginTop: 14,
-                  height: 34,
-                  padding: "0 16px",
+                  marginTop: 18,
+                  height: 36,
+                  padding: "0 18px",
                   borderRadius: "var(--eco-radius-md)",
                   border: "none",
                   background: "var(--eco-primary-500)",
@@ -1532,6 +1738,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
+                  transition: "all 150ms",
                 }}
               >
                 Limpiar filtros
@@ -1547,6 +1754,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
               boxShadow: "var(--eco-shadow-sm)",
               overflow: "hidden",
               animation: "eco-fadeInUp 0.3s ease-out 100ms both",
+              position: "relative",
             }}
           >
             <div style={{ overflowX: "auto" }}>
@@ -1577,7 +1785,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                           color: "var(--eco-gray-500)",
                           textTransform: "uppercase",
                           letterSpacing: "0.04em",
-                          background: "var(--eco-gray-50)",
+                          background: "var(--eco-gray-100)",
                           cursor: col.key ? "pointer" : "default",
                           whiteSpace: "nowrap",
                           minWidth: col.w,
@@ -1600,7 +1808,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       key={r.id || ri}
                       style={{
                         borderBottom: ri < paged.length - 1 ? "1px solid var(--eco-gray-100)" : "none",
-                        transition: "background 100ms",
+                        transition: "background 150ms ease",
                         cursor: "pointer",
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = "var(--eco-gray-50)")}
@@ -1614,7 +1822,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       <td style={{ padding: "10px 12px", fontWeight: 600, color: "var(--eco-gray-700)" }}>{r.area}</td>
 
                       <td style={{ padding: "10px 12px" }}>
-                        <Badge variant={r.category}>{r.category === "electricidad" ? "⚡ Electricidad" : "🔥 Combustible"}</Badge>
+                        <Badge variant={r.category}>
+                          {r.category === "electricidad" ? (
+                            <><Zap size={10} style={{ marginRight: 2 }} />Electricidad</>
+                          ) : (
+                            <><Flame size={10} style={{ marginRight: 2 }} />Combustible</>
+                          )}
+                        </Badge>
                       </td>
 
                       <td
@@ -1719,6 +1933,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       justifyContent: "center",
                       color: "var(--eco-gray-500)",
                       opacity: page === 0 ? 0.4 : 1,
+                      transition: "all 150ms",
+                    }}
+                    onMouseEnter={e => {
+                      if (page > 0) e.currentTarget.style.borderColor = "var(--eco-primary-300)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = "var(--eco-border)";
                     }}
                   >
                     <ChevronLeft size={15} />
@@ -1739,6 +1960,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                         fontWeight: page === i ? 700 : 400,
                         color: page === i ? "var(--eco-primary-700)" : "var(--eco-gray-600)",
                         cursor: "pointer",
+                        transition: "all 150ms",
+                      }}
+                      onMouseEnter={e => {
+                        if (page !== i) e.currentTarget.style.borderColor = "var(--eco-primary-200)";
+                      }}
+                      onMouseLeave={e => {
+                        if (page !== i) e.currentTarget.style.borderColor = "var(--eco-border)";
                       }}
                     >
                       {i + 1}
@@ -1760,6 +1988,13 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       justifyContent: "center",
                       color: "var(--eco-gray-500)",
                       opacity: page >= totalPages - 1 ? 0.4 : 1,
+                      transition: "all 150ms",
+                    }}
+                    onMouseEnter={e => {
+                      if (page < totalPages - 1) e.currentTarget.style.borderColor = "var(--eco-primary-300)";
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = "var(--eco-border)";
                     }}
                   >
                     <ChevronRight size={15} />
@@ -1781,19 +2016,47 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             zIndex: 120,
             background: "white",
             border: "1px solid var(--eco-border)",
+            borderLeft: "4px solid var(--eco-primary-500)",
             boxShadow: "var(--eco-shadow-lg)",
             borderRadius: "var(--eco-radius-lg)",
             padding: "12px 14px",
             minWidth: 260,
             animation: "eco-fadeInUp 0.25s ease-out",
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: 10,
           }}
         >
-          <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>
-            {toast.title}
-          </p>
-          <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>
-            {toast.message}
-          </p>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-gray-800)" }}>
+              {toast.title}
+            </p>
+            <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>
+              {toast.message}
+            </p>
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "var(--eco-radius-sm)",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--eco-gray-400)",
+              flexShrink: 0,
+              transition: "color 150ms",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = "var(--eco-gray-600)")}
+            onMouseLeave={e => (e.currentTarget.style.color = "var(--eco-gray-400)")}
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -1807,11 +2070,12 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 background: "var(--eco-primary-50)",
                 border: "1px solid var(--eco-primary-200)",
                 borderRadius: "var(--eco-radius-lg)",
-                padding: 16,
+                padding: 18,
                 textAlign: "center",
+                boxShadow: "0 2px 12px -4px rgba(34,197,94,0.12)",
               }}
             >
-              <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-primary-600)", margin: "0 0 6px", fontWeight: 600 }}>
+              <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-primary-600)", margin: "0 0 8px", fontWeight: 600 }}>
                 Cálculo de emisiones
               </p>
 
@@ -1836,11 +2100,21 @@ export default function EmissionsPage({ user, onOpenRecord }) {
               {[
                 { l: "Fecha", v: fmtDate(drill.dateISO) },
                 { l: "Área", v: drill.area },
-                { l: "Categoría", v: drill.category === "electricidad" ? "⚡ Electricidad (Scope 2)" : "🔥 Combustible (Scope 1)" },
+                {
+                  l: "Categoría",
+                  v: drill.category === "electricidad"
+                    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Zap size={12} /> Electricidad (Scope 2)</span>
+                    : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Flame size={12} /> Combustible (Scope 1)</span>,
+                },
                 { l: "Actividad", v: drill.activity },
                 { l: "Fuente del dato", v: drill.source },
-                { l: "Estado", v: drill.status === "real" ? "✅ Real" : "⚠️ Estimado" },
-                { l: "Capturado por", v: drill.by || "—" },
+                {
+                  l: "Estado",
+                  v: drill.status === "real"
+                    ? <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={12} /> Real</span>
+                    : <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><AlertTriangle size={12} /> Estimado</span>,
+                },
+                { l: "Capturado por", v: drill.by || "-" },
                 { l: "CO₂e (kg)", v: `${fN(drill.co2e_kg || 0, 1)} kgCO₂e` },
               ].map((row, i) => (
                 <div
@@ -1849,11 +2123,11 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    padding: "9px 14px",
+                    padding: "10px 16px",
                     borderBottom: i < 7 ? "1px solid var(--eco-gray-100)" : "none",
                   }}
                 >
-                  <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{row.l}</span>
+                  <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)", fontWeight: 500 }}>{row.l}</span>
                   <span style={{ fontFamily: fb, fontSize: 13, fontWeight: 600, color: "var(--eco-gray-700)", textAlign: "right" }}>
                     {row.v}
                   </span>

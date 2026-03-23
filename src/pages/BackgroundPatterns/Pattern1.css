@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   Pattern1 — Geometric hexagonal/triangular tiling
+   Pattern1 - Geometric hexagonal/triangular tiling
    Diagonal infinite carousel + 3D Elevation & cursor contrast
    ═══════════════════════════════════════════════════════ */
 
@@ -118,7 +118,7 @@
   animation: none;
 }
 
-/* Diagonal drift — movimiento original intacto */
+/* Diagonal drift - movimiento original intacto */
 @keyframes eco-patternDriftDiag {
   from { background-position: 0 0; }
   to   { background-position: calc(var(--s) * -3.464) calc(var(--s) * 2); }

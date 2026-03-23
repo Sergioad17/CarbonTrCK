@@ -1071,7 +1071,7 @@ export default function EquipmentPage() {
           <KpiCard icon={<Monitor size={18} />} title="Equipos activos" value={numberFormat(summary.activeCount, 0)} unit="" sub="Conteo según filtros" delay={200} tone="green" />
           <KpiCard icon={<Zap size={18} />} title="kWh estimados / mes" value={numberFormat(summary.totalKwh, 2)} unit="kWh" sub="Solo equipos eléctricos filtrados" delay={260} tone="blue" />
           <KpiCard icon={<Leaf size={18} />} title="CO₂e estimado / mes" value={numberFormat(summary.totalCo2eT, 4)} unit="tCO₂e" sub={usingFallbackFactor ? "Usa factor demo mientras no se configure uno real." : "Calculado con factor eléctrico predeterminado."} delay={320} tone="yellow" />
-          <KpiCard icon={<Building2 size={18} />} title="Top área por consumo" value={summary.topArea ? summary.topArea.label : "—"} unit="" sub={summary.topArea ? `${numberFormat(summary.topArea.value, 2)} kWh/mes` : "Sin datos con los filtros actuales"} delay={380} tone="gray" />
+          <KpiCard icon={<Building2 size={18} />} title="Top área por consumo" value={summary.topArea ? summary.topArea.label : "-"} unit="" sub={summary.topArea ? `${numberFormat(summary.topArea.value, 2)} kWh/mes` : "Sin datos con los filtros actuales"} delay={380} tone="gray" />
         </div>
 
         <SectionLabel icon={<Calculator size={14} />} delay={220}>Inventario</SectionLabel>

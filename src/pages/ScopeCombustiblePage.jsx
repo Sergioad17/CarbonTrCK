@@ -39,8 +39,8 @@ function useCountUp(target,dur=650){const[v,setV]=useState(0);const ref=useRef(n
 
 /* ═══ UTILS ═══ */
 function fN(n,d=1){return Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:d,maximumFractionDigits:d})}
-function fDate(iso){if(!iso)return"—";const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"—";return`${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`}
-function fMonth(iso){if(!iso)return"—";const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"—";return`${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`}
+function fDate(iso){if(!iso)return"-";const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"-";return`${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`}
+function fMonth(iso){if(!iso)return"-";const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"-";return`${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`}
 function toKey(date){const d=new Date(`${date}T12:00:00`);if(Number.isNaN(d.getTime()))return"";return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
 function inferEq(a=""){const t=a.toLowerCase();if(t.includes("tractor"))return"Tractor";if(t.includes("planta"))return"Planta";if(t.includes("camioneta"))return"Camioneta";return""}
 
@@ -85,7 +85,7 @@ function EcoTooltip({active,payload,label}){if(!active||!payload?.length)return 
 function DonutTooltip({active,payload}){if(!active||!payload?.length)return null;const d=payload[0];return(<div style={{background:"var(--eco-gray-900)",borderRadius:"var(--eco-radius-md)",padding:"10px 14px",boxShadow:"var(--eco-shadow-lg)",border:"none"}}><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><span style={{width:8,height:8,borderRadius:"50%",background:d.color||d.payload?.color}}/><span style={{fontFamily:fb,fontSize:12,fontWeight:600,color:"white"}}>{d.name}</span></div><span style={{fontFamily:fm,fontSize:16,fontWeight:700,color:"white"}}>{fN(d.value,1)}</span><span style={{fontFamily:fb,fontSize:11,color:"rgba(255,255,255,.5)",marginLeft:6}}>({d.payload?.pct}%)</span></div>)}
 
 function KpiCard({title,sub,value,unit,icon,iconBg,iconColor,delta,trend="neutral",status,delay=0,sparkData}){
-  const num=Number(String(value).replace(/[^0-9.\-]/g,""))||0;const anim=useCountUp(num,700);const isNum=!isNaN(num)&&String(value)!=="—";
+  const num=Number(String(value).replace(/[^0-9.\-]/g,""))||0;const anim=useCountUp(num,700);const isNum=!isNaN(num)&&String(value)!=="-";
   const tc=TR_C[trend]||TR_C.neutral;const sa=ST_ACC[status]||null;
   const spark=sparkData&&sparkData.length>1?(()=>{const mx=Math.max(...sparkData),mn=Math.min(...sparkData),rng=mx-mn||1;return sparkData.map((v,i)=>`${(i/(sparkData.length-1))*60},${22-((v-mn)/rng)*22}`).join(" ");})():null;
   return(<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",padding:18,border:`1px solid ${sa?.b||"var(--eco-border)"}`,boxShadow:"var(--eco-shadow-sm)",transition:"all 200ms cubic-bezier(.33,1,.68,1)",animation:`ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,position:"relative",overflow:"hidden"}}
@@ -103,7 +103,7 @@ function KpiCard({title,sub,value,unit,icon,iconBg,iconColor,delta,trend="neutra
       <span style={{fontFamily:fm,fontSize:26,fontWeight:700,color:"var(--eco-gray-900)",letterSpacing:"-0.02em"}}>{isNum?fN(anim,unit==="%"?0:1):value}</span>
       <span style={{fontFamily:fm,fontSize:12,color:"var(--eco-gray-400)"}}>{unit}</span>
     </div>
-    <div style={{minHeight:22}}>{delta?<div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:"var(--eco-radius-full)",background:tc.bg,animation:"ctPop .4s cubic-bezier(.34,1.56,.64,1) .5s both"}}><span style={{display:"flex",color:tc.c}}>{tc.i}</span><span style={{fontFamily:fm,fontSize:11,fontWeight:600,color:tc.c}}>{delta}</span></div>:<span style={{fontFamily:fb,fontSize:12,color:"var(--eco-gray-400)"}}>—</span>}</div>
+    <div style={{minHeight:22}}>{delta?<div style={{display:"inline-flex",alignItems:"center",gap:4,padding:"2px 8px",borderRadius:"var(--eco-radius-full)",background:tc.bg,animation:"ctPop .4s cubic-bezier(.34,1.56,.64,1) .5s both"}}><span style={{display:"flex",color:tc.c}}>{tc.i}</span><span style={{fontFamily:fm,fontSize:11,fontWeight:600,color:tc.c}}>{delta}</span></div>:<span style={{fontFamily:fb,fontSize:12,color:"var(--eco-gray-400)"}}>-</span>}</div>
   </div>);
 }
 
@@ -161,7 +161,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const totalPages=Math.ceil(filtered.length/PER_PAGE);const paged=filtered.slice(page*PER_PAGE,(page+1)*PER_PAGE);
   const activeFC=useMemo(()=>[fArea,fStatus,fSource,fFuel,fEquipment].filter(Boolean).length,[fArea,fStatus,fSource,fFuel,fEquipment]);
 
-  const summaryFilters=useMemo(()=>{const v=[];v.push(periodMode==="mes"?`${MONTHS_ES[month-1]} ${year}`:periodMode==="rango"?`${fromDate||"—"} a ${toDate||"—"}`:"Todo el periodo");if(fArea)v.push(`Área: ${fArea}`);if(fStatus)v.push(fStatus==="est"?"Estimado":"Real");if(fSource)v.push(fSource);if(fFuel)v.push(fFuel);if(fEquipment)v.push(fEquipment);return v;},[periodMode,month,year,fromDate,toDate,fArea,fStatus,fSource,fFuel,fEquipment]);
+  const summaryFilters=useMemo(()=>{const v=[];v.push(periodMode==="mes"?`${MONTHS_ES[month-1]} ${year}`:periodMode==="rango"?`${fromDate||"-"} a ${toDate||"-"}`:"Todo el periodo");if(fArea)v.push(`Área: ${fArea}`);if(fStatus)v.push(fStatus==="est"?"Estimado":"Real");if(fSource)v.push(fSource);if(fFuel)v.push(fFuel);if(fEquipment)v.push(fEquipment);return v;},[periodMode,month,year,fromDate,toDate,fArea,fStatus,fSource,fFuel,fEquipment]);
 
   const kpis=useMemo(()=>{
     const lit=filtered.reduce((s,r)=>s+r.value,0);const co2Kg=filtered.reduce((s,r)=>s+r.co2e_kg,0);const co2T=filtered.reduce((s,r)=>s+r.co2e_t,0);
@@ -256,9 +256,9 @@ export default function ScopeCombustiblePage({onOpenRecord}){
         :<div className="ct-kpi-g" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:14,marginBottom:24}}>
           <KpiCard title="Litros totales" sub={`${filtered.length} registros`} value={kpis.liters} unit="L" icon={<Droplets size={18}/>} delay={120} sparkData={lineData.map(d=>d.litros)}/>
           <KpiCard title="CO₂e total" sub="Emisiones directas" value={kpis.co2T} unit="tCO₂e" icon={<Flame size={18}/>} iconBg="var(--eco-danger-bg)" iconColor="var(--eco-danger)" delay={180} sparkData={lineData.map(d=>d.co2e)} status={kpis.co2T>0.3?"danger":kpis.co2T>0.15?"warning":undefined}/>
-          <KpiCard title="Factor promedio" value={kpis.factorAvg?fN(kpis.factorAvg,3):"—"} unit="kgCO₂e/L" icon={<Fuel size={18}/>} delay={240}/>
+          <KpiCard title="Factor promedio" value={kpis.factorAvg?fN(kpis.factorAvg,3):"-"} unit="kgCO₂e/L" icon={<Fuel size={18}/>} delay={240}/>
           <KpiCard title="Datos reales" sub="Calidad de datos" value={kpis.pctReal} unit="%" icon={<CheckCircle2 size={18}/>} iconBg="var(--eco-success-bg)" iconColor="var(--eco-success)" delay={300} status={kpis.pctReal>=80?"success":kpis.pctReal>=60?"warning":"danger"}/>
-          <KpiCard title="Variación" sub="vs periodo anterior" value={kpis.change||"—"} unit="" icon={<Calendar size={18}/>} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delta={kpis.change} trend={kpis.trend} delay={360}/>
+          <KpiCard title="Variación" sub="vs periodo anterior" value={kpis.change||"-"} unit="" icon={<Calendar size={18}/>} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delta={kpis.change} trend={kpis.trend} delay={360}/>
         </div>}
 
         {/* ═══ CHARTS ═══ */}
@@ -342,7 +342,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
                   <td style={{padding:"10px 12px",fontFamily:fm,fontWeight:700,color:"var(--eco-primary-700)"}}>{fN(r.co2e_t,3)}</td>
                   <td style={{padding:"10px 12px"}}><Badge status={r.status}/></td>
                   <td style={{padding:"10px 12px",color:"var(--eco-gray-500)",fontSize:12}}>{r.source}</td>
-                  <td style={{padding:"10px 12px",color:"var(--eco-gray-500)",fontSize:12}}>{r.evidence?<span style={{display:"inline-flex",alignItems:"center",gap:3}}><Paperclip size={11}/>{r.evidence.length>16?r.evidence.slice(0,14)+"…":r.evidence}</span>:"—"}</td>
+                  <td style={{padding:"10px 12px",color:"var(--eco-gray-500)",fontSize:12}}>{r.evidence?<span style={{display:"inline-flex",alignItems:"center",gap:3}}><Paperclip size={11}/>{r.evidence.length>16?r.evidence.slice(0,14)+"…":r.evidence}</span>:"-"}</td>
                   <td style={{padding:"10px 12px"}}><button onClick={e=>{e.stopPropagation();openTrace(r);}} aria-label={`Ver ${r.activity}`} style={{height:28,width:28,borderRadius:"var(--eco-radius-sm)",border:"1px solid var(--eco-border)",background:"white",color:"var(--eco-gray-400)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all 150ms"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.color="var(--eco-primary-600)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--eco-border)";e.currentTarget.style.color="var(--eco-gray-400)";}}><ExternalLink size={13}/></button></td>
                 </tr>
               )}</tbody>
@@ -366,7 +366,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
     {drill&&<DrillPanel title="Trazabilidad de combustible" breadcrumb="Scope 1 → Combustible → Detalle" onClose={()=>setDrill(null)}>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div style={{background:"var(--eco-secondary-50)",border:"1px solid #FDE68A",borderRadius:"var(--eco-radius-lg)",padding:16,textAlign:"center",animation:"ctFadeUp .3s ease-out"}}>
-          <p style={{margin:"0 0 8px",fontFamily:fb,fontSize:12,fontWeight:600,color:"var(--eco-secondary-600)"}}>Cálculo de emisiones — Scope 1</p>
+          <p style={{margin:"0 0 8px",fontFamily:fb,fontSize:12,fontWeight:600,color:"var(--eco-secondary-600)"}}>Cálculo de emisiones - Scope 1</p>
           <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:8,flexWrap:"wrap"}}>
             <span style={{fontFamily:fm,fontSize:18,fontWeight:700,color:"var(--eco-gray-800)"}}>{fN(drill.value,1)}</span><span style={{fontFamily:fb,fontSize:11,color:"var(--eco-gray-500)"}}>L</span>
             <span style={{color:"var(--eco-gray-400)",fontFamily:fm,fontSize:14}}>×</span>
@@ -377,7 +377,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
         </div>
 
         <div style={{background:"var(--eco-gray-50)",borderRadius:"var(--eco-radius-md)",overflow:"hidden"}}>
-          {[{l:"Fecha",v:fDate(drill.dateISO)},{l:"Área",v:drill.area},{l:"Scope",v:"Scope 1 - Combustible"},{l:"Actividad",v:drill.activity},{l:"Combustible",v:drill.fuelType},{l:"Consumo",v:`${fN(drill.value,1)} L`},{l:"Factor aplicado",v:`${fN(drill.factor,3)} kgCO₂e/L (INECC 2023)`},{l:"CO₂e (kg)",v:`${fN(drill.co2e_kg,1)} kgCO₂e`},{l:"Estado",v:null,badge:true},{l:"Fuente",v:drill.source},{l:"Equipo",v:drill.equipment||"—"},{l:"Evidencia",v:drill.evidence||"—"}].map((row,i)=>
+          {[{l:"Fecha",v:fDate(drill.dateISO)},{l:"Área",v:drill.area},{l:"Scope",v:"Scope 1 - Combustible"},{l:"Actividad",v:drill.activity},{l:"Combustible",v:drill.fuelType},{l:"Consumo",v:`${fN(drill.value,1)} L`},{l:"Factor aplicado",v:`${fN(drill.factor,3)} kgCO₂e/L (INECC 2023)`},{l:"CO₂e (kg)",v:`${fN(drill.co2e_kg,1)} kgCO₂e`},{l:"Estado",v:null,badge:true},{l:"Fuente",v:drill.source},{l:"Equipo",v:drill.equipment||"-"},{l:"Evidencia",v:drill.evidence||"-"}].map((row,i)=>
             <div key={row.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"10px 14px",borderBottom:i<11?"1px solid var(--eco-gray-100)":"none",animation:`ctFadeUp .3s ease-out ${i*30}ms both`}}>
               <span style={{fontFamily:fb,fontSize:12,color:"var(--eco-gray-500)"}}>{row.l}</span>
               {row.badge?<Badge status={drill.status}/>:<span style={{fontFamily:fb,fontSize:12,fontWeight:600,color:"var(--eco-gray-700)",textAlign:"right"}}>{row.v}</span>}

@@ -38,7 +38,7 @@ export default function FooterSection() {
           </div>
         </div>
 
-        <p className="lnd-fcp">© 2026 CarbonTrack — Instituto Tecnológico Superior de El Mante</p>
+        <p className="lnd-fcp">© 2026 CarbonTrack - Instituto Tecnológico Superior de El Mante</p>
       </div>
     </footer>
   );

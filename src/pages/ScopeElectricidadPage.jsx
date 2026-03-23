@@ -35,15 +35,15 @@ const SEED_RECORDS = [
   { id:"s2", dateISO:"2026-01-15", area:"CC 2", category:"electricidad", activity:"Servidores y switches activos", value:1100, unit:"kWh", factor:0.435, co2e_kg:478.50, co2e_t:0.479, status:"real", source:"Medición", by:"Ana García" },
   { id:"s3", dateISO:"2026-01-20", area:"Aulas", category:"electricidad", activity:"Iluminación y proyectores aulas 1-8", value:340, unit:"kWh", factor:0.435, co2e_kg:147.90, co2e_t:0.148, status:"est", source:"Estimación", by:"Carlos López" },
   { id:"s4", dateISO:"2026-02-10", area:"Industrial", category:"electricidad", activity:"Máquinas taller industrial", value:920, unit:"kWh", factor:0.435, co2e_kg:400.20, co2e_t:0.400, status:"real", source:"Recibo", by:"Ana García" },
-  { id:"s5", dateISO:"2026-02-15", area:"Agrícola", category:"combustible", activity:"Tractor — riego y traslado", value:35, unit:"L", factor:2.68, co2e_kg:93.80, co2e_t:0.094, status:"real", source:"Inventario", by:"Pedro Ruiz" },
+  { id:"s5", dateISO:"2026-02-15", area:"Agrícola", category:"combustible", activity:"Tractor - riego y traslado", value:35, unit:"L", factor:2.68, co2e_kg:93.80, co2e_t:0.094, status:"real", source:"Inventario", by:"Pedro Ruiz" },
   { id:"s6", dateISO:"2026-03-01", area:"Redes", category:"electricidad", activity:"Switches y routers 24/7", value:780, unit:"kWh", factor:0.435, co2e_kg:339.30, co2e_t:0.339, status:"real", source:"Medición", by:"Ana García" },
   { id:"s7", dateISO:"2026-03-12", area:"Admin", category:"electricidad", activity:"Oficinas administrativas", value:420, unit:"kWh", factor:0.435, co2e_kg:182.70, co2e_t:0.183, status:"real", source:"Recibo", by:"Carlos López" },
-  { id:"s8", dateISO:"2026-03-20", area:"Agrícola", category:"combustible", activity:"Tractor — preparación de tierra", value:42, unit:"L", factor:2.68, co2e_kg:112.56, co2e_t:0.113, status:"real", source:"Inventario", by:"Pedro Ruiz" },
+  { id:"s8", dateISO:"2026-03-20", area:"Agrícola", category:"combustible", activity:"Tractor - preparación de tierra", value:42, unit:"L", factor:2.68, co2e_kg:112.56, co2e_t:0.113, status:"real", source:"Inventario", by:"Pedro Ruiz" },
   { id:"s9", dateISO:"2026-04-05", area:"Aulas", category:"electricidad", activity:"Aulas 9-16 iluminación + AC", value:1580, unit:"kWh", factor:0.435, co2e_kg:687.30, co2e_t:0.687, status:"real", source:"Recibo", by:"Ana García" },
   { id:"s10", dateISO:"2026-04-18", area:"CC 1", category:"electricidad", activity:"Laboratorio de redes y servidores", value:1340, unit:"kWh", factor:0.435, co2e_kg:582.90, co2e_t:0.583, status:"real", source:"Medición", by:"Ana García" },
-  { id:"s11", dateISO:"2026-05-02", area:"Aulas", category:"electricidad", activity:"Aulas — periodo de exámenes", value:290, unit:"kWh", factor:0.435, co2e_kg:126.15, co2e_t:0.126, status:"est", source:"Estimación", by:"Carlos López" },
-  { id:"s12", dateISO:"2026-05-15", area:"Agrícola", category:"combustible", activity:"Tractor — cosecha", value:28, unit:"L", factor:2.68, co2e_kg:75.04, co2e_t:0.075, status:"real", source:"Inventario", by:"Pedro Ruiz" },
-  { id:"s13", dateISO:"2026-06-01", area:"CC 2", category:"electricidad", activity:"Upgrade de equipos — mayor consumo", value:1420, unit:"kWh", factor:0.435, co2e_kg:617.70, co2e_t:0.618, status:"real", source:"Medición", by:"Ana García" },
+  { id:"s11", dateISO:"2026-05-02", area:"Aulas", category:"electricidad", activity:"Aulas - periodo de exámenes", value:290, unit:"kWh", factor:0.435, co2e_kg:126.15, co2e_t:0.126, status:"est", source:"Estimación", by:"Carlos López" },
+  { id:"s12", dateISO:"2026-05-15", area:"Agrícola", category:"combustible", activity:"Tractor - cosecha", value:28, unit:"L", factor:2.68, co2e_kg:75.04, co2e_t:0.075, status:"real", source:"Inventario", by:"Pedro Ruiz" },
+  { id:"s13", dateISO:"2026-06-01", area:"CC 2", category:"electricidad", activity:"Upgrade de equipos - mayor consumo", value:1420, unit:"kWh", factor:0.435, co2e_kg:617.70, co2e_t:0.618, status:"real", source:"Medición", by:"Ana García" },
   { id:"s14", dateISO:"2026-06-10", area:"Redes", category:"electricidad", activity:"Infraestructura de red campus", value:650, unit:"kWh", factor:0.435, co2e_kg:282.75, co2e_t:0.283, status:"real", source:"Recibo", by:"Ana García" },
   { id:"s15", dateISO:"2026-01-25", area:"Otros", category:"electricidad", activity:"Alumbrado exterior campus", value:180, unit:"kWh", factor:0.435, co2e_kg:78.30, co2e_t:0.078, status:"est", source:"Estimación", by:"Carlos López" },
 ];
@@ -64,15 +64,15 @@ function useCountUp(target, dur = 650) {
 
 /* ═══ UTILS ═══ */
 function fN(n, d = 1) { return Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: d, maximumFractionDigits: d }); }
-function fDate(iso) { if (!iso) return "—"; const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "—"; return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; }
-function fMonth(iso) { if (!iso) return "—"; const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "—"; return `${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; }
+function fDate(iso) { if (!iso) return "-"; const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "-"; return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; }
+function fMonth(iso) { if (!iso) return "-"; const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "-"; return `${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; }
 function toKey(date) { const d = new Date(`${date}T12:00:00`); if (Number.isNaN(d.getTime())) return ""; return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 
 function normRec(r, fid) {
   const kwh = Number.isFinite(Number(r?.value)) ? Number(r.value) : 0;
   const fac = Number.isFinite(Number(r?.factor)) && Number(r?.factor) > 0 ? Number(r.factor) : 0.435;
   const co2 = Number.isFinite(Number(r?.co2e_kg)) && Number(r?.co2e_kg) > 0 ? Number(r.co2e_kg) : kwh * fac;
-  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "—") };
+  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-") };
 }
 
 function loadElec() {
@@ -133,7 +133,7 @@ function DonutTooltip({ active, payload }) {
 function KpiCard({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend = "neutral", status, delay = 0, sparkData }) {
   const num = Number(String(value).replace(/[^0-9.\-]/g, "")) || 0;
   const anim = useCountUp(num, 700);
-  const isNum = !isNaN(num) && String(value) !== "—";
+  const isNum = !isNaN(num) && String(value) !== "-";
   const tc = TR_C[trend] || TR_C.neutral;
   const sa = ST_ACC[status] || null;
   const spark = sparkData && sparkData.length > 1 ? (() => { const mx = Math.max(...sparkData), mn = Math.min(...sparkData), rng = mx - mn || 1; return sparkData.map((v, i) => `${(i / (sparkData.length - 1)) * 60},${22 - ((v - mn) / rng) * 22}`).join(" "); })() : null;
@@ -157,7 +157,7 @@ function KpiCard({ title, sub, value, unit, icon, iconBg, iconColor, delta, tren
     <div style={{ minHeight: 22 }}>{delta ?
       <div style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: "var(--eco-radius-full)", background: tc.bg, animation: "ctPop .4s cubic-bezier(.34,1.56,.64,1) .5s both" }}>
         <span style={{ display: "flex", color: tc.c }}>{tc.i}</span><span style={{ fontFamily: fm, fontSize: 11, fontWeight: 600, color: tc.c }}>{delta}</span></div>
-      : <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)" }}>—</span>}
+      : <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)" }}>-</span>}
     </div>
   </div>);
 }
@@ -266,7 +266,7 @@ export default function Scope2Page({ onOpenRecord }) {
 
   const summaryFilters = useMemo(() => {
     const v = [];
-    v.push(periodMode === "mes" ? `${MONTHS_ES[month - 1]} ${year}` : periodMode === "rango" ? `${fromDate || "—"} a ${toDate || "—"}` : "Todo el periodo");
+    v.push(periodMode === "mes" ? `${MONTHS_ES[month - 1]} ${year}` : periodMode === "rango" ? `${fromDate || "-"} a ${toDate || "-"}` : "Todo el periodo");
     if (fArea) v.push(`Área: ${fArea}`); if (fStatus) v.push(fStatus === "est" ? "Estimado" : "Real"); if (fSource) v.push(fSource);
     return v;
   }, [periodMode, month, year, fromDate, toDate, fArea, fStatus, fSource]);
@@ -373,9 +373,9 @@ export default function Scope2Page({ onOpenRecord }) {
         : <div className="ct-kpi-g" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 24 }}>
           <KpiCard title="Consumo eléctrico" sub={`${filtered.length} registros`} value={kpis.kwh} unit="kWh" icon={<Zap size={18} />} delay={120} sparkData={lineData.map(d => d.kwh)} />
           <KpiCard title="CO₂e total" sub="Emisiones indirectas" value={kpis.co2T} unit="tCO₂e" icon={<Activity size={18} />} iconBg="var(--eco-primary-50)" iconColor="var(--eco-primary-600)" delay={180} sparkData={lineData.map(d => d.co2e)} status={kpis.co2T > 3 ? "danger" : kpis.co2T > 1.5 ? "warning" : undefined} />
-          <KpiCard title="Factor promedio" value={kpis.factorAvg ? fN(kpis.factorAvg, 3) : "—"} unit="kgCO₂e/kWh" icon={<Gauge size={18} />} iconBg="#F0F9FF" iconColor="#0369A1" delay={240} />
+          <KpiCard title="Factor promedio" value={kpis.factorAvg ? fN(kpis.factorAvg, 3) : "-"} unit="kgCO₂e/kWh" icon={<Gauge size={18} />} iconBg="#F0F9FF" iconColor="#0369A1" delay={240} />
           <KpiCard title="Datos reales" sub="Calidad de datos" value={kpis.pctReal} unit="%" icon={<CheckCircle2 size={18} />} iconBg="var(--eco-success-bg)" iconColor="var(--eco-success)" delay={300} status={kpis.pctReal >= 80 ? "success" : kpis.pctReal >= 60 ? "warning" : "danger"} />
-          <KpiCard title="Variación" sub="vs periodo anterior" value={kpis.change || "—"} unit="" icon={<Calendar size={18} />} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delta={kpis.change} trend={kpis.trend} delay={360} />
+          <KpiCard title="Variación" sub="vs periodo anterior" value={kpis.change || "-"} unit="" icon={<Calendar size={18} />} iconBg="var(--eco-gray-100)" iconColor="var(--eco-gray-600)" delta={kpis.change} trend={kpis.trend} delay={360} />
         </div>}
 
         {/* ═══ CHARTS ═══ */}
@@ -491,7 +491,7 @@ export default function Scope2Page({ onOpenRecord }) {
     {drill && <DrillPanel title="Trazabilidad de electricidad" breadcrumb="Scope 2 → Electricidad → Detalle" onClose={() => setDrill(null)}>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ background: "var(--eco-info-bg)", border: "1px solid #BFDBFE", borderRadius: "var(--eco-radius-lg)", padding: 16, textAlign: "center", animation: "ctFadeUp .3s ease-out" }}>
-          <p style={{ margin: "0 0 8px", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-info)" }}>Cálculo de emisiones — Scope 2</p>
+          <p style={{ margin: "0 0 8px", fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-info)" }}>Cálculo de emisiones - Scope 2</p>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span style={{ fontFamily: fm, fontSize: 18, fontWeight: 700, color: "var(--eco-gray-800)" }}>{fN(drill.value, 0)}</span>
             <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-500)" }}>kWh</span>
@@ -505,7 +505,7 @@ export default function Scope2Page({ onOpenRecord }) {
         </div>
 
         <div style={{ background: "var(--eco-gray-50)", borderRadius: "var(--eco-radius-md)", overflow: "hidden" }}>
-          {[{ l: "Fecha", v: fDate(drill.dateISO) }, { l: "Área", v: drill.area }, { l: "Scope", v: "Scope 2 - Electricidad" }, { l: "Actividad", v: drill.activity }, { l: "Consumo", v: `${fN(drill.value, 0)} kWh` }, { l: "Factor aplicado", v: `${fN(drill.factor, 3)} kgCO₂e/kWh (SEMARNAT 2024)` }, { l: "CO₂e (kg)", v: `${fN(drill.co2e_kg, 1)} kgCO₂e` }, { l: "Estado", v: null, badge: true }, { l: "Fuente", v: drill.source }, { l: "Capturado por", v: drill.by || "—" }].map((row, i) =>
+          {[{ l: "Fecha", v: fDate(drill.dateISO) }, { l: "Área", v: drill.area }, { l: "Scope", v: "Scope 2 - Electricidad" }, { l: "Actividad", v: drill.activity }, { l: "Consumo", v: `${fN(drill.value, 0)} kWh` }, { l: "Factor aplicado", v: `${fN(drill.factor, 3)} kgCO₂e/kWh (SEMARNAT 2024)` }, { l: "CO₂e (kg)", v: `${fN(drill.co2e_kg, 1)} kgCO₂e` }, { l: "Estado", v: null, badge: true }, { l: "Fuente", v: drill.source }, { l: "Capturado por", v: drill.by || "-" }].map((row, i) =>
             <div key={row.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: i < 9 ? "1px solid var(--eco-gray-100)" : "none", animation: `ctFadeUp .3s ease-out ${i * 30}ms both` }}>
               <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-500)" }}>{row.l}</span>
               {row.badge ? <Badge status={drill.status} /> : <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-gray-700)", textAlign: "right" }}>{row.v}</span>}

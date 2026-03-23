@@ -173,13 +173,13 @@ const areaData = [{
   pct: 2.0
 }]
 const scopeDonut = [{
-  name: "Scope 2 — Electricidad",
+  name: "Scope 2 - Electricidad",
   value: 17.52,
   pct: 89.1,
   color: "#22C55E"
 },
 {
-  name: "Scope 1 — Combustible",
+  name: "Scope 1 - Combustible",
   value: 2.15,
   pct: 10.9,
   color: "#EAB308"
@@ -2053,7 +2053,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             >
               <ChartCard
                 title="Tendencia mensual"
-                sub="tCO₂e por scope — Ene a Jun 2026"
+                sub="tCO₂e por scope - Ene a Jun 2026"
                 delay={250}
                 onExpand={() => setDrill({ type: "trend" })}
                 legend={[
@@ -2173,7 +2173,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             >
               <ChartCard
                 title="Emisiones por área"
-                sub="Top 8 áreas — tCO₂e"
+                sub="Top 8 áreas - tCO₂e"
                 delay={350}
                 onExpand={() => setDrill({ type: "areas" })}
               >
@@ -2429,9 +2429,9 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             drill.type === "area"
               ? `Área: ${drill.data?.area}`
               : drill.type === "scope2"
-              ? "Scope 2 — Electricidad"
+              ? "Scope 2 - Electricidad"
               : drill.type === "scope1"
-              ? "Scope 1 — Combustible"
+              ? "Scope 1 - Combustible"
               : "Detalle"
           }
           onClose={() => setDrill(null)}

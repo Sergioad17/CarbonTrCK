@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   🌿 ECOTEC — Design Tokens & Global Styles
+   🌿 ECOTEC - Design Tokens & Global Styles
    ═══════════════════════════════════════════════════════ */
 
 :root {
-  /* Primary — Green */
+  /* Primary - Green */
   --eco-primary-50: #F0FDF4;
   --eco-primary-100: #DCFCE7;
   --eco-primary-200: #BBF7D0;
@@ -15,14 +15,14 @@
   --eco-primary-800: #166534;
   --eco-primary-900: #14532D;
 
-  /* Secondary — Yellow */
+  /* Secondary - Yellow */
   --eco-secondary-50: #FEFCE8;
   --eco-secondary-100: #FEF9C3;
   --eco-secondary-200: #FEF08A;
   --eco-secondary-500: #EAB308;
   --eco-secondary-600: #CA8A04;
 
-  /* Gray — Slate */
+  /* Gray - Slate */
   --eco-gray-50: #F8FAFC;
   --eco-gray-100: #F1F5F9;
   --eco-gray-200: #E2E8F0;
@@ -97,7 +97,7 @@
 }
 
 :root[data-theme="dark"] {
-  /* Primary — Green (dark-adapted, brighter accents) */
+  /* Primary - Green (dark-adapted, brighter accents) */
   --eco-primary-50: #0C1F17;
   --eco-primary-100: #132E21;
   --eco-primary-200: #1A4430;
@@ -107,7 +107,7 @@
   --eco-primary-600: #6EE7A0;
   --eco-primary-700: #A7F3C0;
 
-  /* Secondary — Yellow (dark-adapted) */
+  /* Secondary - Yellow (dark-adapted) */
   --eco-secondary-50: #231E0A;
   --eco-secondary-100: #362F10;
   --eco-secondary-200: #544816;
@@ -138,7 +138,7 @@
   --eco-shadow-lg: 0 12px 24px -6px rgba(0, 0, 0, 0.5), 0 6px 12px -4px rgba(0, 0, 0, 0.25);
   --eco-shadow-xl: 0 20px 36px -10px rgba(0, 0, 0, 0.55), 0 10px 16px -8px rgba(0, 0, 0, 0.3);
 
-  /* Semantic surfaces — the core dark palette */
+  /* Semantic surfaces - the core dark palette */
   --eco-bg: #0B1120;
   --eco-surface: #111827;
   --eco-card: #151E2E;
@@ -201,7 +201,7 @@ a:focus-visible {
    React renders camelCase → kebab-case in the DOM.
    ═══════════════════════════════════════════════════════ */
 
-/* — Backgrounds: white / #fff / #FFFFFF → dark card — */
+/* - Backgrounds: white / #fff / #FFFFFF → dark card - */
 :root[data-theme="dark"] *[style*="background: white"],
 :root[data-theme="dark"] *[style*="background:white"],
 :root[data-theme="dark"] *[style*="background: #FFFFFF"],
@@ -215,7 +215,7 @@ a:focus-visible {
   background: var(--eco-card) !important;
 }
 
-/* — Backgrounds: gray tones → dark surfaces — */
+/* - Backgrounds: gray tones → dark surfaces - */
 :root[data-theme="dark"] *[style*="background: var(--eco-gray-50)"],
 :root[data-theme="dark"] *[style*="background:var(--eco-gray-50)"],
 :root[data-theme="dark"] *[style*="background: #F8FAFC"],
@@ -236,7 +236,7 @@ a:focus-visible {
   background: #1E293B !important;
 }
 
-/* — Borders: gray-200 / gray-100 → dark border — */
+/* - Borders: gray-200 / gray-100 → dark border - */
 :root[data-theme="dark"] *[style*="border: 1px solid var(--eco-gray-200)"],
 :root[data-theme="dark"] *[style*="border:1px solid var(--eco-gray-200)"],
 :root[data-theme="dark"] *[style*="border: 1px solid var(--eco-gray-100)"],
@@ -276,7 +276,7 @@ a:focus-visible {
   border-color: rgba(248, 113, 113, 0.3) !important;
 }
 
-/* — Overlays — */
+/* - Overlays - */
 :root[data-theme="dark"] *[style*="background: rgba(0,0,0,0.4)"],
 :root[data-theme="dark"] *[style*="background: rgba(0, 0, 0, 0.4)"],
 :root[data-theme="dark"] *[style*="background: rgba(15,23,42,.35)"],
@@ -284,7 +284,7 @@ a:focus-visible {
   background: var(--eco-overlay) !important;
 }
 
-/* — Text colors: eco-gray-* → dark-adapted — */
+/* - Text colors: eco-gray-* → dark-adapted - */
 :root[data-theme="dark"] *[style*="color: var(--eco-gray-900)"],
 :root[data-theme="dark"] *[style*="color:var(--eco-gray-900)"],
 :root[data-theme="dark"] *[style*="color: #0F172A"],
@@ -324,18 +324,18 @@ a:focus-visible {
   color: #7D8FA3 !important;
 }
 
-/* — Scrollbar (dark) — */
+/* - Scrollbar (dark) - */
 :root[data-theme="dark"] ::-webkit-scrollbar-thumb {
   background: #334155;
 }
 
-/* — Toggle knobs should stay bright in dark mode — */
+/* - Toggle knobs should stay bright in dark mode - */
 :root[data-theme="dark"] *[style*="border-radius: 50%"][style*="background: white"],
 :root[data-theme="dark"] *[style*="border-radius: 50%"][style*="background-color: white"] {
   background: #E2E8F0 !important;
 }
 
-/* — Inputs, selects, textareas inherit dark bg — */
+/* - Inputs, selects, textareas inherit dark bg - */
 :root[data-theme="dark"] input,
 :root[data-theme="dark"] select,
 :root[data-theme="dark"] textarea {
@@ -349,12 +349,12 @@ a:focus-visible {
   color: var(--eco-text);
 }
 
-/* — Tables — */
+/* - Tables - */
 :root[data-theme="dark"] th {
   color: var(--eco-text-soft) !important;
 }
 
-/* — Recharts / SVG (chart backgrounds) — */
+/* - Recharts / SVG (chart backgrounds) - */
 :root[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
 :root[data-theme="dark"] .recharts-cartesian-grid-vertical line {
   stroke: var(--eco-border) !important;
