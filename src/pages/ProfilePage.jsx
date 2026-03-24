@@ -22,6 +22,8 @@ import {
   User,
   X,
 } from "lucide-react";
+import { add as addNotification } from "../lib/notificationsStore";
+import { createChangeRequest, listChangeRequests, subscribeChangeRequests } from "../lib/profileChangeRequestsStore";
 import { getSettings, saveSettings } from "../lib/settingsStore";
 import { describeAreaAccess, getRoleLabel } from "../lib/usersStore";
 import { ensureMockSession, getCurrentUser, getSession, updateCurrentUser } from "../lib/sessionStore";
@@ -71,6 +73,20 @@ function browserSummary() {
   if (ua.includes("Firefox")) return "Mozilla Firefox";
   if (ua.includes("Safari")) return "Safari";
   return "Navegador local";
+}
+
+function buildFullName(firstName, paternalLastName, maternalLastName) {
+  return [firstName, paternalLastName, maternalLastName].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+}
+
+function requestStatusMeta(status) {
+  if (status === "approved") return { label: "Aprobada", color: "var(--eco-success)", background: "var(--eco-success-bg)" };
+  if (status === "rejected") return { label: "Rechazada", color: "var(--eco-danger)", background: "var(--eco-danger-bg)" };
+  return { label: "Pendiente", color: "var(--eco-warning)", background: "var(--eco-warning-bg)" };
+}
+
+function describeRequestType(type) {
+  return type === "password" ? "Cambio de contraseña" : "Cambio de correo";
 }
 
 /* ─── Section Header ─── */
@@ -482,10 +498,11 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const [form, setForm] = useState({ fullName: "", email: "" });
+  const [form, setForm] = useState({ firstName: "", paternalLastName: "", maternalLastName: "", email: "", requestReason: "" });
   const [formErrors, setFormErrors] = useState({});
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", nextPassword: "", confirmPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
   const [passwordErrors, setPasswordErrors] = useState({});
+  const [requests, setRequests] = useState(() => listChangeRequests());
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -510,13 +527,34 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => subscribeChangeRequests(setRequests), []);
+
+  useEffect(() => {
+    const syncProfile = () => {
+      const activeSession = getSession() || ensureMockSession();
+      const currentUser = getCurrentUser({ ensureMock: true }) || user || null;
+      setSession(activeSession);
+      setProfile(currentUser);
+    };
+    window.addEventListener("carbontrack:users-changed", syncProfile);
+    return () => window.removeEventListener("carbontrack:users-changed", syncProfile);
+  }, [user]);
+
   const roleLabel = useMemo(() => getRoleLabel(profile?.roleKey || profile?.role), [profile]);
   const areaLabel = useMemo(() => (profile ? describeAreaAccess(profile) : "Sin acceso"), [profile]);
+  const isAdmin = (profile?.roleKey || profile?.role) === "admin";
+  const profileRequests = useMemo(() => requests.filter((item) => item.userId === profile?.id), [requests, profile?.id]);
   const canRender = Boolean(profile && session);
 
   const openEdit = () => {
     if (!profile) return;
-    setForm({ fullName: profile.fullName || profile.name || "", email: profile.email || "" });
+    setForm({
+      firstName: profile.firstName || "",
+      paternalLastName: profile.paternalLastName || "",
+      maternalLastName: profile.maternalLastName || "",
+      email: profile.email || "",
+      requestReason: "",
+    });
     setFormErrors({});
     setEditOpen(true);
   };
@@ -560,6 +598,109 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
     setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "" });
     setPasswordErrors({});
     setToast({ title: "Contraseña actualizada (demo)", message: "En producción esto se validaría en servidor.", tone: "success" });
+  };
+
+  const submitProfileChanges = () => {
+    const errors = {};
+    const firstName = String(form.firstName || "").trim();
+    const paternalLastName = String(form.paternalLastName || "").trim();
+    const maternalLastName = String(form.maternalLastName || "").trim();
+    const fullName = buildFullName(firstName, paternalLastName, maternalLastName);
+    const email = String(form.email || "").trim().toLowerCase();
+    if (!firstName) errors.firstName = "Escribe el nombre.";
+    if (!paternalLastName) errors.paternalLastName = "Escribe el apellido paterno.";
+    if (!email) errors.email = "Escribe tu correo.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email)) errors.email = "Escribe un correo valido.";
+    if (!isAdmin && email !== String(profile?.email || "").toLowerCase() && !String(form.requestReason || "").trim()) {
+      errors.requestReason = "Describe por que solicitas el cambio.";
+    }
+    if (Object.keys(errors).length > 0) return setFormErrors(errors);
+    const currentEmail = String(profile?.email || "").toLowerCase();
+    const emailChanged = email !== currentEmail;
+    const nameChanged =
+      firstName !== String(profile?.firstName || "") ||
+      paternalLastName !== String(profile?.paternalLastName || "") ||
+      maternalLastName !== String(profile?.maternalLastName || "");
+    if (!nameChanged && !emailChanged) {
+      setEditOpen(false);
+      return setToast({ title: "Sin cambios", message: "No detectamos cambios nuevos para guardar.", tone: "success" });
+    }
+    if (nameChanged || (isAdmin && emailChanged)) {
+      const result = updateCurrentUser({
+        firstName,
+        paternalLastName,
+        maternalLastName,
+        fullName,
+        email: isAdmin ? email : currentEmail,
+      });
+      if (!result.ok) return setFormErrors({ email: "No se pudieron guardar los cambios." });
+      setProfile(result.user);
+      setSession(result.session);
+      onUserChange?.(result.user);
+    }
+    if (!isAdmin && emailChanged) {
+      const request = createChangeRequest({
+        userId: profile.id,
+        userName: fullName || profile.fullName || profile.name,
+        requesterRole: profile.roleKey || profile.role,
+        type: "email",
+        currentValue: currentEmail,
+        requestedValue: email,
+        reason: String(form.requestReason || "").trim(),
+        detail: `Solicita sustituir ${currentEmail} por ${email}.`,
+      });
+      addNotification({
+        type: "system",
+        title: "Solicitud enviada",
+        message: "Tu solicitud de cambio de correo fue enviada para validacion administrativa.",
+        link: "/perfil",
+        meta: { requestId: request.id, kind: "profile_change_request", requestType: "email" },
+      });
+    }
+    setEditOpen(false);
+    setToast({
+      title: !isAdmin && emailChanged ? "Solicitud registrada" : "Perfil actualizado",
+      message: !isAdmin && emailChanged
+        ? "Tu nombre se guardo y el cambio de correo quedo pendiente de aprobacion."
+        : "Tus datos basicos se guardaron en este dispositivo.",
+      tone: "success",
+    });
+  };
+
+  const submitPasswordChange = () => {
+    const errors = {};
+    if (!passwordForm.currentPassword) errors.currentPassword = "Escribe tu contrasena actual.";
+    if (!passwordForm.nextPassword || passwordForm.nextPassword.length < 8) errors.nextPassword = "La nueva contrasena debe tener al menos 8 caracteres.";
+    if (passwordForm.confirmPassword !== passwordForm.nextPassword) errors.confirmPassword = "La confirmacion no coincide.";
+    if (!isAdmin && !String(passwordForm.requestReason || "").trim()) errors.requestReason = "Describe por que solicitas el cambio.";
+    if (Object.keys(errors).length > 0) return setPasswordErrors(errors);
+    if (!isAdmin) {
+      const request = createChangeRequest({
+        userId: profile.id,
+        userName: profile.fullName || profile.name,
+        requesterRole: profile.roleKey || profile.role,
+        type: "password",
+        currentValue: "Contrasena actual resguardada",
+        requestedValue: "Nueva contrasena resguardada",
+        reason: String(passwordForm.requestReason || "").trim(),
+        detail: "Solicita sustituir su contrasena vigente por una nueva credencial protegida.",
+      });
+      addNotification({
+        type: "system",
+        title: "Solicitud enviada",
+        message: "Tu solicitud de cambio de contrasena fue enviada a un administrador.",
+        link: "/perfil",
+        meta: { requestId: request.id, kind: "profile_change_request", requestType: "password" },
+      });
+      setPasswordOpen(false);
+      setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
+      setPasswordErrors({});
+      return setToast({ title: "Solicitud registrada", message: "Un administrador debe validar el cambio de contrasena.", tone: "success" });
+    }
+    setPasswordOpen(false);
+    setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
+    setPasswordErrors({});
+    setToast({ title: "Contrasena actualizada (demo)", message: "En produccion esto se validaria en servidor.", tone: "success" });
   };
 
   const handleLogout = () => {
@@ -765,13 +906,16 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <SectionHeader
                 icon={<PencilLine size={16} />}
                 title="Datos personales"
-                subtitle="Tu nombre y correo son editables. El rol y acceso los controla un administrador."
+                subtitle={isAdmin ? "Tu nombre y correo son editables. El rol y acceso los controla un administrador." : "Tu nombre se actualiza al momento. Los cambios de correo quedan sujetos a validacion administrativa."}
               >
                 <ActionButton icon={PencilLine} onClick={openEdit}>Editar</ActionButton>
               </SectionHeader>
               <div className="ct-profile-data-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14 }}>
                 {[
-                  { label: "Nombre completo", value: profile.fullName || profile.name },
+                  { label: "ID de usuario", value: profile.numericId || "Sin ID" },
+                  { label: "Nombre", value: profile.firstName || "Sin dato" },
+                  { label: "Apellido paterno", value: profile.paternalLastName || "Sin dato" },
+                  { label: "Apellido materno", value: profile.maternalLastName || "Sin dato" },
                   { label: "Correo electrónico", value: profile.email },
                   { label: "Rol asignado", value: roleLabel },
                   { label: "Acceso por áreas", value: areaLabel },
@@ -965,7 +1109,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <SectionHeader
                 icon={<Shield size={16} />}
                 title="Seguridad"
-                subtitle="Gestiona tu contraseña y permisos de acceso."
+                subtitle={isAdmin ? "Gestiona tu contraseña y permisos de acceso." : "Los cambios de correo y contraseña requieren validación administrativa."}
               />
               <div className="ct-profile-data-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14, marginBottom: 16 }}>
                 {[
@@ -978,17 +1122,76 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
                   </div>
                 ))}
               </div>
-              <p style={{ ...subtleText, fontSize: 11, marginBottom: 14 }}>En producción la contraseña se valida en servidor.</p>
+              <p style={{ ...subtleText, fontSize: 11, marginBottom: 14 }}>
+                {isAdmin ? "En producción la contraseña se valida en servidor." : "Tu solicitud quedará en revisión hasta que un administrador la apruebe."}
+              </p>
               <ActionButton
                 tone="primary"
                 icon={KeyRound}
                 onClick={() => { setPasswordErrors({}); setPasswordOpen(true); }}
               >
-                Cambiar contraseña
+                {isAdmin ? "Cambiar contraseña" : "Solicitar cambio de contraseña"}
               </ActionButton>
             </section>
 
             {/* ═══ SESIÓN ═══ */}
+            <section style={{ ...cardBase, padding: 24, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 270ms both" }}>
+              <SectionHeader
+                icon={<Mail size={16} />}
+                title="Peticiones de cambio"
+                subtitle="Seguimiento de solicitudes de correo y contraseña con detalle y hora de cada movimiento."
+              />
+              {profileRequests.length === 0 ? (
+                <div style={{ ...cardBase, background: "var(--eco-card-muted)", padding: 18, boxShadow: "none" }}>
+                  <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>Sin peticiones registradas</p>
+                  <p style={{ ...subtleText, marginTop: 4 }}>Cuando solicites un cambio de correo o contraseña, aparecerá aquí con su seguimiento.</p>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {profileRequests.map((request) => {
+                    const status = requestStatusMeta(request.status);
+                    return (
+                      <div key={request.id} style={{ ...cardBase, background: "var(--eco-card-muted)", padding: 16, boxShadow: "none" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                          <div>
+                            <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>{describeRequestType(request.type)}</p>
+                            <p style={{ ...subtleText, marginTop: 4 }}>Solicitada {formatDateTime(request.createdAt)}</p>
+                          </div>
+                          <span style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: "var(--eco-radius-full)", background: status.background, color: status.color, fontFamily: fb, fontSize: 11, fontWeight: 700 }}>
+                            {status.label}
+                          </span>
+                        </div>
+                        <div className="ct-profile-data-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 12, marginTop: 14 }}>
+                          <div style={{ ...cardBase, padding: 12, boxShadow: "none" }}>
+                            <p style={{ margin: 0, fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Sustitucion</p>
+                            <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text)" }}>{request.currentValue || "Sin dato"}</p>
+                            <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)" }}>Nuevo valor: {request.requestedValue || "Sin dato"}</p>
+                          </div>
+                          <div style={{ ...cardBase, padding: 12, boxShadow: "none" }}>
+                            <p style={{ margin: 0, fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Motivo</p>
+                            <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text)" }}>{request.reason || "Sin motivo especificado."}</p>
+                            {request.resolutionDetail ? <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)" }}>{request.resolutionDetail}</p> : null}
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 14, display: "grid", gap: 8 }}>
+                          {request.history.map((entry) => (
+                            <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              <div style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--eco-primary-500)", marginTop: 5, flexShrink: 0 }} />
+                              <div>
+                                <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text)" }}>{entry.actorName}</p>
+                                <p style={{ ...subtleText, marginTop: 2 }}>{entry.detail}</p>
+                                <p style={{ ...subtleText, marginTop: 2, fontSize: 11 }}>{formatDateTime(entry.createdAt)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             <section style={{ ...cardBase, padding: 24, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 300ms both" }}>
               <SectionHeader
                 icon={<Clock size={16} />}
@@ -1026,7 +1229,6 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
                 >
                   Contactar soporte
                 </ActionButton>
-                <ActionButton icon={User} onClick={() => navigate("/admin/usuarios")}>Ver administración de usuarios</ActionButton>
               </div>
             </section>
           </div>
@@ -1042,13 +1244,21 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
           footer={
             <>
               <ActionButton onClick={() => setEditOpen(false)}>Cancelar</ActionButton>
-              <ActionButton tone="primary" icon={Check} onClick={saveProfile}>Guardar cambios</ActionButton>
+              <ActionButton tone="primary" icon={Check} onClick={submitProfileChanges}>Guardar cambios</ActionButton>
             </>
           }
         >
           <div style={{ display: "grid", gap: 16 }}>
-            <Field label="Nombre completo" value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} error={formErrors.fullName} />
+            <Field label="ID de usuario" value={profile.numericId || "Sin ID"} readOnly hint="Este identificador numérico no se puede modificar." />
+            <div className="ct-profile-data-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14 }}>
+              <Field label="Nombre" value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} error={formErrors.firstName} />
+              <Field label="Apellido paterno" value={form.paternalLastName} onChange={(event) => setForm((current) => ({ ...current, paternalLastName: event.target.value }))} error={formErrors.paternalLastName} />
+            </div>
+            <Field label="Apellido materno" value={form.maternalLastName} onChange={(event) => setForm((current) => ({ ...current, maternalLastName: event.target.value }))} />
             <Field label="Correo electrónico" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} error={formErrors.email} />
+            {!isAdmin ? (
+              <Field label="Motivo del cambio de correo" value={form.requestReason} onChange={(event) => setForm((current) => ({ ...current, requestReason: event.target.value }))} error={formErrors.requestReason} hint="Solo se usa cuando el correo cambie y quede en revisión." />
+            ) : null}
             <Field label="Rol" value={roleLabel} readOnly hint="Solo un administrador puede cambiar esto." />
             <Field label="Acceso" value={areaLabel} readOnly hint="Solo un administrador puede cambiar esto." />
           </div>
@@ -1063,7 +1273,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
           footer={
             <>
               <ActionButton onClick={() => setPasswordOpen(false)}>Cancelar</ActionButton>
-              <ActionButton tone="primary" icon={KeyRound} onClick={savePassword}>Actualizar contraseña</ActionButton>
+              <ActionButton tone="primary" icon={KeyRound} onClick={submitPasswordChange}>{isAdmin ? "Actualizar contraseña" : "Enviar solicitud"}</ActionButton>
             </>
           }
         >
@@ -1071,6 +1281,9 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
             <Field label="Contraseña actual" type="password" value={passwordForm.currentPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} error={passwordErrors.currentPassword} />
             <Field label="Nueva contraseña" type="password" value={passwordForm.nextPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, nextPassword: event.target.value }))} error={passwordErrors.nextPassword} hint="Usa al menos 8 caracteres." />
             <Field label="Confirmar nueva contraseña" type="password" value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))} error={passwordErrors.confirmPassword} />
+            {!isAdmin ? (
+              <Field label="Motivo de la solicitud" value={passwordForm.requestReason} onChange={(event) => setPasswordForm((current) => ({ ...current, requestReason: event.target.value }))} error={passwordErrors.requestReason} hint="El administrador verá este detalle al validar la petición." />
+            ) : null}
           </div>
         </ModalShell>
       ) : null}

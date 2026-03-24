@@ -39,6 +39,41 @@ const nowIso = () => new Date().toISOString();
 
 const cleanString = (value, fallback = "") => String(value ?? fallback).trim();
 
+const buildFullName = (firstName, paternalLastName, maternalLastName, fallback = "Usuario") => {
+  const parts = [firstName, paternalLastName, maternalLastName].map((value) => cleanString(value)).filter(Boolean);
+  return parts.join(" ") || cleanString(fallback, "Usuario");
+};
+
+const toNumericUserId = (value, fallbackSeed = Date.now()) => {
+  const explicit = cleanString(value);
+  if (/^\d+$/.test(explicit)) return explicit;
+
+  const source = explicit || String(fallbackSeed);
+  let hash = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) % 900000;
+  }
+  return String(hash + 100000);
+};
+
+const splitFullName = (fullName) => {
+  const parts = cleanString(fullName).split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return { firstName: "", paternalLastName: "", maternalLastName: "" };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], paternalLastName: "", maternalLastName: "" };
+  }
+  if (parts.length === 2) {
+    return { firstName: parts[0], paternalLastName: parts[1], maternalLastName: "" };
+  }
+  return {
+    firstName: parts.slice(0, -2).join(" "),
+    paternalLastName: parts.at(-2) || "",
+    maternalLastName: parts.at(-1) || "",
+  };
+};
+
 const normalizeRole = (value) => {
   if (value === "admin" || value === "operativo" || value === "directivo") return value;
   return "operativo";
@@ -63,9 +98,22 @@ const normalizeUser = (user = {}, fallbackId) => {
   const createdAt = cleanString(user.createdAt) || nowIso();
   const updatedAt = cleanString(user.updatedAt) || nowIso();
   const email = cleanString(user.email).toLowerCase();
+  const sourceFullName = cleanString(user.fullName || user.name, "Usuario");
+  const nameParts = {
+    ...splitFullName(sourceFullName),
+    firstName: cleanString(user.firstName, splitFullName(sourceFullName).firstName),
+    paternalLastName: cleanString(user.paternalLastName, splitFullName(sourceFullName).paternalLastName),
+    maternalLastName: cleanString(user.maternalLastName, splitFullName(sourceFullName).maternalLastName),
+  };
+  const fullName = buildFullName(nameParts.firstName, nameParts.paternalLastName, nameParts.maternalLastName, sourceFullName);
+  const userId = cleanString(user.id) || fallbackId || `usr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const normalized = {
-    id: cleanString(user.id) || fallbackId || `usr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    fullName: cleanString(user.fullName || user.name, "Usuario"),
+    id: userId,
+    numericId: toNumericUserId(user.numericId, userId),
+    firstName: nameParts.firstName,
+    paternalLastName: nameParts.paternalLastName,
+    maternalLastName: nameParts.maternalLastName,
+    fullName,
     email,
     role: normalizeRole(user.role),
     campusCode: cleanString(user.campusCode, DEFAULT_CAMPUS) || DEFAULT_CAMPUS,
@@ -96,7 +144,10 @@ const seedUsers = () => {
   return sortUsers([
     {
       id: "user-admin-demo",
-      fullName: "Administrador",
+      firstName: "Administrador",
+      paternalLastName: "Sistema",
+      maternalLastName: "",
+      fullName: "Administrador Sistema",
       email: "admin@itsmante.edu.mx",
       role: "admin",
       campusCode: DEFAULT_CAMPUS,
@@ -109,7 +160,10 @@ const seedUsers = () => {
     },
     {
       id: "user-operativo-demo",
-      fullName: "Capturista",
+      firstName: "Usuario",
+      paternalLastName: "Capturista",
+      maternalLastName: "Demo",
+      fullName: "Usuario Capturista Demo",
       email: "capturista@itsmante.edu.mx",
       role: "operativo",
       campusCode: DEFAULT_CAMPUS,
@@ -122,7 +176,10 @@ const seedUsers = () => {
     },
     {
       id: "user-directivo-demo",
-      fullName: "Directivo",
+      firstName: "Usuario",
+      paternalLastName: "Directivo",
+      maternalLastName: "Demo",
+      fullName: "Usuario Directivo Demo",
       email: "directivo@itsmante.edu.mx",
       role: "directivo",
       campusCode: DEFAULT_CAMPUS,

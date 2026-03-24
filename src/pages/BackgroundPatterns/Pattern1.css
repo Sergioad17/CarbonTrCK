@@ -29,7 +29,7 @@
   overflow: hidden; /* Evita que el efecto de elevación deforme el contenedor */
   background: var(--pattern-bg);
   background-size: calc(var(--s) * 1.732) var(--s);
-  animation: eco-patternDriftDiag 40s linear infinite;
+  animation: eco-patternDriftDiag 30s linear infinite;
 }
 
 /* Capa de elevación (Efecto de relieve/zoom en el cursor) */

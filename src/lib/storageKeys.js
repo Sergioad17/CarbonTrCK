@@ -1,6 +1,7 @@
 export const STORAGE_KEYS = {
   records: "carbontrack.records",
   notifications: "carbontrack.notifications",
+  profileChangeRequests: "carbontrack.profile_change_requests",
   activity: "carbontrack.activity",
   devices: "carbontrack.devices",
   deviceLastTotal: "carbontrack.device_last_total",

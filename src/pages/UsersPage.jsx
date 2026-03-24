@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Bell,
   Building2,
   Check,
   CheckCircle2,
@@ -29,6 +30,8 @@ import {
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
 import { add as addNotification } from "../lib/notificationsStore";
+import { listChangeRequests, subscribeChangeRequests, updateChangeRequest } from "../lib/profileChangeRequestsStore";
+import { getCurrentUser, getSession, setSession } from "../lib/sessionStore";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
@@ -142,6 +145,9 @@ const ROLE_COLORS = {
 
 const emptyForm = (user) => ({
   id: user?.id || "",
+  firstName: user?.firstName || "",
+  paternalLastName: user?.paternalLastName || "",
+  maternalLastName: user?.maternalLastName || "",
   fullName: user?.fullName || "",
   email: user?.email || "",
   role: user?.role || "operativo",
@@ -152,6 +158,14 @@ const emptyForm = (user) => ({
   notes: user?.notes || "",
   tempPassword: "",
 });
+
+function buildFullName(firstName, paternalLastName, maternalLastName) {
+  return [firstName, paternalLastName, maternalLastName].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+}
+
+function requestTypeLabel(type) {
+  return type === "password" ? "Cambio de contraseña" : "Cambio de correo";
+}
 
 const formatDateTime = (iso) => {
   if (!iso) return "Sin acceso";
@@ -722,11 +736,25 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
           <div>
             <p style={{ ...sectionLabel, marginBottom: 12 }}>Identidad</p>
             <div className="ct-users-modal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14 }}>
-              <Field label="Nombre completo" required error={errors.fullName}>
+              <Field label="Nombre" required error={errors.firstName}>
                 <StyledInput
-                  value={form.fullName}
-                  onChange={(e) => state.setForm((p) => ({ ...p, fullName: e.target.value }))}
-                  placeholder="Nombre y apellidos"
+                  value={form.firstName}
+                  onChange={(e) => state.setForm((p) => ({ ...p, firstName: e.target.value }))}
+                  placeholder="Nombre"
+                />
+              </Field>
+              <Field label="Apellido paterno" required error={errors.paternalLastName}>
+                <StyledInput
+                  value={form.paternalLastName}
+                  onChange={(e) => state.setForm((p) => ({ ...p, paternalLastName: e.target.value }))}
+                  placeholder="Apellido paterno"
+                />
+              </Field>
+              <Field label="Apellido materno">
+                <StyledInput
+                  value={form.maternalLastName}
+                  onChange={(e) => state.setForm((p) => ({ ...p, maternalLastName: e.target.value }))}
+                  placeholder="Apellido materno"
                 />
               </Field>
               <Field label="Correo electrónico" required error={errors.email}>
@@ -1012,7 +1040,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
 /* ═══════════════════════════════════════════════════════
    User Detail Drawer
    ═══════════════════════════════════════════════════════ */
-function UserDetailDrawer({ user, onClose, onEdit }) {
+function UserDetailDrawer({ user, onClose, onEdit, canEdit }) {
   if (!user) return null;
 
   const detailRows = [
@@ -1133,7 +1161,7 @@ function UserDetailDrawer({ user, onClose, onEdit }) {
         {/* Footer */}
         <div style={{ padding: "16px 24px", borderTop: "1px solid var(--eco-border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <ActionButton type="button" onClick={onClose}>Cerrar</ActionButton>
-          <ActionButton type="button" tone="primary" icon={Pencil} onClick={() => onEdit(user)}>Editar usuario</ActionButton>
+          {canEdit ? <ActionButton type="button" tone="primary" icon={Pencil} onClick={() => onEdit(user)}>Editar usuario</ActionButton> : null}
         </div>
       </div>
     </div>
@@ -1263,6 +1291,97 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
 /* ═══════════════════════════════════════════════════════
    Main Page
    ═══════════════════════════════════════════════════════ */
+function RequestsPanel({ open, requests, canManage, onClose, onApprove, onReject }) {
+  if (!open) return null;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 135, display: "grid", placeItems: "start end", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "var(--eco-overlay)", backdropFilter: "blur(4px)", animation: "ctOverlay .2s ease-out" }} onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "relative",
+          width: "min(460px, calc(100vw - 32px))",
+          maxHeight: "min(78vh, 720px)",
+          marginTop: 72,
+          background: "var(--eco-card)",
+          border: "1px solid var(--eco-border)",
+          borderRadius: "var(--eco-radius-xl)",
+          boxShadow: "var(--eco-shadow-xl)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          animation: "ctPop .22s ease-out",
+        }}
+      >
+        <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "var(--eco-radius-md)", background: ICON_GRADIENT, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Bell size={15} />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 16, fontWeight: 800, color: "var(--eco-text-strong)" }}>Peticiones</p>
+              <p style={{ ...subtleText, marginTop: 2 }}>{requests.filter((item) => item.status === "pending").length} pendientes</p>
+            </div>
+          </div>
+          <IconButton label="Cerrar" onClick={onClose} icon={<X size={16} />} />
+        </div>
+        <div style={{ padding: 8, overflowY: "auto", flex: 1 }}>
+          {requests.length === 0 ? (
+            <div style={{ padding: "28px 18px", textAlign: "center" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 700, color: "var(--eco-text-strong)" }}>Sin peticiones registradas</p>
+              <p style={{ ...subtleText, marginTop: 6 }}>Las solicitudes de cambio de correo o contraseña aparecerán aquí.</p>
+            </div>
+          ) : (
+            requests.map((request) => {
+              const pending = request.status === "pending";
+              const tone = pending ? "warning" : request.status === "approved" ? "success" : "danger";
+              return (
+                <div key={request.id} style={{ border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-lg)", padding: 14, marginBottom: 8, background: "var(--eco-card-muted)" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                    <div>
+                      <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>{requestTypeLabel(request.type)}</p>
+                      <p style={{ ...subtleText, marginTop: 4 }}>{request.userName}</p>
+                    </div>
+                    <Badge tone={tone}>{pending ? "Pendiente" : request.status === "approved" ? "Aprobada" : "Rechazada"}</Badge>
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text)" }}><strong>Actual:</strong> {request.currentValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text)" }}><strong>Solicitado:</strong> {request.requestedValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text)" }}><strong>Motivo:</strong> {request.reason || "Sin motivo"}</p>
+                    <p style={{ ...subtleText, fontSize: 11 }}>Creada: {formatDateTime(request.createdAt)}</p>
+                    {request.resolvedAt ? <p style={{ ...subtleText, fontSize: 11 }}>Resuelta: {formatDateTime(request.resolvedAt)}</p> : null}
+                    {request.resolutionDetail ? <p style={{ ...subtleText, fontSize: 11 }}>{request.resolutionDetail}</p> : null}
+                  </div>
+                  <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+                    {request.history.map((entry) => (
+                      <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--eco-primary-500)", marginTop: 5, flexShrink: 0 }} />
+                        <div>
+                          <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text)" }}>{entry.actorName}</p>
+                          <p style={{ ...subtleText, marginTop: 2 }}>{entry.detail}</p>
+                          <p style={{ ...subtleText, marginTop: 2, fontSize: 11 }}>{formatDateTime(entry.createdAt)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {canManage && pending ? (
+                    <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                      <ActionButton type="button" tone="primary" icon={Check} onClick={() => onApprove(request)}>Aprobar</ActionButton>
+                      <ActionButton type="button" tone="danger" icon={X} onClick={() => onReject(request)}>Rechazar</ActionButton>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -1273,6 +1392,12 @@ export default function UsersPage() {
   const [detailUser, setDetailUser] = useState(null);
   const [passwordResetState, setPasswordResetState] = useState({ user: null, password: "" });
   const [filters, setFilters] = useState({ search: "", role: "all", status: "active", areaCode: "all" });
+  const [requests, setRequests] = useState(() => listChangeRequests());
+  const [requestsOpen, setRequestsOpen] = useState(false);
+  const currentUser = useMemo(() => getCurrentUser({ ensureMock: true }), []);
+  const currentRole = currentUser?.roleKey || currentUser?.role || "operativo";
+  const canManageUsers = currentRole === "admin";
+  const canViewUsers = canManageUsers || currentRole === "directivo";
 
   const loadUsers = () => {
     try {
@@ -1302,7 +1427,10 @@ export default function UsersPage() {
     return () => window.removeEventListener("carbontrack:users-changed", syncUsers);
   }, []);
 
+  useEffect(() => subscribeChangeRequests(setRequests), []);
+
   const filteredUsers = useMemo(() => filterUsers(users, filters), [users, filters]);
+  const pendingRequests = useMemo(() => requests.filter((item) => item.status === "pending"), [requests]);
 
   const stats = useMemo(() => {
     const activeUsers = users.filter((u) => u.isActive).length;
@@ -1319,6 +1447,7 @@ export default function UsersPage() {
   );
 
   const openCreateModal = () => {
+    if (!canManageUsers) return;
     const s = {
       user: null,
       form: emptyForm(),
@@ -1336,6 +1465,7 @@ export default function UsersPage() {
   };
 
   const openEditModal = (user) => {
+    if (!canManageUsers) return;
     const s = {
       user,
       form: emptyForm(user),
@@ -1356,8 +1486,10 @@ export default function UsersPage() {
   const validateForm = (form, editingUserId) => {
     const errs = {};
     const email = String(form.email || "").trim().toLowerCase();
-    const name = String(form.fullName || "").trim();
-    if (!name) errs.fullName = "Escribe el nombre completo.";
+    const firstName = String(form.firstName || "").trim();
+    const paternalLastName = String(form.paternalLastName || "").trim();
+    if (!firstName) errs.firstName = "Escribe el nombre.";
+    if (!paternalLastName) errs.paternalLastName = "Escribe el apellido paterno.";
     if (!email) errs.email = "Escribe un correo electrónico.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email)) errs.email = "Escribe un correo electrónico válido.";
     else {
@@ -1373,6 +1505,7 @@ export default function UsersPage() {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (!canManageUsers) return;
     if (!formState) return;
     const { user, form } = formState;
     const errs = validateForm(form, user?.id);
@@ -1381,9 +1514,13 @@ export default function UsersPage() {
       return;
     }
     setFormState((prev) => (prev ? { ...prev, saving: true, errors: {} } : prev));
+    const fullName = buildFullName(form.firstName, form.paternalLastName, form.maternalLastName);
     const payload = {
       id: user?.id,
-      fullName: form.fullName.trim(),
+      firstName: form.firstName.trim(),
+      paternalLastName: form.paternalLastName.trim(),
+      maternalLastName: form.maternalLastName.trim(),
+      fullName,
       email: form.email.trim().toLowerCase(),
       role: form.role,
       campusCode: DEFAULT_CAMPUS,
@@ -1409,6 +1546,7 @@ export default function UsersPage() {
   };
 
   const handleToggleStatus = (user) => {
+    if (!canManageUsers) return;
     const nextUsers = user.isActive ? deactivate(user.id, false) : activate(user.id);
     setUsers(nextUsers);
     setToast({
@@ -1418,6 +1556,7 @@ export default function UsersPage() {
   };
 
   const handleExportCsv = () => {
+    if (!canManageUsers) return;
     exportRowsToCsv({
       filename: `carbontrack-usuarios-${new Date().toISOString().slice(0, 10)}.csv`,
       rows: filteredUsers,
@@ -1440,6 +1579,7 @@ export default function UsersPage() {
   };
 
   const handleResetPassword = () => {
+    if (!canManageUsers) return;
     if (!passwordResetState.user) return;
     const result = resetPasswordMock(passwordResetState.user.id);
     if (!result.ok) return;
@@ -1448,8 +1588,113 @@ export default function UsersPage() {
     setToast({ title: "Contraseña temporal generada", message: `Nueva contraseña para ${passwordResetState.user.fullName}.` });
   };
 
+  const handleApproveRequest = (request) => {
+    if (!canManageUsers) return;
+    const actorName = currentUser?.fullName || "Administrador";
+    let resolutionDetail = "";
+
+    if (request.type === "email") {
+      const targetUser = getAll().find((item) => item.id === request.userId);
+      if (!targetUser) {
+        setToast({ title: "No se pudo aprobar", message: "El usuario asociado ya no existe.", tone: "error" });
+        return;
+      }
+      const result = upsert({ ...targetUser, email: request.requestedValue, fullName: targetUser.fullName });
+      if (!result.ok) {
+        setToast({ title: "Correo duplicado", message: "No fue posible aplicar el cambio solicitado.", tone: "error" });
+        return;
+      }
+      setUsers(result.users);
+      const activeSession = getSession();
+      if (activeSession?.userId === targetUser.id) {
+        setSession({ ...activeSession, email: request.requestedValue, role: targetUser.role });
+      }
+      resolutionDetail = `Se sustituyó ${request.currentValue} por ${request.requestedValue} tras validación administrativa.`;
+    } else {
+      resolutionDetail = "Se autorizó sustituir la contraseña anterior por una nueva credencial protegida.";
+    }
+
+    updateChangeRequest(request.id, (current) => ({
+      ...current,
+      status: "approved",
+      resolvedAt: new Date().toISOString(),
+      resolvedByUserId: currentUser?.id || null,
+      resolvedByName: actorName,
+      resolutionDetail,
+      history: [
+        ...(current.history || []),
+        {
+          action: "approved",
+          actorUserId: currentUser?.id || null,
+          actorName,
+          detail: resolutionDetail,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+
+    addNotification({
+      type: "system",
+      title: "Petición aprobada",
+      message: `${request.userName}: ${requestTypeLabel(request.type)} aprobada.`,
+      link: "/admin/usuarios",
+      meta: { requestId: request.id, requestType: request.type, status: "approved" },
+    });
+    setToast({ title: "Petición aprobada", message: resolutionDetail });
+  };
+
+  const handleRejectRequest = (request) => {
+    if (!canManageUsers) return;
+    const actorName = currentUser?.fullName || "Administrador";
+    const resolutionDetail = request.type === "email"
+      ? `Se rechazó sustituir ${request.currentValue} por ${request.requestedValue}.`
+      : "Se rechazó el cambio de contraseña solicitado.";
+
+    updateChangeRequest(request.id, (current) => ({
+      ...current,
+      status: "rejected",
+      resolvedAt: new Date().toISOString(),
+      resolvedByUserId: currentUser?.id || null,
+      resolvedByName: actorName,
+      resolutionDetail,
+      history: [
+        ...(current.history || []),
+        {
+          action: "rejected",
+          actorUserId: currentUser?.id || null,
+          actorName,
+          detail: resolutionDetail,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+
+    addNotification({
+      type: "system",
+      title: "Petición rechazada",
+      message: `${request.userName}: ${requestTypeLabel(request.type)} rechazada.`,
+      link: "/admin/usuarios",
+      meta: { requestId: request.id, requestType: request.type, status: "rejected" },
+    });
+    setToast({ title: "Petición rechazada", message: resolutionDetail });
+  };
+
   const clearFilters = () => setFilters({ search: "", role: "all", status: "active", areaCode: "all" });
   const hasActiveFilters = filters.search || filters.role !== "all" || filters.status !== "active" || filters.areaCode !== "all";
+
+  if (!canViewUsers) {
+    return (
+      <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", minHeight: "100%" }}>
+        <style>{PAGE_STYLES}</style>
+        <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
+          <div style={{ ...cardBase, padding: 24, borderColor: "rgba(220,38,38,0.18)", background: "var(--eco-danger-bg)" }}>
+            <p style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-danger)" }}>Acceso restringido</p>
+            <p style={{ ...subtleText, marginTop: 6, color: "var(--eco-danger)" }}>Solo administradores pueden modificar usuarios y los directivos pueden consultarlos. Esta sección no se muestra para capturistas.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", minHeight: "100%" }}>
@@ -1489,17 +1734,23 @@ export default function UsersPage() {
             <div>
               <h1 style={{ margin: 0, fontFamily: fd, fontSize: 28, fontWeight: 800, color: "var(--eco-text-strong)", letterSpacing: "-0.02em" }}>Usuarios</h1>
               <p style={{ ...subtleText, marginTop: 5, maxWidth: 560 }}>
-                Administra cuentas, roles y permisos de acceso. Controla quién puede capturar, exportar y modificar catálogos.
+                {canManageUsers
+                  ? "Administra cuentas, roles, permisos y peticiones de cambio de perfil."
+                  : "Consulta usuarios y peticiones. Los directivos solo pueden visualizar esta sección."}
               </p>
             </div>
           </div>
           <div className="ct-users-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <ActionButton type="button" tone="primary" icon={Plus} onClick={openCreateModal}>
-              Nuevo usuario
-            </ActionButton>
-            <ActionButton type="button" icon={Download} onClick={handleExportCsv}>
-              Exportar CSV
-            </ActionButton>
+            {canManageUsers ? (
+              <ActionButton type="button" tone="primary" icon={Plus} onClick={openCreateModal}>
+                Nuevo usuario
+              </ActionButton>
+            ) : null}
+            {canManageUsers ? (
+              <ActionButton type="button" icon={Download} onClick={handleExportCsv}>
+                Exportar CSV
+              </ActionButton>
+            ) : null}
           </div>
         </div>
 
@@ -1507,6 +1758,28 @@ export default function UsersPage() {
           <PageSkeleton />
         ) : (
           <>
+        <div
+          style={{
+            ...cardBase,
+            padding: "16px 20px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 30ms both",
+          }}
+        >
+          <div>
+            <p style={{ margin: 0, fontFamily: fd, fontSize: 16, fontWeight: 800, color: "var(--eco-text-strong)" }}>Peticiones</p>
+            <p style={{ ...subtleText, marginTop: 4 }}>Solicitudes de cambio de correo o contraseña enviadas desde Perfil.</p>
+          </div>
+          <ActionButton type="button" tone="primary" icon={Bell} onClick={() => setRequestsOpen(true)}>
+            Ver peticiones ({pendingRequests.length})
+          </ActionButton>
+        </div>
+
         {/* ─── Demo Banner ─── */}
         {demoUsers.length >= 3 && (
           <div
@@ -1827,14 +2100,16 @@ export default function UsersPage() {
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--eco-border)", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                           <IconButton label="Ver detalle" onClick={() => setDetailUser(user)} icon={<Eye size={15} />} />
-                          <IconButton label="Editar" onClick={() => openEditModal(user)} icon={<Pencil size={15} />} />
-                          <IconButton
-                            label={user.isActive ? "Desactivar" : "Activar"}
-                            onClick={() => handleToggleStatus(user)}
-                            icon={<Power size={15} />}
-                            tone={user.isActive ? "default" : "danger"}
-                          />
-                          <IconButton label="Restablecer contraseña" onClick={() => setPasswordResetState({ user, password: "" })} icon={<KeyRound size={15} />} />
+                          {canManageUsers ? <IconButton label="Editar" onClick={() => openEditModal(user)} icon={<Pencil size={15} />} /> : null}
+                          {canManageUsers ? (
+                            <IconButton
+                              label={user.isActive ? "Desactivar" : "Activar"}
+                              onClick={() => handleToggleStatus(user)}
+                              icon={<Power size={15} />}
+                              tone={user.isActive ? "default" : "danger"}
+                            />
+                          ) : null}
+                          {canManageUsers ? <IconButton label="Restablecer contraseña" onClick={() => setPasswordResetState({ user, password: "" })} icon={<KeyRound size={15} />} /> : null}
                         </div>
                       </td>
                     </tr>
@@ -1867,7 +2142,8 @@ export default function UsersPage() {
           setFormState((prev) => (prev ? { ...prev, form: { ...prev.form, tempPassword: generateTempPassword() } } : prev));
         }}
       />
-      <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} onEdit={openEditModal} />
+      <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} onEdit={openEditModal} canEdit={canManageUsers} />
+      <RequestsPanel open={requestsOpen} requests={requests} canManage={canManageUsers} onClose={() => setRequestsOpen(false)} onApprove={handleApproveRequest} onReject={handleRejectRequest} />
       <ResetPasswordModal
         user={passwordResetState.user}
         tempPassword={passwordResetState.password}

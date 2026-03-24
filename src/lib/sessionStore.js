@@ -66,6 +66,9 @@ function ensureUserRecord(userInput = {}) {
   const existing = getAll().find((user) => user.email === email);
   const payload = {
     id: existing?.id || cleanString(userInput.id) || undefined,
+    firstName: cleanString(userInput.firstName, existing?.firstName || ""),
+    paternalLastName: cleanString(userInput.paternalLastName, existing?.paternalLastName || ""),
+    maternalLastName: cleanString(userInput.maternalLastName, existing?.maternalLastName || ""),
     fullName: cleanString(userInput.fullName || userInput.name, existing?.fullName || "Usuario CarbonTrack"),
     email: email || existing?.email || "demo@carbontrack.local",
     role: normalizeRole(userInput.role || existing?.role),
@@ -147,6 +150,9 @@ export function getCurrentUser(options = {}) {
     email: session.email,
     role: session.role,
     fullName: "Usuario CarbonTrack",
+    firstName: "Usuario",
+    paternalLastName: "CarbonTrack",
+    maternalLastName: "",
     campusCode: DEFAULT_CAMPUS,
     areaAccess: { mode: "all", areaCodes: [] },
     isActive: true,
