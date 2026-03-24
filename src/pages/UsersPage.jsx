@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Download,
   Eye,
@@ -250,6 +252,43 @@ function Badge({ tone = "neutral", children, dot }) {
       )}
       {children}
     </span>
+  );
+}
+
+/* ─── Filter select (Emissions-style) ─── */
+function BarFilterSelect({ value, onChange, options, icon, placeholder }) {
+  return (
+    <div style={{ position: "relative", display: "inline-flex" }}>
+      {icon && (
+        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "var(--eco-gray-400)", display: "flex", pointerEvents: "none", zIndex: 1 }}>
+          {icon}
+        </span>
+      )}
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          height: 32,
+          padding: `0 28px 0 ${icon ? 30 : 10}px`,
+          borderRadius: "var(--eco-radius-full)",
+          border: `1px solid ${value && value !== "all" ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
+          background: value && value !== "all" ? "var(--eco-primary-50)" : "white",
+          fontFamily: fb,
+          fontSize: 12,
+          fontWeight: value && value !== "all" ? 600 : 400,
+          color: value && value !== "all" ? "var(--eco-primary-700)" : "var(--eco-gray-600)",
+          appearance: "none",
+          cursor: "pointer",
+          outline: "none",
+          transition: "all 150ms",
+        }}
+      >
+        {options.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={13} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: "var(--eco-gray-400)", pointerEvents: "none" }} />
+    </div>
   );
 }
 
@@ -1521,78 +1560,103 @@ export default function UsersPage() {
         {/* ─── Filters ─── */}
         <div
           style={{
-            ...cardBase,
-            padding: "18px 20px",
+            background: "white",
+            borderRadius: "var(--eco-radius-lg)",
+            border: "1.5px solid var(--eco-primary-500)",
+            padding: "12px 16px",
             marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            boxShadow: "var(--eco-shadow-sm)",
             animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 100ms both",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Filter size={14} style={{ color: "var(--eco-text-soft)" }} />
-              <p style={{ ...sectionLabel, margin: 0 }}>Filtros</p>
-            </div>
-            {hasActiveFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "4px 10px",
-                  borderRadius: "var(--eco-radius-full)",
-                  border: "1px solid var(--eco-border)",
-                  background: "var(--eco-card)",
-                  fontFamily: fb,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "var(--eco-text-soft)",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; e.currentTarget.style.color = "var(--eco-primary-700)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.color = "var(--eco-text-soft)"; }}
-              >
-                <RotateCcw size={11} />
-                Limpiar
-              </button>
-            )}
+          <Filter size={15} style={{ color: "var(--eco-gray-400)", flexShrink: 0 }} />
+
+          <BarFilterSelect
+            value={filters.role}
+            onChange={v => setFilters(p => ({ ...p, role: v }))}
+            icon={<Shield size={13} />}
+            placeholder="Rol"
+            options={[
+              { value: "all", label: "Todos los roles" },
+              { value: "admin", label: "Administrador" },
+              { value: "operativo", label: "Operativo" },
+              { value: "directivo", label: "Directivo" },
+            ]}
+          />
+
+          <BarFilterSelect
+            value={filters.status}
+            onChange={v => setFilters(p => ({ ...p, status: v }))}
+            icon={<CheckCircle2 size={13} />}
+            placeholder="Estado"
+            options={[
+              { value: "active", label: "Activos" },
+              { value: "all", label: "Todos" },
+              { value: "inactive", label: "Inactivos" },
+            ]}
+          />
+
+          <BarFilterSelect
+            value={filters.areaCode}
+            onChange={v => setFilters(p => ({ ...p, areaCode: v }))}
+            icon={<Building2 size={13} />}
+            placeholder="Área"
+            options={[
+              { value: "all", label: "Todas las áreas" },
+              ...USER_AREA_OPTIONS.map(a => ({ value: a.value, label: a.label })),
+            ]}
+          />
+
+          <div style={{ flex: 1 }} />
+
+          <div style={{ position: "relative", display: "inline-flex" }}>
+            <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--eco-gray-400)", pointerEvents: "none" }} />
+            <input
+              value={filters.search}
+              onChange={e => setFilters(p => ({ ...p, search: e.target.value }))}
+              placeholder="Buscar usuario..."
+              style={{
+                height: 32,
+                width: 180,
+                padding: "0 10px 0 32px",
+                borderRadius: "var(--eco-radius-full)",
+                border: "1px solid var(--eco-border)",
+                fontFamily: fb,
+                fontSize: 12,
+                outline: "none",
+                transition: "all 150ms",
+                color: "var(--eco-gray-700)",
+              }}
+            />
           </div>
-          <div className="ct-users-filters" style={{ display: "grid", gridTemplateColumns: "1.4fr repeat(3,minmax(0,1fr))", gap: 12, alignItems: "end" }}>
-            <Field label="Buscar">
-              <div style={{ position: "relative" }}>
-                <Search size={14} style={{ position: "absolute", left: 14, top: 14, color: "var(--eco-text-soft)" }} />
-                <StyledInput
-                  value={filters.search}
-                  onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
-                  placeholder="Nombre o correo..."
-                  style={{ paddingLeft: 36 }}
-                />
-              </div>
-            </Field>
-            <Field label="Rol">
-              <StyledSelect value={filters.role} onChange={(e) => setFilters((p) => ({ ...p, role: e.target.value }))}>
-                <option value="all">Todos los roles</option>
-                <option value="admin">Administrador</option>
-                <option value="operativo">Operativo</option>
-                <option value="directivo">Directivo</option>
-              </StyledSelect>
-            </Field>
-            <Field label="Estado">
-              <StyledSelect value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}>
-                <option value="active">Activos</option>
-                <option value="all">Todos</option>
-                <option value="inactive">Inactivos</option>
-              </StyledSelect>
-            </Field>
-            <Field label="Área">
-              <StyledSelect value={filters.areaCode} onChange={(e) => setFilters((p) => ({ ...p, areaCode: e.target.value }))}>
-                <option value="all">Todas las áreas</option>
-                {USER_AREA_OPTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-              </StyledSelect>
-            </Field>
-          </div>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              style={{
+                height: 32,
+                padding: "0 10px",
+                borderRadius: "var(--eco-radius-full)",
+                border: "1px solid var(--eco-border)",
+                background: "var(--eco-danger-bg)",
+                fontFamily: fb,
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--eco-danger)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <RotateCcw size={12} />
+              Limpiar
+            </button>
+          )}
         </div>
 
         {/* ─── Users Table ─── */}

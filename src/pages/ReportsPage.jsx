@@ -126,7 +126,7 @@ export default function ReportsPage(){
       {error&&<div style={{background:"white",border:"1px solid #FECACA",borderRadius:"var(--eco-radius-lg)",padding:14,marginBottom:14,animation:"ctUp .3s ease-out"}}><p style={{margin:0,fontFamily:fd,fontSize:14,color:"var(--eco-danger)",display:"flex",alignItems:"center",gap:6}}><AlertCircle size={14}/>{error}</p></div>}
 
       {/* ═══ WIZARD STEPS (before generation) ═══ */}
-      {!generated&&!loadingGen&&<div style={{background:"white",border:"1px solid var(--eco-border)",borderRadius:"var(--eco-radius-xl, var(--eco-radius-lg))",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",marginBottom:24,animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 120ms both"}}>
+      {!generated&&!loadingGen&&<div style={{background:"white",border:"1.5px solid var(--eco-primary-500)",borderRadius:"var(--eco-radius-xl, var(--eco-radius-lg))",boxShadow:"var(--eco-shadow-sm)",overflow:"hidden",marginBottom:24,animation:"ctUp .4s cubic-bezier(.33,1,.68,1) 120ms both"}}>
 
         {/* Step 1: Periodo */}
         {step===1&&<div style={{padding:24,animation:"ctSlideRt .3s ease-out"}}>
