@@ -515,92 +515,90 @@ function Toast({ toast, onDismiss }) {
 }
 
 function PageSkeleton() {
-  const shimmer = {
-    background: "linear-gradient(90deg,var(--eco-gray-100) 25%,var(--eco-border) 50%,var(--eco-gray-100) 75%)",
+  const sh = {
+    background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
     backgroundSize: "200% 100%",
+    animation: "ctShimmer 1.4s ease-in-out infinite",
+    borderRadius: "var(--eco-radius-md)",
   };
-  const shimmerAnim = (delay = 0) => ({ ...shimmer, animation: `ctShimmer 1.4s ease-in-out ${delay}ms infinite` });
+  const card = {
+    background: "var(--eco-surface)",
+    borderRadius: "var(--eco-radius-lg)",
+    border: "1px solid var(--eco-border)",
+    boxShadow: "var(--eco-shadow-sm)",
+  };
+  const sa = (delay) => ({ ...sh, animationDelay: `${delay}ms` });
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
+
+      {/* Demo Banner Skeleton */}
+      <div style={{ ...card, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, animation: "ctFadeUp .3s ease-out both" }}>
+        <div style={{ ...sa(0), width: 40, height: 40, borderRadius: "var(--eco-radius-md)", flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ ...sa(40), width: 200, height: 14, marginBottom: 8 }} />
+          <div style={{ ...sa(80), width: "80%", height: 11 }} />
+        </div>
+      </div>
+
       {/* KPI Skeletons */}
       <div className="ct-users-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14 }}>
         {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            style={{
-              ...cardBase,
-              padding: 20,
-              overflow: "hidden",
-              position: "relative",
-              animation: `ctFadeUp .3s ease-out ${i * 60}ms both`,
-            }}
-          >
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, borderRadius: "3px 3px 0 0", ...shimmerAnim(i * 80) }} />
+          <div key={i} style={{ ...card, padding: 20, overflow: "hidden", position: "relative", animation: `ctFadeUp .3s ease-out ${60 + i * 60}ms both` }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ height: 12, width: "55%", borderRadius: 6, ...shimmerAnim(i * 80 + 40) }} />
-              <div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", ...shimmerAnim(i * 80 + 80) }} />
+              <div style={{ ...sa(i * 80 + 40), height: 12, width: "55%", borderRadius: 6 }} />
+              <div style={{ ...sa(i * 80 + 80), width: 38, height: 38, borderRadius: "var(--eco-radius-md)" }} />
             </div>
-            <div style={{ height: 30, width: "35%", borderRadius: 8, marginBottom: 8, ...shimmerAnim(i * 80 + 120) }} />
-            <div style={{ height: 10, width: "70%", borderRadius: 5, ...shimmerAnim(i * 80 + 160) }} />
+            <div style={{ ...sa(i * 80 + 120), height: 28, width: "40%", borderRadius: 8, marginBottom: 8 }} />
+            <div style={{ ...sa(i * 80 + 160), height: 10, width: "65%", borderRadius: 5 }} />
           </div>
         ))}
       </div>
 
-      {/* Filter Skeleton */}
-      <div
-        style={{
-          ...cardBase,
-          padding: "18px 20px",
-          animation: "ctFadeUp .3s ease-out 260ms both",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          <div style={{ width: 14, height: 14, borderRadius: 4, ...shimmerAnim(280) }} />
-          <div style={{ height: 12, width: 50, borderRadius: 6, ...shimmerAnim(300) }} />
+      {/* Filter Bar Skeleton */}
+      <div style={{ ...card, border: "1.5px solid var(--eco-primary-500)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, animation: "ctFadeUp .3s ease-out 320ms both" }}>
+        <div style={{ ...sa(340), width: 15, height: 15, borderRadius: "50%", flexShrink: 0 }} />
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ ...sa(360 + i * 40), width: 110, height: 32, borderRadius: "var(--eco-radius-full)", flexShrink: 0 }} />
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ ...sa(500), width: 180, height: 32, borderRadius: "var(--eco-radius-full)", flexShrink: 0 }} />
+      </div>
+
+      {/* Table Section Label */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", animation: "ctFadeUp .3s ease-out 440ms both" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ ...sa(460), width: 14, height: 14, borderRadius: 4 }} />
+          <div style={{ ...sa(480), height: 13, width: 140, borderRadius: 6 }} />
         </div>
-        <div className="ct-users-filters" style={{ display: "grid", gridTemplateColumns: "1.4fr repeat(3,minmax(0,1fr))", gap: 12 }}>
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i}>
-              <div style={{ height: 10, width: "40%", borderRadius: 5, marginBottom: 8, ...shimmerAnim(320 + i * 40) }} />
-              <div style={{ height: 42, borderRadius: "var(--eco-radius-md)", ...shimmerAnim(340 + i * 40) }} />
-            </div>
+        <div style={{ ...sa(500), height: 10, width: 90, borderRadius: 5 }} />
+      </div>
+
+      {/* Table Skeleton */}
+      <div style={{ ...card, overflow: "hidden", animation: "ctFadeUp .3s ease-out 500ms both" }}>
+        {/* Table header */}
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", gap: 16, alignItems: "center" }}>
+          <div style={{ width: 42 }} />
+          {["1.3fr","1.2fr",".7fr",".7fr",".8fr",".5fr"].map((_, c) => (
+            <div key={c} style={{ ...sa(520 + c * 20), height: 10, flex: _, borderRadius: 5, width: "70%" }} />
           ))}
         </div>
-      </div>
-
-      {/* Table Header Skeleton */}
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, animation: "ctFadeUp .3s ease-out 380ms both" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 4, ...shimmerAnim(400) }} />
-            <div style={{ height: 12, width: 120, borderRadius: 6, ...shimmerAnim(420) }} />
-          </div>
-          <div style={{ height: 10, width: 80, borderRadius: 5, ...shimmerAnim(440) }} />
-        </div>
-      </div>
-
-      {/* Table Row Skeletons */}
-      <div style={{ ...cardBase, overflow: "hidden", animation: "ctFadeUp .3s ease-out 420ms both" }}>
-        {[0, 1, 2, 3, 4].map((row) => (
-          <div
-            key={row}
-            style={{
-              padding: "16px 20px",
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              borderBottom: row < 4 ? "1px solid var(--eco-border)" : "none",
-            }}
-          >
-            <div style={{ width: 42, height: 42, borderRadius: "50%", flexShrink: 0, ...shimmerAnim(460 + row * 60) }} />
+        {/* Table rows */}
+        {[0, 1, 2, 3, 4, 5].map((row) => (
+          <div key={row} style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, borderBottom: row < 5 ? "1px solid var(--eco-border)" : "none" }}>
+            <div style={{ ...sa(560 + row * 50), width: 42, height: 42, borderRadius: "50%", flexShrink: 0 }} />
             <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1.3fr 1.2fr .7fr .7fr .8fr .5fr", gap: 16, alignItems: "center" }}>
               {[0, 1, 2, 3, 4, 5].map((c) => (
-                <div key={c} style={{ height: c === 0 ? 16 : 12, borderRadius: 6, width: c === 0 ? "80%" : "60%", ...shimmerAnim(480 + row * 60 + c * 30) }} />
+                <div key={c} style={{ ...sa(580 + row * 50 + c * 25), height: c === 0 ? 15 : 11, borderRadius: 6, width: c === 0 ? "80%" : "60%" }} />
               ))}
             </div>
           </div>
         ))}
+        {/* Table footer */}
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--eco-border)", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ ...sa(900), height: 10, width: 120, borderRadius: 5 }} />
+          <div style={{ ...sa(920), height: 10, width: 80, borderRadius: 5 }} />
+        </div>
       </div>
     </div>
   );

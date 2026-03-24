@@ -56,12 +56,59 @@ function StepChip({label,value,active,onClick,icon}){return<button onClick={onCl
 
 const selS={height:38,borderRadius:"var(--eco-radius-full)",border:"1.5px solid var(--eco-border)",padding:"0 14px",fontFamily:fb,fontSize:13,color:"var(--eco-gray-700)",background:"white",cursor:"pointer",transition:"border-color 150ms",outline:"none"};
 
+/* ═══ PAGE SKELETON (initial loading state, dark/light aware) ═══ */
+function PageSkeleton(){
+  const sh={background:"linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",backgroundSize:"200% 100%",animation:"ctShimmer 1.4s ease-in-out infinite",borderRadius:"var(--eco-radius-md)"};
+  const card={background:"var(--eco-surface)",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)"};
+  return<>
+    {/* Header skeleton */}
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:24,animation:"ctUp .3s ease-out"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{...sh,width:38,height:38,borderRadius:"var(--eco-radius-md)"}}/>
+        <div>
+          <div style={{...sh,width:280,height:22,marginBottom:8}}/>
+          <div style={{...sh,width:340,height:14}}/>
+        </div>
+      </div>
+      <div style={{...sh,width:100,height:36,borderRadius:"var(--eco-radius-md)"}}/>
+    </div>
+
+    {/* Stepper bar skeleton */}
+    <div style={{display:"flex",alignItems:"center",gap:0,marginBottom:24,animation:"ctUp .3s ease-out 60ms both"}}>
+      {[0,1,2].map(i=><div key={i} style={{display:"flex",alignItems:"center",flex:i<2?1:"none"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:"var(--eco-radius-full)",border:"1px solid var(--eco-border)",background:"var(--eco-surface)"}}>
+          <div style={{...sh,width:26,height:26,borderRadius:"50%"}}/>
+          <div style={{...sh,width:60,height:14}}/>
+        </div>
+        {i<2&&<div style={{flex:1,height:2,background:"var(--eco-border)",margin:"0 8px",borderRadius:1}}/>}
+      </div>)}
+    </div>
+
+    {/* Wizard card skeleton */}
+    <div style={{...card,border:"1.5px solid var(--eco-primary-500)",padding:24,animation:"ctUp .3s ease-out 120ms both"}}>
+      <div style={{...sh,width:200,height:18,marginBottom:16}}/>
+      <div style={{display:"flex",gap:10,marginBottom:18}}>
+        <div style={{...sh,width:110,height:34,borderRadius:"var(--eco-radius-full)"}}/>
+        <div style={{...sh,width:130,height:34,borderRadius:"var(--eco-radius-full)"}}/>
+      </div>
+      <div style={{display:"flex",gap:12,marginBottom:20}}>
+        <div style={{...sh,width:160,height:38,borderRadius:"var(--eco-radius-md)",flex:1}}/>
+        <div style={{...sh,width:160,height:38,borderRadius:"var(--eco-radius-md)",flex:1}}/>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end"}}>
+        <div style={{...sh,width:140,height:40,borderRadius:"var(--eco-radius-full)"}}/>
+      </div>
+    </div>
+  </>;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT - WIZARD-STYLE REPORT BUILDER
    ═══════════════════════════════════════════════════════════════ */
 export default function ReportsPage(){
   const today=new Date();
   const[records,setRecords]=useState([]);const[toast,setToast]=useState(null);const[error,setError]=useState("");
+  const[loading,setLoading]=useState(true);
   const[loadingGen,setLoadingGen]=useState(false);const[generated,setGenerated]=useState(false);
   const[previewRows,setPreviewRows]=useState([]);const[summary,setSummary]=useState(null);
   const[traceOpen,setTraceOpen]=useState(false);const[hovRow,setHovRow]=useState(null);
@@ -69,7 +116,7 @@ export default function ReportsPage(){
   const[filters,setFilters]=useState({periodMode:"mes",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});
 
   const reload=useCallback(()=>{const ld=loadRecs();setRecords(ld.records);setError(ld.error);},[]);
-  useEffect(()=>{reload();},[reload]);
+  useEffect(()=>{reload();setTimeout(()=>setLoading(false),600);},[reload]);
   useEffect(()=>{const h=()=>reload();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[reload]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
 
@@ -97,6 +144,8 @@ export default function ReportsPage(){
   },[filters]);
 
   /* ═══ RENDER ═══ */
+  if(loading)return<><style>{CSS}</style><div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}><PageSkeleton/></div></>;
+
   return(<><style>{CSS}</style>
     <div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}>
 
@@ -212,7 +261,7 @@ export default function ReportsPage(){
       </div>}
 
       {/* Loading */}
-      {loadingGen&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginBottom:16}} className="ct-kpi-g">{[0,1,2,3].map(i=><Skeleton key={i} h={140} delay={i*50}/>)}</div>}
+      {loadingGen&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginBottom:16}} className="ct-kpi-g">{[0,1,2,3].map(i=>{const ksh={background:"linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",backgroundSize:"200% 100%",animation:"ctShimmer 1.4s ease-in-out infinite",borderRadius:"var(--eco-radius-md)"};return<div key={i} style={{background:"var(--eco-surface)",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",boxShadow:"var(--eco-shadow-sm)",padding:18,animation:`ctUp .3s ease-out ${i*50}ms both`}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}><div style={{...ksh,width:38,height:38,borderRadius:"var(--eco-radius-md)"}}/><div style={{...ksh,width:80,height:14}}/></div><div style={{...ksh,width:120,height:28,marginBottom:6}}/><div style={{...ksh,width:60,height:12}}/></div>;})}</div>}
 
       {/* ═══ GENERATED RESULTS ═══ */}
       {!loadingGen&&generated&&previewRows.length===0&&<div style={{background:"white",borderRadius:"var(--eco-radius-lg)",border:"1px solid var(--eco-border)",padding:"48px 24px",textAlign:"center",animation:"ctUp .4s ease-out"}}><div style={{width:64,height:64,borderRadius:"50%",background:"var(--eco-gray-100)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 14px",color:"var(--eco-gray-400)",animation:"ctFloat 3s ease-in-out infinite"}}><FileText size={28}/></div><p style={{margin:"0 0 4px",fontFamily:fd,fontSize:16,fontWeight:700,color:"var(--eco-gray-700)"}}>Sin registros</p><p style={{margin:0,fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)",maxWidth:340,marginInline:"auto"}}>No hay datos para los filtros seleccionados. Prueba cambiar el periodo o área.</p></div>}
