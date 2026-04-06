@@ -67,7 +67,7 @@ const PAGE_ANIMATIONS = `
 
 const DEMO_FACTOR = 0.433;
 
-/* â”€â”€â”€ Base styles (dark-mode aware) â”€â”€â”€ */
+/* --- Base styles (dark-mode aware) --- */
 const cardBase = {
   background: "var(--eco-card)",
   borderRadius: "var(--eco-radius-lg)",
@@ -139,7 +139,7 @@ const monthFieldValue = () => {
 
 const monthToFirstDay = (value) => (value ? `${value}-01` : new Date().toISOString().slice(0, 10));
 
-/* â”€â”€â”€ Pill-style filter select (matches EmissionsPage) â”€â”€â”€ */
+/* --- Pill-style filter select (matches EmissionsPage) --- */
 function FilterSelect({ value, onChange, options, icon }) {
   const isActive = value && value !== "all";
   return (
@@ -201,7 +201,7 @@ function FilterSelect({ value, onChange, options, icon }) {
   );
 }
 
-/* â”€â”€â”€ Toggle pill for boolean filters â”€â”€â”€ */
+/* --- Toggle pill for boolean filters --- */
 function TogglePill({ label, icon, active, onClick }) {
   return (
     <button
@@ -230,7 +230,7 @@ function TogglePill({ label, icon, active, onClick }) {
   );
 }
 
-/* â”€â”€â”€ Badge â”€â”€â”€ */
+/* --- Badge --- */
 function Badge({ tone = "neutral", children }) {
   const theme = {
     success: { color: "var(--eco-success)", background: "var(--eco-success-bg)", border: "#BBF7D0" },
@@ -262,7 +262,7 @@ function Badge({ tone = "neutral", children }) {
   );
 }
 
-/* â”€â”€â”€ Field â”€â”€â”€ */
+/* --- Field --- */
 function Field({ label, error, helper, children }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -274,7 +274,7 @@ function Field({ label, error, helper, children }) {
   );
 }
 
-/* â”€â”€â”€ Icon Action Button â”€â”€â”€ */
+/* --- Icon Action Button --- */
 function IconActionButton({ label, onClick, icon, tone }) {
   const toneColors = {
     danger: { hover: "var(--eco-danger-bg, #FEE2E2)", color: "var(--eco-danger)", border: "#FECACA" },
@@ -304,7 +304,7 @@ function IconActionButton({ label, onClick, icon, tone }) {
   );
 }
 
-/* â”€â”€â”€ Toast â”€â”€â”€ */
+/* --- Toast --- */
 function Toast({ toast, onDismiss }) {
   useEffect(() => {
     if (!toast) return undefined;
@@ -362,7 +362,7 @@ function Toast({ toast, onDismiss }) {
   );
 }
 
-/* â”€â”€â”€ Confirm Modal â”€â”€â”€ */
+/* --- Confirm Modal --- */
 function ConfirmModal({ modal, onCancel, onConfirm }) {
   if (!modal) return null;
   return (
@@ -417,7 +417,7 @@ function ConfirmModal({ modal, onCancel, onConfirm }) {
   );
 }
 
-/* â”€â”€â”€ KPI Card â”€â”€â”€ */
+/* --- KPI Card --- */
 function KpiCard({ icon, iconBg, title, value, unit, sub, delay = 0 }) {
   return (
     <div
@@ -463,9 +463,9 @@ function KpiCard({ icon, iconBg, title, value, unit, sub, delay = 0 }) {
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ---------------------------------------------------------------
    Page Skeleton (dark-mode aware, comprehensive)
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+   --------------------------------------------------------------- */
 function PageSkeleton() {
   const sh = {
     background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
@@ -595,7 +595,7 @@ function PageSkeleton() {
   );
 }
 
-/* â”€â”€â”€ Detail Drawer â”€â”€â”€ */
+/* --- Detail Drawer --- */
 function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
   if (!state) return null;
   const { equipment, factorValue, factorSourceLabel, usingFallbackFactor, monthValue } = state;
@@ -622,7 +622,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
         {/* Drawer header */}
         <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div>
-            <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>CatÃ¡logos / Equipos / Detalle</p>
+            <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>Catálogos / Equipos / Detalle</p>
             <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>{equipment.name}</h3>
           </div>
           <button type="button" onClick={onClose} aria-label="Cerrar" style={iconButtonStyle}><X size={16} /></button>
@@ -635,11 +635,11 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
               <div style={{ width: 24, height: 24, borderRadius: "var(--eco-radius-sm)", background: "var(--eco-primary-500)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Activity size={12} />
               </div>
-              <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-primary-700)" }}>FÃ³rmula usada</span>
+              <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-primary-700)" }}>Fórmula usada</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ fontFamily: fm, fontSize: 15, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>kWh/mes = (W Ã— horasMes Ã— cantidad) / 1 000</span>
-              <span style={{ fontFamily: fm, fontSize: 15, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>COâ‚‚e = kWh Ã— EF</span>
+              <span style={{ fontFamily: fm, fontSize: 15, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>kWh/mes = (W × horasMes × cantidad) / 1 000</span>
+              <span style={{ fontFamily: fm, fontSize: 15, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>CO₂e = kWh × EF</span>
             </div>
           </div>
 
@@ -648,9 +648,9 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
             <div style={{ background: "var(--eco-warning-bg)", border: "1px solid #FDE68A", borderRadius: "var(--eco-radius-lg)", padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
               <Info size={15} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
               <div>
-                <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>CÃ¡lculo disponible prÃ³ximamente</p>
+                <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Cálculo disponible próximamente</p>
                 <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-                  Este registro se conserva en inventario, pero el cÃ¡lculo para combustible se habilitarÃ¡ cuando exista el modelo de litros/hora.
+                  Este registro se conserva en inventario, pero el cálculo para combustible se habilitará cuando exista el modelo de litros/hora.
                 </p>
               </div>
             </div>
@@ -659,20 +659,20 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
           {/* Details list */}
           <div style={{ background: "var(--eco-surface)", borderRadius: "var(--eco-radius-lg)", overflow: "hidden", border: "1px solid var(--eco-border)" }}>
             {[
-              ["Ãrea", getAreaLabel(equipment.areaCode)],
+              ["Área", getAreaLabel(equipment.areaCode)],
               ["Tipo", getTypeLabel(equipment.type)],
-              ["CategorÃ­a", getCategoryLabel(equipment.category)],
+              ["Categoría", getCategoryLabel(equipment.category)],
               ["Cantidad", equipment.quantity],
               ["Potencia", `${numberFormat(equipment.powerW, 1)} W`],
-              ["Uso", `${numberFormat(equipment.usage.hoursPerDay, 1)} h/dÃ­a Â· ${numberFormat(equipment.usage.daysPerWeek, 1)} dÃ­as/sem`],
+              ["Uso", `${numberFormat(equipment.usage.hoursPerDay, 1)} h/día · ${numberFormat(equipment.usage.daysPerWeek, 1)} días/sem`],
               ["horasMes", numberFormat(hoursMonth, 2)],
               ["kWh/mes", numberFormat(kwhMonth, 2)],
-              ["EF usado", `${numberFormat(factorValue, 3)} kgCOâ‚‚e/kWh`],
-              ["COâ‚‚e estimado", `${numberFormat(co2eKg, 2)} kgCOâ‚‚e Â· ${numberFormat(co2eT, 4)} tCOâ‚‚e`],
+              ["EF usado", `${numberFormat(factorValue, 3)} kgCO₂e/kWh`],
+              ["CO₂e estimado", `${numberFormat(co2eKg, 2)} kgCO₂e · ${numberFormat(co2eT, 4)} tCO₂e`],
             ].map(([label, value], index, all) => (
               <div key={label} style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, borderBottom: index < all.length - 1 ? "1px solid var(--eco-border)" : "none" }}>
                 <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>{label}</span>
-                <span style={{ fontFamily: label === "COâ‚‚e estimado" || label === "kWh/mes" ? fm : fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-700))", textAlign: "right", lineHeight: 1.5 }}>{value}</span>
+                <span style={{ fontFamily: label === "CO₂e estimado" || label === "kWh/mes" ? fm : fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-700))", textAlign: "right", lineHeight: 1.5 }}>{value}</span>
               </div>
             ))}
           </div>
@@ -710,9 +710,9 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ---------------------------------------------------------------
    MAIN PAGE
-   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+   --------------------------------------------------------------- */
 export default function EquipmentPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -822,7 +822,7 @@ export default function EquipmentPage() {
       closeModal();
       setToast({
         title: modalState.equipment ? "Equipo actualizado" : "Equipo guardado",
-        message: `${payload.name} Â· ${getAreaLabel(payload.areaCode)}`,
+        message: `${payload.name} · ${getAreaLabel(payload.areaCode)}`,
       });
     } catch {
       setModalState((prev) => ({ ...prev, saving: false }));
@@ -895,7 +895,7 @@ export default function EquipmentPage() {
     const recordDate = monthToFirstDay(detailState.monthValue);
     setConfirmModal({
       title: "Generar registro estimado",
-      message: `Se crearÃ¡ un registro Scope 2 estimado para ${detailState.equipment.name} con fecha ${recordDate}. Confirma para evitar duplicados.`,
+      message: `Se creará un registro Scope 2 estimado para ${detailState.equipment.name} con fecha ${recordDate}. Confirma para evitar duplicados.`,
       onConfirm: () => {
         const record = buildEstimatedRecord(detailState.equipment, {
           factor: detailState.factorValue,
@@ -904,12 +904,12 @@ export default function EquipmentPage() {
         });
         appendEstimatedRecord(record);
         setConfirmModal(null);
-        setToast({ title: "Registro estimado generado", message: `${detailState.equipment.name} Â· ${numberFormat(record.value, 2)} kWh` });
+        setToast({ title: "Registro estimado generado", message: `${detailState.equipment.name} · ${numberFormat(record.value, 2)} kWh` });
       },
     });
   };
 
-  /* â”€â”€â”€ Loading skeleton â”€â”€â”€ */
+  /* --- Loading skeleton --- */
   if (loading) {
     return (
       <>
@@ -924,7 +924,7 @@ export default function EquipmentPage() {
       <style>{PAGE_ANIMATIONS}</style>
       <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", maxWidth: "var(--content-max)", margin: "0 auto" }}>
 
-        {/* â•â•â• HEADER â•â•â• */}
+        {/* HEADER */}
         <div className="ct-equipment-header" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
           <div style={{ animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -946,14 +946,14 @@ export default function EquipmentPage() {
               <div>
                 <h1 style={{ margin: 0, fontFamily: fd, fontSize: 26, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))", letterSpacing: "-0.02em" }}>Equipos</h1>
                 <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>
-                  Gestiona el inventario para estimar consumo elÃ©ctrico por Ã¡rea.
+                  Gestiona el inventario para estimar consumo eléctrico por área.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="ct-equipment-toolbar" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 80ms both" }}>
-            <button type="button" onClick={() => setToast({ title: "ImportaciÃ³n prÃ³ximamente", message: "La interfaz queda preparada para conectar importaciÃ³n futura." })} style={secondaryButtonStyle}>
+            <button type="button" onClick={() => setToast({ title: "Importación próximamente", message: "La interfaz queda preparada para conectar importación futura." })} style={secondaryButtonStyle}>
               <Upload size={14} />
               Importar
             </button>
@@ -980,7 +980,7 @@ export default function EquipmentPage() {
           </div>
         </div>
 
-        {/* â•â•â• FACTOR STATUS BANNER â•â•â• */}
+        {/* FACTOR STATUS BANNER */}
         <div
           style={{
             marginBottom: 18,
@@ -1000,7 +1000,7 @@ export default function EquipmentPage() {
           }
           <div>
             <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>
-              {usingFallbackFactor ? "Factor no configurado" : "Factor listo para cÃ¡lculo"}
+              {usingFallbackFactor ? "Factor no configurado" : "Factor listo para cálculo"}
             </p>
             <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
               {usingFallbackFactor ? "Se usa un valor de ejemplo mientras no se configure uno oficial." : factorSourceLabel}
@@ -1008,7 +1008,7 @@ export default function EquipmentPage() {
           </div>
         </div>
 
-        {/* â•â•â• ERROR BANNER â•â•â• */}
+        {/* ERROR BANNER */}
         {error ? (
           <div
             style={{
@@ -1032,7 +1032,7 @@ export default function EquipmentPage() {
           </div>
         ) : null}
 
-        {/* â•â•â• KPI CARDS â•â•â• */}
+        {/* KPI CARDS */}
         <div
           className="ct-equipment-kpis"
           style={{
@@ -1049,7 +1049,7 @@ export default function EquipmentPage() {
             title="Equipos activos"
             value={numberFormat(summary.activeCount, 0)}
             unit=""
-            sub="Conteo segÃºn filtros actuales"
+            sub="Conteo según filtros actuales"
             delay={120}
           />
           <KpiCard
@@ -1058,30 +1058,30 @@ export default function EquipmentPage() {
             title="kWh estimados / mes"
             value={numberFormat(summary.totalKwh, 2)}
             unit="kWh"
-            sub="Solo equipos elÃ©ctricos filtrados"
+            sub="Solo equipos eléctricos filtrados"
             delay={160}
           />
           <KpiCard
             icon={<Leaf size={18} />}
             iconBg="linear-gradient(135deg,#EAB308,#CA8A04)"
-            title="COâ‚‚e estimado / mes"
+            title="CO₂e estimado / mes"
             value={numberFormat(summary.totalCo2eT, 4)}
-            unit="tCOâ‚‚e"
-            sub={usingFallbackFactor ? "Usa factor demo mientras no se configure." : "Con factor elÃ©ctrico predeterminado."}
+            unit="tCO₂e"
+            sub={usingFallbackFactor ? "Usa factor demo mientras no se configure." : "Con factor eléctrico predeterminado."}
             delay={200}
           />
           <KpiCard
             icon={<Building2 size={18} />}
             iconBg="linear-gradient(135deg,#64748B,#475569)"
-            title="Top Ã¡rea por consumo"
-            value={summary.topArea ? summary.topArea.label : "â€”"}
+            title="Top área por consumo"
+            value={summary.topArea ? summary.topArea.label : "—"}
             unit=""
             sub={summary.topArea ? `${numberFormat(summary.topArea.value, 2)} kWh/mes` : "Sin datos con filtros actuales"}
             delay={240}
           />
         </div>
 
-        {/* â•â•â• FILTER BAR (horizontal pill style, green border) â•â•â• */}
+        {/* FILTER BAR (horizontal pill style, green border) */}
         <div
           style={{
             ...cardBase,
@@ -1100,9 +1100,9 @@ export default function EquipmentPage() {
           <FilterSelect
             value={filters.areaCode}
             onChange={(v) => setFilters((prev) => ({ ...prev, areaCode: v }))}
-            options={[{ value: "all", label: "Todas las Ã¡reas" }, ...EQUIPMENT_AREA_OPTIONS]}
+            options={[{ value: "all", label: "Todas las áreas" }, ...EQUIPMENT_AREA_OPTIONS]}
             icon={<Building2 size={13} />}
-            placeholder="Ãrea"
+            placeholder="Área"
           />
 
           <FilterSelect
@@ -1118,7 +1118,7 @@ export default function EquipmentPage() {
             onChange={(v) => setFilters((prev) => ({ ...prev, category: v }))}
             options={[{ value: "all", label: "Todas" }, ...EQUIPMENT_CATEGORY_OPTIONS]}
             icon={<Zap size={13} />}
-            placeholder="CategorÃ­a"
+            placeholder="Categoría"
           />
 
           <TogglePill
@@ -1190,7 +1190,7 @@ export default function EquipmentPage() {
           )}
         </div>
 
-        {/* â•â•â• TABLE SECTION â•â•â• */}
+        {/* TABLE SECTION */}
         <div
           style={{
             display: "flex",
@@ -1275,7 +1275,7 @@ export default function EquipmentPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: fb, fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--eco-surface)", borderBottom: "1px solid var(--eco-border)" }}>
-                    {["Ãrea", "Equipo", "Tipo", "Cant.", "Potencia", "Uso", "kWh/mes", "COâ‚‚e/mes", "Estado", "Acciones"].map((label) => (
+                    {["Área", "Equipo", "Tipo", "Cant.", "Potencia", "Uso", "kWh/mes", "CO₂e/mes", "Estado", "Acciones"].map((label) => (
                       <th
                         key={label}
                         style={{
@@ -1318,8 +1318,8 @@ export default function EquipmentPage() {
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             <div style={{ fontFamily: fb, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>{equipment.name}</div>
                             <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
-                              <Badge tone="info">EstimaciÃ³n</Badge>
-                              {equipment.category !== "electricidad" ? <Badge tone="warning">PrÃ³ximamente</Badge> : null}
+                              <Badge tone="info">Estimación</Badge>
+                              {equipment.category !== "electricidad" ? <Badge tone="warning">Próximamente</Badge> : null}
                             </div>
                           </div>
                         </td>
@@ -1329,7 +1329,7 @@ export default function EquipmentPage() {
                         <td style={{ padding: "12px", color: "var(--eco-text-soft, var(--eco-gray-600))", fontSize: 12 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <Clock size={11} style={{ color: "var(--eco-gray-400)" }} />
-                            {`${numberFormat(equipment.usage.hoursPerDay, 1)}h/d Â· ${numberFormat(equipment.usage.daysPerWeek, 1)}d/s`}
+                            {`${numberFormat(equipment.usage.hoursPerDay, 1)}h/d · ${numberFormat(equipment.usage.daysPerWeek, 1)}d/s`}
                           </div>
                         </td>
                         <td style={{ padding: "12px" }}>

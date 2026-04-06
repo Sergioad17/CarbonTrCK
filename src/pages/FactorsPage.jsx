@@ -565,7 +565,7 @@ function Drawer({ factor, onClose }) {
               ["Región", factor.region],
               ["Proveedor", factor.provider || "Sin proveedor"],
               ["Fuente", factor.sourceUrl || "Sin URL"],
-              ["Vigencia", `${formatDate(factor.validFrom)} ? ${factor.validTo ? formatDate(factor.validTo) : "Vigente"}`],
+              ["Vigencia", `${formatDate(factor.validFrom)} → ${factor.validTo ? formatDate(factor.validTo) : "Vigente"}`],
               ["Predeterminado", factor.isDefault ? "Sí" : "No"],
               ["Estado", factor.isActive ? "Activo" : "Inactivo"],
               ["Incertidumbre", factor.uncertaintyPct === null ? "Sin dato" : `${numberFormat(factor.uncertaintyPct, 1)}%`],
@@ -1493,7 +1493,7 @@ export default function FactorsPage() {
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))" }}>
                             <Calendar size={12} style={{ color: "var(--eco-gray-400)" }} />
-                            <span>{formatDate(factor.validFrom)} ? {factor.validTo ? formatDate(factor.validTo) : "Vigente"}</span>
+                            <span>{formatDate(factor.validFrom)} → {factor.validTo ? formatDate(factor.validTo) : "Vigente"}</span>
                           </div>
                         </td>
                         <td style={{ padding: "12px" }}>

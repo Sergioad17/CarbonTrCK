@@ -1,12 +1,16 @@
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   CheckCircle2,
   Info,
+  Layers,
   Pencil,
   Plus,
   Power,
   Save,
+  Settings,
   X,
+  Zap,
 } from "lucide-react";
 import {
   EQUIPMENT_AREA_OPTIONS,
@@ -14,102 +18,207 @@ import {
   EQUIPMENT_TYPE_OPTIONS,
 } from "../lib/equipmentStore";
 
+/* ─── Design tokens ─── */
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
+const fm = "var(--eco-font-mono)";
 
-const inputStyle = {
+/* ─── Base input ─── */
+const inBase = {
   width: "100%",
-  height: 42,
+  height: 36,
   borderRadius: "var(--eco-radius-md)",
   border: "1px solid var(--eco-border)",
-  padding: "0 14px",
+  padding: "0 12px",
   outline: "none",
   fontFamily: fb,
   fontSize: 13,
   color: "var(--eco-text)",
-  background: "var(--eco-input-bg, var(--eco-surface))",
-  transition: "border-color .2s ease, box-shadow .2s ease",
+  background: "var(--eco-input-bg, var(--eco-card))",
+  transition: "border-color .18s ease, box-shadow .18s ease",
 };
 
-const textAreaStyle = {
-  width: "100%",
-  borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-border)",
-  padding: "10px 14px",
-  outline: "none",
-  fontFamily: fb,
-  fontSize: 13,
-  color: "var(--eco-text)",
-  background: "var(--eco-input-bg, var(--eco-surface))",
-  resize: "vertical",
-  minHeight: 88,
-  transition: "border-color .2s ease",
+/* ─── Focus / blur ─── */
+const onFocus = (e) => {
+  e.currentTarget.style.borderColor = "var(--eco-primary-400)";
+  e.currentTarget.style.boxShadow = "0 0 0 3px var(--eco-primary-100,rgba(34,197,94,.12))";
+};
+const onBlur = (e) => {
+  e.currentTarget.style.borderColor = "var(--eco-border)";
+  e.currentTarget.style.boxShadow = "none";
 };
 
-const primaryButtonStyle = {
-  height: 38,
-  padding: "0 16px",
-  borderRadius: "var(--eco-radius-md)",
-  border: "none",
-  background: "var(--eco-primary-500)",
-  color: "white",
-  fontFamily: fb,
-  fontSize: 13,
-  fontWeight: 700,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-  boxShadow: "var(--eco-shadow-sm)",
-  transition: "all 180ms ease",
-};
-
-const secondaryButtonStyle = {
-  height: 38,
-  padding: "0 14px",
-  borderRadius: "var(--eco-radius-md)",
-  border: "1px solid var(--eco-border)",
-  background: "var(--eco-card)",
-  color: "var(--eco-text)",
-  fontFamily: fb,
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-  transition: "all 180ms ease",
-};
-
-const iconButtonStyle = {
-  width: 30,
-  height: 30,
-  borderRadius: "var(--eco-radius-sm)",
-  border: "1px solid var(--eco-border)",
-  background: "var(--eco-card)",
-  color: "var(--eco-gray-500)",
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  transition: "all 140ms",
-};
-
-function Field({ label, error, helper, children }) {
+/* ─── Shimmer skeleton ─── */
+function Sk({ w, h, r, delay, style: ext }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>
+    <div
+      style={{
+        width: w || "100%",
+        height: h || 40,
+        borderRadius: r ?? "var(--eco-radius-md)",
+        background:
+          "linear-gradient(90deg,var(--eco-border) 25%,var(--eco-surface) 50%,var(--eco-border) 75%)",
+        backgroundSize: "200% 100%",
+        animation: `eco-shimmer 1.4s ease-in-out ${delay || 0}ms infinite`,
+        flexShrink: 0,
+        ...ext,
+      }}
+    />
+  );
+}
+
+/* ─── Modal skeleton ─── */
+function ModalSkeleton() {
+  const sectionDef = [
+    { cols: 3, rows: 2, delay: 0 },
+    { cols: 3, rows: 1, delay: 80 },
+    { cols: 2, rows: 1, delay: 160 },
+  ];
+  return (
+    <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      {sectionDef.map((sec, si) => (
+        <div
+          key={si}
+          style={{
+            background: "var(--eco-card)",
+            border: "1px solid var(--eco-border)",
+            borderRadius: "var(--eco-radius-lg)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Section header skeleton */}
+          <div
+            style={{
+              padding: "9px 14px",
+              borderBottom: "1px solid var(--eco-border)",
+              background: "var(--eco-surface)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Sk w={30} h={30} r="var(--eco-radius-md)" delay={sec.delay} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <Sk w={120} h={13} delay={sec.delay + 10} />
+              <Sk w={190} h={10} delay={sec.delay + 20} />
+            </div>
+          </div>
+          {/* Fields skeleton */}
+          <div style={{ padding: "10px 14px" }}>
+            {[...Array(sec.rows)].map((_, ri) => (
+              <div
+                key={ri}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${sec.cols},minmax(0,1fr))`,
+                  gap: 10,
+                  marginBottom: ri < sec.rows - 1 ? 10 : 0,
+                }}
+              >
+                {[...Array(sec.cols)].map((_, ci) => (
+                  <div key={ci} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <Sk w="55%" h={11} delay={sec.delay + ri * 40 + ci * 20} />
+                    <Sk h={40} delay={sec.delay + ri * 40 + ci * 20 + 12} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Field wrapper ─── */
+function Field({ label, error, helper, required, children }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span
+        style={{
+          fontFamily: fb,
+          fontSize: 11,
+          fontWeight: 700,
+          color: "var(--eco-text-soft)",
+          textTransform: "uppercase",
+          letterSpacing: ".04em",
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+        }}
+      >
         {label}
+        {required && <span style={{ color: "var(--eco-danger)", fontSize: 12 }}>*</span>}
       </span>
       {children}
-      {helper ? <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>{helper}</span> : null}
-      {error ? <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-danger)" }}>{error}</span> : null}
+      {helper && (
+        <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.4 }}>
+          {helper}
+        </span>
+      )}
+      {error && (
+        <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-danger)", fontWeight: 600 }}>
+          {error}
+        </span>
+      )}
     </label>
   );
 }
 
+/* ─── Section block ─── */
+function Section({ icon: Icon, iconBg, iconColor, title, subtitle, children, delay }) {
+  return (
+    <div
+      style={{
+        background: "var(--eco-card)",
+        border: "1px solid var(--eco-border)",
+        borderRadius: "var(--eco-radius-lg)",
+        overflow: "hidden",
+        animation: `eco-fadeInUp .26s ease ${delay || 0}ms both`,
+      }}
+    >
+      <div
+        style={{
+          padding: "11px 16px",
+          borderBottom: "1px solid var(--eco-border)",
+          background: "var(--eco-surface)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: "var(--eco-radius-md)",
+            background: iconBg || "var(--eco-primary-50)",
+            color: iconColor || "var(--eco-primary-600)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon size={14} />
+        </div>
+        <div>
+          <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong)", lineHeight: 1.2 }}>
+            {title}
+          </p>
+          {subtitle && (
+            <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.3 }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+      </div>
+      <div style={{ padding: "14px 16px" }}>{children}</div>
+    </div>
+  );
+}
+
+/* ─── Exported helpers (preserved exactly) ─── */
 export const createEmptyEquipmentForm = (item) => ({
   id: item?.id || "",
   campusCode: item?.campusCode || "CAMPUS-CT",
@@ -160,182 +269,639 @@ export function validateEquipmentForm(payload) {
   return errors;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════ */
 export default function EquipmentModal({ state, onClose, onSubmit, onFormChange }) {
+  const [ready, setReady] = useState(false);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
+  // Stable key: only changes when the modal opens a different item (not on every form change)
+  const modalKey = state ? (state.equipment?.id ?? "__new__") : null;
+
+  useEffect(() => {
+    if (!modalKey) { setReady(false); return; }
+    setReady(false);
+    const t = setTimeout(() => setReady(true), 300);
+    const onKey = (e) => { if (e.key === "Escape") onCloseRef.current(); };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [modalKey]);
+
   if (!state) return null;
+
   const { form, errors, saving, equipment } = state;
   const isElectric = form.category === "electricidad";
   const isEdit = Boolean(equipment);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "grid", placeItems: "center" }}>
-      <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,.36)", backdropFilter: "blur(2px)", animation: "ctOverlay .18s ease-out" }} onClick={onClose} />
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 110,
+        display: "grid",
+        placeItems: "center",
+        padding: "16px 14px",
+        animation: "eco-fadeIn .18s ease-out",
+      }}
+    >
+      {/* Backdrop */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--eco-overlay)",
+          backdropFilter: "blur(4px)",
+        }}
+        onClick={onClose}
+      />
+
+      {/* Modal */}
       <div
         style={{
           position: "relative",
-          width: "min(94vw, 760px)",
-          maxHeight: "92vh",
+          width: "min(94vw, 780px)",
+          maxHeight: "calc(100vh - 32px)",
           overflowY: "auto",
+          overflowX: "hidden",
           background: "var(--eco-card)",
           borderRadius: "var(--eco-radius-xl)",
-          boxShadow: "var(--eco-shadow-xl)",
+          boxShadow: "0 28px 60px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.05)",
           border: "1px solid var(--eco-border)",
-          animation: "ctPop .2s ease-out",
+          animation: "eco-scaleIn .24s cubic-bezier(.34,1.56,.64,1)",
+          display: "flex",
+          flexDirection: "column",
+          scrollbarWidth: "thin",
+          scrollbarColor: "var(--eco-border) transparent",
         }}
       >
-        <form onSubmit={onSubmit}>
-          <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", background: "linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-700))", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+
+          {/* ─── Header ─── */}
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
+              padding: "14px 20px",
+              borderBottom: "1px solid var(--eco-border)",
+              background: "var(--eco-card)",
+              backdropFilter: "blur(12px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: "var(--eco-radius-md)",
+                  background: "linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-700))",
+                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
                 {isEdit ? <Pencil size={16} /> : <Plus size={16} />}
               </div>
               <div>
-                <p style={{ margin: "0 0 3px", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>Catalogos / Equipos / {isEdit ? "Editar" : "Nuevo"}</p>
-                <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>{isEdit ? "Editar equipo" : "Nuevo equipo"}</h3>
+                <p
+                  style={{
+                    margin: "0 0 2px",
+                    fontFamily: fb,
+                    fontSize: 11,
+                    color: "var(--eco-text-soft)",
+                    textTransform: "uppercase",
+                    letterSpacing: ".04em",
+                    fontWeight: 600,
+                  }}
+                >
+                  Catálogos / Equipos / {isEdit ? "Editar" : "Nuevo"}
+                </p>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontFamily: fd,
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: "var(--eco-text-strong)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {isEdit ? "Editar equipo" : "Nuevo equipo"}
+                </h3>
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Cerrar" style={iconButtonStyle}><X size={16} /></button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "var(--eco-radius-md)",
+                border: "1px solid var(--eco-border)",
+                background: "var(--eco-card)",
+                color: "var(--eco-text-soft)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                transition: "all 150ms",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--eco-danger-bg)";
+                e.currentTarget.style.color = "var(--eco-danger)";
+                e.currentTarget.style.borderColor = "rgba(248,113,113,.3)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--eco-card)";
+                e.currentTarget.style.color = "var(--eco-text-soft)";
+                e.currentTarget.style.borderColor = "var(--eco-border)";
+              }}
+            >
+              <X size={15} />
+            </button>
           </div>
 
-          <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ background: "linear-gradient(135deg,var(--eco-primary-50),var(--eco-surface))", border: "1.5px solid var(--eco-primary-200)", borderRadius: "var(--eco-radius-xl)", padding: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <div style={{ width: 24, height: 24, borderRadius: "var(--eco-radius-sm)", background: "var(--eco-primary-500)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Activity size={12} />
+          {/* ─── Body ─── */}
+          {!ready ? (
+            <ModalSkeleton />
+          ) : (
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+
+              {/* ── SECTION 1: Identificación ── */}
+              <Section
+                icon={Layers}
+                iconBg="var(--eco-primary-50)"
+                iconColor="var(--eco-primary-600)"
+                title="Identificación del equipo"
+                subtitle="Datos básicos de ubicación, tipo y cantidad."
+                delay={0}
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8 }}>
+                  <Field label="Nombre del equipo" error={errors.name} required>
+                    <input
+                      name="name"
+                      defaultValue={form.name}
+                      placeholder="Ej. PC de escritorio"
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={inBase}
+                    />
+                  </Field>
+                  <Field label="Campus" error={errors.campusCode}>
+                    <input
+                      name="campusCode"
+                      defaultValue={form.campusCode}
+                      placeholder="CAMPUS-CT"
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={inBase}
+                    />
+                  </Field>
+                  <Field label="Área" error={errors.areaCode}>
+                    <select
+                      name="areaCode"
+                      defaultValue={form.areaCode}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                    >
+                      {EQUIPMENT_AREA_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Tipo de equipo" error={errors.type}>
+                    <select
+                      name="type"
+                      defaultValue={form.type}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                    >
+                      {EQUIPMENT_TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Categoría" error={errors.category}>
+                    <select
+                      name="category"
+                      value={form.category}
+                      onChange={(e) => onFormChange((p) => ({ ...p, category: e.target.value }))}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                    >
+                      {EQUIPMENT_CATEGORY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Cantidad de unidades" error={errors.quantity}>
+                    <input
+                      name="quantity"
+                      type="number"
+                      min="0"
+                      step="1"
+                      defaultValue={form.quantity}
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={inBase}
+                    />
+                  </Field>
                 </div>
-                <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-primary-700)" }}>Consumo mensual estimado</span>
-              </div>
-              <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-                kWh/mes = (W x horasMes x cantidad) / 1 000, donde horasMes = horas/dia x dias/semana x semanas/mes.
-              </p>
-            </div>
+              </Section>
 
-            <div className="ct-equipment-modal-grid" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16 }}>
-              <Field label="Nombre del equipo" error={errors.name}>
-                <input name="name" defaultValue={form.name} style={inputStyle} placeholder="Ej. PC de escritorio" />
-              </Field>
-              <Field label="Campus" error={errors.campusCode}>
-                <input name="campusCode" defaultValue={form.campusCode} style={inputStyle} placeholder="CAMPUS-CT" />
-              </Field>
-              <Field label="Area" error={errors.areaCode}>
-                <select name="areaCode" defaultValue={form.areaCode} style={inputStyle}>
-                  {EQUIPMENT_AREA_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Tipo" error={errors.type}>
-                <select name="type" defaultValue={form.type} style={inputStyle}>
-                  {EQUIPMENT_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Categoria" error={errors.category}>
-                <select name="category" value={form.category} onChange={(event) => onFormChange((prev) => ({ ...prev, category: event.target.value }))} style={inputStyle}>
-                  {EQUIPMENT_CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Cantidad" error={errors.quantity}>
-                <input name="quantity" type="number" min="0" step="1" defaultValue={form.quantity} style={inputStyle} />
-              </Field>
-            </div>
-
-            {!isElectric ? (
-              <div style={{ background: "var(--eco-warning-bg)", border: "1px solid #FDE68A", borderRadius: "var(--eco-radius-lg)", padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <Info size={15} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Combustible: proximamente</p>
-                  <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-                    En este MVP se guarda el inventario, pero los campos especificos como litros/hora se dejan listos para backend futuro.
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="ct-equipment-modal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 16 }}>
-              <Field label="Potencia por unidad (W)" error={errors.powerW} helper={isElectric ? "Solo aplica para electricidad." : "No aplica en combustible por ahora."}>
-                <input name="powerW" type="number" min="0" step="0.1" defaultValue={form.powerW} style={{ ...inputStyle, opacity: isElectric ? 1 : 0.6 }} disabled={!isElectric} />
-              </Field>
-              <Field label="Horas por dia" error={errors.hoursPerDay}>
-                <input name="hoursPerDay" type="number" min="0" step="0.1" defaultValue={form.hoursPerDay} style={inputStyle} />
-              </Field>
-              <Field label="Dias por semana" error={errors.daysPerWeek}>
-                <input name="daysPerWeek" type="number" min="0" step="0.1" defaultValue={form.daysPerWeek} style={inputStyle} />
-              </Field>
-            </div>
-
-            <div className="ct-equipment-modal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <Field label="Semanas por mes" error={errors.weeksPerMonth} helper="Valor sugerido: 4.3">
-                <input name="weeksPerMonth" type="number" min="0" step="0.1" defaultValue={form.weeksPerMonth} style={inputStyle} />
-              </Field>
-              <Field label="Estado">
-                <div style={{ display: "flex", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", overflow: "hidden", height: 42 }}>
-                  <button
-                    type="button"
-                    onClick={() => onFormChange((prev) => ({ ...prev, isActive: true }))}
+              {/* ── SECTION 2: Consumo eléctrico ── */}
+              <Section
+                icon={Zap}
+                iconBg="var(--eco-warning-bg)"
+                iconColor="var(--eco-warning)"
+                title="Parámetros de consumo"
+                subtitle={
+                  isElectric
+                    ? "kWh/mes = (W × horas/día × días/sem × sem/mes × cantidad) ÷ 1 000"
+                    : "Combustible: inventario disponible, campos específicos próximamente."
+                }
+                delay={60}
+              >
+                {!isElectric && (
+                  <div
                     style={{
-                      flex: 1,
-                      border: "none",
-                      background: form.isActive ? "var(--eco-primary-50)" : "var(--eco-surface)",
-                      color: form.isActive ? "var(--eco-primary-700)" : "var(--eco-gray-600)",
-                      fontFamily: fb,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 5,
-                      transition: "all 150ms",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderRadius: "var(--eco-radius-md)",
+                      background: "var(--eco-warning-bg)",
+                      border: "1px solid rgba(251,191,36,.3)",
+                      marginBottom: 12,
                     }}
                   >
-                    <CheckCircle2 size={12} /> Activo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onFormChange((prev) => ({ ...prev, isActive: false }))}
-                    style={{
-                      flex: 1,
-                      border: "none",
-                      borderLeft: "1px solid var(--eco-border)",
-                      background: !form.isActive ? "var(--eco-warning-bg)" : "var(--eco-surface)",
-                      color: !form.isActive ? "var(--eco-secondary-600)" : "var(--eco-gray-600)",
-                      fontFamily: fb,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 5,
-                      transition: "all 150ms",
-                    }}
+                    <Info size={14} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <p style={{ margin: 0, fontFamily: fd, fontSize: 12, fontWeight: 700, color: "var(--eco-text-strong)" }}>
+                        Combustible: campos específicos próximamente
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.5 }}>
+                        En este MVP se guarda el inventario. Los campos de litros/hora se habilitarán con el backend.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 8 }}>
+                  <Field
+                    label="Potencia (W)"
+                    error={errors.powerW}
+                    helper={isElectric ? "Por unidad." : "No aplica."}
                   >
-                    <Power size={12} /> Inactivo
-                  </button>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        name="powerW"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        defaultValue={form.powerW}
+                        disabled={!isElectric}
+                        onFocus={isElectric ? onFocus : undefined}
+                        onBlur={isElectric ? onBlur : undefined}
+                        style={{
+                          ...inBase,
+                          paddingRight: 30,
+                          opacity: isElectric ? 1 : 0.5,
+                          cursor: isElectric ? "text" : "not-allowed",
+                        }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 9,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontFamily: fm,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "var(--eco-text-soft)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        W
+                      </span>
+                    </div>
+                  </Field>
+                  <Field label="Horas / día" error={errors.hoursPerDay}>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        name="hoursPerDay"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        defaultValue={form.hoursPerDay}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
+                        style={{ ...inBase, paddingRight: 32 }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontFamily: fm,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: "var(--eco-text-soft)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        h/d
+                      </span>
+                    </div>
+                  </Field>
+                  <Field label="Días / semana" error={errors.daysPerWeek}>
+                    <div style={{ position: "relative" }}>
+                      <input
+                        name="daysPerWeek"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        defaultValue={form.daysPerWeek}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
+                        style={{ ...inBase, paddingRight: 32 }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontFamily: fm,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: "var(--eco-text-soft)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        d/s
+                      </span>
+                    </div>
+                  </Field>
+                  <Field label="Semanas / mes" error={errors.weeksPerMonth} helper="Sugerido: 4.3">
+                    <div style={{ position: "relative" }}>
+                      <input
+                        name="weeksPerMonth"
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        defaultValue={form.weeksPerMonth}
+                        onFocus={onFocus}
+                        onBlur={onBlur}
+                        style={{ ...inBase, paddingRight: 32 }}
+                      />
+                      <span
+                        style={{
+                          position: "absolute",
+                          right: 8,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          fontFamily: fm,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          color: "var(--eco-text-soft)",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        s/m
+                      </span>
+                    </div>
+                  </Field>
                 </div>
-                <input type="hidden" name="isActive" value={String(form.isActive)} readOnly />
-              </Field>
+              </Section>
+
+              {/* ── SECTION 3: Estado y notas ── */}
+              <Section
+                icon={Settings}
+                iconBg="var(--eco-success-bg)"
+                iconColor="var(--eco-success)"
+                title="Estado y notas"
+                subtitle="Define si el equipo está operativo y agrega comentarios o supuestos del cálculo."
+                delay={120}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* Toggle activo/inactivo */}
+                  <div>
+                    <span
+                      style={{
+                        display: "block",
+                        fontFamily: fb,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "var(--eco-text-soft)",
+                        textTransform: "uppercase",
+                        letterSpacing: ".04em",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Estado del equipo
+                    </span>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        border: "1px solid var(--eco-border)",
+                        borderRadius: "var(--eco-radius-md)",
+                        overflow: "hidden",
+                        height: 38,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onFormChange((p) => ({ ...p, isActive: true }))}
+                        style={{
+                          minWidth: 120,
+                          border: "none",
+                          borderRight: "1px solid var(--eco-border)",
+                          background: form.isActive
+                            ? "var(--eco-success-bg)"
+                            : "var(--eco-surface)",
+                          color: form.isActive ? "var(--eco-success)" : "var(--eco-text-soft)",
+                          fontFamily: fb,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          transition: "all 160ms ease",
+                          padding: "0 14px",
+                        }}
+                      >
+                        <CheckCircle2 size={13} />
+                        Activo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onFormChange((p) => ({ ...p, isActive: false }))}
+                        style={{
+                          minWidth: 120,
+                          border: "none",
+                          background: !form.isActive
+                            ? "var(--eco-warning-bg)"
+                            : "var(--eco-surface)",
+                          color: !form.isActive ? "var(--eco-warning)" : "var(--eco-text-soft)",
+                          fontFamily: fb,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 6,
+                          transition: "all 160ms ease",
+                          padding: "0 14px",
+                        }}
+                      >
+                        <Power size={13} />
+                        Inactivo
+                      </button>
+                    </div>
+                    <input type="hidden" name="isActive" value={String(form.isActive)} readOnly />
+                  </div>
+
+                  {/* Notas */}
+                  <Field label="Notas y observaciones" error={errors.notes}>
+                    <textarea
+                      name="notes"
+                      defaultValue={form.notes}
+                      placeholder="Comentarios, contexto del cálculo o supuestos técnicos..."
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={{
+                        ...inBase,
+                        height: "auto",
+                        minHeight: 80,
+                        resize: "vertical",
+                        padding: "10px 12px",
+                        lineHeight: 1.55,
+                      }}
+                    />
+                  </Field>
+                </div>
+              </Section>
+
+              {/* ── Info banner ── */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderRadius: "var(--eco-radius-md)",
+                  background: "var(--eco-primary-50)",
+                  border: "1px solid var(--eco-primary-200)",
+                  animation: "eco-fadeInUp .26s ease 180ms both",
+                }}
+              >
+                <Activity size={13} style={{ color: "var(--eco-primary-600)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-primary-700)", lineHeight: 1.55 }}>
+                  <strong>Consumo estimado:</strong> kWh/mes = (W × h/día × d/semana × s/mes × cantidad) ÷ 1 000.
+                  Los datos se guardan localmente y estarán listos para conectar al backend.
+                </p>
+              </div>
             </div>
+          )}
 
-            <Field label="Notas" error={errors.notes}>
-              <textarea name="notes" defaultValue={form.notes} style={textAreaStyle} placeholder="Comentarios, contexto del calculo o supuestos..." />
-            </Field>
-          </div>
-
-          <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--eco-border)", background: "var(--eco-surface)" }}>
-            <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>Los cambios se guardan en localStorage y quedan listos para conectar backend despues.</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button type="button" onClick={onClose} style={secondaryButtonStyle}>Cancelar</button>
+          {/* ─── Footer ─── */}
+          <div
+            style={{
+              position: "sticky",
+              bottom: 0,
+              zIndex: 2,
+              padding: "12px 20px",
+              borderTop: "1px solid var(--eco-border)",
+              background: "var(--eco-surface)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexShrink: 0,
+            }}
+          >
+            <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.4, maxWidth: 340 }}>
+              Los cambios se guardan en localStorage y quedan listos para conectar al backend.
+            </p>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  height: 38,
+                  padding: "0 16px",
+                  borderRadius: "var(--eco-radius-md)",
+                  border: "1px solid var(--eco-border)",
+                  background: "var(--eco-card)",
+                  color: "var(--eco-text)",
+                  fontFamily: fb,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 150ms",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--eco-card-muted)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "var(--eco-card)"; }}
+              >
+                Cancelar
+              </button>
               <button
                 type="submit"
                 disabled={saving}
                 style={{
-                  ...primaryButtonStyle,
-                  opacity: saving ? 0.7 : 1,
-                  minWidth: 150,
+                  height: 38,
+                  padding: "0 18px",
+                  borderRadius: "var(--eco-radius-md)",
+                  border: "none",
+                  background: saving ? "var(--eco-primary-400)" : "var(--eco-primary-500)",
+                  color: "white",
+                  fontFamily: fb,
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: saving ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  boxShadow: "0 2px 8px rgba(34,197,94,.25)",
+                  transition: "all 160ms ease",
+                  minWidth: 160,
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  if (!saving) {
+                    e.currentTarget.style.background = "var(--eco-primary-600)";
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = saving ? "var(--eco-primary-400)" : "var(--eco-primary-500)";
+                  e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
                 <Save size={14} />
