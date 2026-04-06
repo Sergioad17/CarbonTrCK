@@ -40,6 +40,9 @@ function normalizeTarget(target) {
     targetValue: toNumber(target.targetValue, 0),
     description: String(target.description || ""),
     status: ["active", "paused", "completed"].includes(target.status) ? target.status : "active",
+    createdBy: String(target.createdBy || ""),
+    createdById: String(target.createdById || ""),
+    pauseReason: String(target.pauseReason || ""),
     createdAt: String(target.createdAt || new Date().toISOString()),
   };
 }

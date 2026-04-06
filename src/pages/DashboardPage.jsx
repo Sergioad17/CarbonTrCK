@@ -36,6 +36,7 @@ import UsersPage from './UsersPage'
 import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
+import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import './BackgroundPatterns/Pattern1.css'
 
 
@@ -53,6 +54,7 @@ const COLORS = [
   "#64748B",
   "#94A3B8"]
 const ACTIVITY_STORAGE_KEY = "carbontrack.activity"
+const RECORDS_STORAGE_KEY = "carbontrack.records"
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 const BASE_ACTIVITY = [
   { status: "real", area: "CC1", dateISO: "2026-01-01", co2e_t: 0.544, time: "Hace 2h", by: "Ana Garcia" },
@@ -69,15 +71,98 @@ const normalizeActivityItem = (it) => {
   if (!it || typeof it !== "object") return null;
   const co2e = Number(it.co2e_t);
   return {
+    id: it.id ? String(it.id) : undefined,
     status: it.status === "est" ? "est" : "real",
     area: String(it.area || "Sin area"),
     dateISO: String(it.dateISO || new Date().toISOString().slice(0, 10)),
     co2e_t: Number.isFinite(co2e) ? co2e : 0,
     time: String(it.time || "Justo ahora"),
-    by: String(it.by || "Tu")
+    by: String(it.by || "Tu"),
+    activity: String(it.activity || it.activityText || ""),
+    category: String(it.category || ""),
+    unit: String(it.unit || ""),
+    source: String(it.source || ""),
+    note: String(it.note || it.notes || ""),
+    evidence: String(it.evidence || ""),
+    evidenceUrl: String(it.evidenceUrl || it.evidence || ""),
+    period: String(it.period || ""),
+    scope: String(it.scope || ""),
+    state: String(it.state || it.recordState || ""),
+    targetTitle: String(it.targetTitle || it.goalTitle || ""),
+    updatedAt: it.updatedAt || it.modifiedAt || it.lastUpdated || "",
+    createdAt: it.createdAt || "",
+    value: Number.isFinite(Number(it.value)) ? Number(it.value) : null,
+    factor: Number.isFinite(Number(it.factor)) ? Number(it.factor) : null,
+    co2e_kg: Number.isFinite(Number(it.co2e_kg)) ? Number(it.co2e_kg) : null
   }
 }
 const activityKey = (a) => [a.status, a.area, a.dateISO, a.co2e_t, a.time, a.by].join("|")
+const CATEGORY_LABELS = { electricidad: "Electricidad", combustible: "Combustible", otros: "Otros" }
+const normalizeText = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()
+const toNumOrNull = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null
+}
+const formatDateLabel = (value, withTime = false) => {
+  if (!value) return "No disponible";
+  const dt = new Date(value);
+  if (Number.isNaN(dt.getTime())) return String(value);
+  return dt.toLocaleDateString("es-MX", withTime ? {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  } : {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  })
+}
+const inferCategory = (item) => {
+  const raw = normalizeText(item?.category || item?.source || item?.fuelType || item?.scope || "");
+  if (raw.includes("combust") || raw.includes("diesel") || raw.includes("gasolina") || raw.includes("scope1")) return "combustible";
+  if (raw.includes("electric") || raw.includes("kwh") || raw.includes("scope2")) return "electricidad";
+  if (raw.includes("otro") || raw.includes("residuo")) return "otros";
+  return "electricidad"
+}
+const inferScopeLabel = (category, rawScope) => {
+  const scope = normalizeText(rawScope);
+  if (scope.includes("scope 1") || scope === "scope1") return "Scope 1";
+  if (scope.includes("scope 2") || scope === "scope2") return "Scope 2";
+  if (category === "combustible") return "Scope 1";
+  if (category === "electricidad") return "Scope 2";
+  return "No disponible"
+}
+const getFactorUnit = (category) => category === "combustible" ? "kgCO2e/L" : category === "electricidad" ? "kgCO2e/kWh" : "kgCO2e/unidad"
+const readStoredRecords = () => {
+  try {
+    const raw = window.localStorage.getItem(RECORDS_STORAGE_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+const findMatchingRecord = (activityItem, records) => {
+  if (!activityItem || !Array.isArray(records) || !records.length) return null;
+  const targetStatus = activityItem.status === "est" ? "est" : "real";
+  const targetArea = normalizeText(activityItem.area);
+  const targetDate = String(activityItem.dateISO || "");
+  const targetCo2 = toNumOrNull(activityItem.co2e_t);
+  const scored = records.map((record, index) => {
+    let score = 0;
+    const recordStatus = record?.status === "est" || record?.isEstimated ? "est" : "real";
+    if (recordStatus === targetStatus) score += 3;
+    if (normalizeText(record?.area) === targetArea) score += 4;
+    if (String(record?.dateISO || "") === targetDate) score += 4;
+    const recordCo2 = toNumOrNull(record?.co2e_t);
+    if (targetCo2 !== null && recordCo2 !== null && Math.abs(recordCo2 - targetCo2) < 0.0015) score += 5;
+    if (normalizeText(record?.by) === normalizeText(activityItem.by)) score += 1;
+    return { record, index, score };
+  }).filter((entry) => entry.score >= 7).sort((a, b) => b.score - a.score || a.index - b.index);
+  return scored[0]?.record || null
+}
 
 function useCount(t, dur = 650) {
   const [v, setV] = useState(0);
@@ -271,6 +356,51 @@ const NAV_TO_PATH = {
   equipment: "/catalogos/equipos",
   users: "/admin/usuarios",
   settings: "/configuracion",
+}
+
+const getModuleMeta = (category) => {
+  if (category === "combustible") return { path: NAV_TO_PATH.scope1, navId: "scope1", actionLabel: "Ir a Combustible" };
+  if (category === "electricidad") return { path: NAV_TO_PATH.scope2, navId: "scope2", actionLabel: "Ir a Electricidad" };
+  return { path: NAV_TO_PATH.emissions, navId: "emissions", actionLabel: "Ir a Emisiones" }
+}
+
+const buildActivityDetail = (activityItem, matchedRecord) => {
+  const base = { ...(matchedRecord || {}), ...(activityItem || {}) };
+  const category = inferCategory(base);
+  const co2eT = toNumOrNull(base.co2e_t);
+  const co2eKg = toNumOrNull(base.co2e_kg);
+  const value = toNumOrNull(base.value);
+  const factor = toNumOrNull(base.factor);
+  const moduleMeta = getModuleMeta(category);
+  const rawState = base.state || base.recordState || base.workflowStatus || base.statusLabel || "";
+  const title = String(base.activity || base.activityText || `${CATEGORY_LABELS[category] || "Registro"} en ${base.area || "área no disponible"}`);
+  return {
+    key: activityKey(activityItem || base),
+    id: base.id ? String(base.id) : null,
+    title,
+    subtitle: [base.area || null, formatDateLabel(base.dateISO), base.time || null].filter(Boolean).join(" · "),
+    status: base.status === "est" || base.isEstimated ? "est" : "real",
+    typeLabel: base.status === "est" || base.isEstimated ? "Estimado" : "Real",
+    area: String(base.area || "No disponible"),
+    categoryLabel: CATEGORY_LABELS[category] || "No disponible",
+    scopeLabel: inferScopeLabel(category, base.scope),
+    periodLabel: String(base.period || toMonthEs(base.dateISO) || "No disponible"),
+    recordedAtLabel: formatDateLabel(base.createdAt || base.dateISO),
+    updatedAtLabel: base.updatedAt || base.modifiedAt || base.lastUpdated ? formatDateLabel(base.updatedAt || base.modifiedAt || base.lastUpdated, true) : "No disponible",
+    by: String(base.by || "No disponible"),
+    sourceLabel: String(base.source || "No disponible"),
+    stateLabel: rawState ? String(rawState) : "No disponible",
+    valueDisplay: value !== null ? fN(value, value >= 100 ? 0 : 2) : "No disponible",
+    unitLabel: String(base.unit || "No disponible"),
+    factorDisplay: factor !== null ? `${fN(factor, 3)} ${getFactorUnit(category)}` : "No disponible",
+    resultDisplay: co2eT !== null ? `${fN(co2eT, 3)} tCO2e` : co2eKg !== null ? `${fN(co2eKg, 1)} kgCO2e` : "No disponible",
+    notes: String(base.note || base.notes || base.observations || "").trim(),
+    evidenceLabel: String(base.evidenceUrl || base.evidence || base.reference || "").trim(),
+    relatedGoalLabel: String(base.targetTitle || base.goalTitle || base.meta || base.relatedLink || "").trim(),
+    modulePath: moduleMeta.path,
+    moduleNavId: moduleMeta.navId,
+    moduleActionLabel: moduleMeta.actionLabel
+  }
 }
 
 function navFromPath(pathname) {
@@ -1150,6 +1280,63 @@ function SectionLabel({ children, action }) {
   );
 }
 
+function ActivityFeedSkeleton() {
+  const shimmerStyle = {
+    background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
+    backgroundSize: "200% 100%",
+    animation: "eco-shimmer 1.4s ease-in-out infinite",
+    borderRadius: "var(--eco-radius-md)",
+  };
+
+  return (
+    <>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+          animation: "eco-fadeIn 0.25s ease-out",
+        }}
+      >
+        <div style={{ ...shimmerStyle, width: 168, height: 22, borderRadius: "var(--eco-radius-sm)" }} />
+        <div style={{ ...shimmerStyle, width: 78, height: 18, borderRadius: "var(--eco-radius-full)" }} />
+      </div>
+
+      <div
+        style={{
+          background: "var(--eco-surface)",
+          borderRadius: "var(--eco-radius-lg)",
+          border: "1px solid var(--eco-border)",
+          boxShadow: "var(--eco-shadow-sm)",
+          overflow: "hidden",
+          animation: "eco-fadeInUp 0.35s ease-out both",
+        }}
+      >
+        {[0, 1, 2, 3].map(i => (
+          <div
+            key={i}
+            style={{
+              padding: "14px 18px",
+              borderBottom: i < 3 ? "1px solid var(--eco-gray-100)" : "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div style={{ ...shimmerStyle, width: 10, height: 10, borderRadius: "50%" }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ ...shimmerStyle, width: i % 2 === 0 ? "72%" : "58%", height: 14, marginBottom: 5 }} />
+              <div style={{ ...shimmerStyle, width: i % 2 === 0 ? "42%" : "36%", height: 10 }} />
+            </div>
+            <div style={{ ...shimmerStyle, width: 64, height: 20, borderRadius: "var(--eco-radius-full)" }} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 function DashboardSkeleton() {
   const shimmerStyle = {
     background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
@@ -1358,6 +1545,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [newRecordOpen, setNewRecordOpen] = useState(false);
   const [toast, setToast] = useState(null);
   const [activity, setActivity] = useState(BASE_ACTIVITY);
+  const [selectedActivity, setSelectedActivity] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(true);
   const [NewRecordModalComponent, setNewRecordModalComponent] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1367,6 +1556,13 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     const t = setTimeout(() => setLoading(false), 600);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    if (navFromPath(location.pathname) !== "dashboard") return undefined;
+    setActivityLoading(true);
+    const t = setTimeout(() => setActivityLoading(false), loading ? 620 : 220);
+    return () => clearTimeout(t);
+  }, [location.pathname, loading]);
 
   useEffect(() => {
     const h = e => {
@@ -1421,6 +1617,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
   useEffect(() => {
     setActiveNav(navFromPath(location.pathname));
+    setSelectedActivity(null);
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -1448,9 +1645,33 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
   const visibleActivity = activity.slice(0, 6);
 
+  const openActivityDetail = (item) => {
+    const matched = findMatchingRecord(item, readStoredRecords());
+    setSelectedActivity(buildActivityDetail(item, matched));
+  };
+
+  const closeActivityDetail = () => setSelectedActivity(null);
+
+  const goToActivityRecord = () => {
+    closeActivityDetail();
+    setActiveNav("emissions");
+    navigate(NAV_TO_PATH.emissions);
+  };
+
+  const goToActivityModule = () => {
+    if (!selectedActivity?.modulePath || !selectedActivity?.moduleNavId) {
+      goToActivityRecord();
+      return;
+    }
+    closeActivityDetail();
+    setActiveNav(selectedActivity.moduleNavId);
+    navigate(selectedActivity.modulePath);
+  };
+
   const handleCreateRecord = (rec) => {
     const co2e = Number(rec?.co2e_t);
     const nextItem = normalizeActivityItem({
+      ...rec,
       status: rec?.isEstimated ? "est" : "real",
       area: rec?.area,
       dateISO: rec?.dateISO,
@@ -1464,7 +1685,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
       .slice(0, 20));
     if (!rec?.persisted) {
     try {
-      const RKEY = "carbontrack.records";
+      const RKEY = RECORDS_STORAGE_KEY;
       const existing = JSON.parse(localStorage.getItem(RKEY) || "[]");
       const newRec = { id: "u" + Date.now(), dateISO: rec?.dateISO, area: rec?.area, category: rec?.category || "electricidad", activity: rec?.activity || "", value: Number(rec?.value) || 0, unit: rec?.unit || "kWh", factor: Number(rec?.factor) || 0, co2e_kg: Number(rec?.co2e_kg) || 0, co2e_t: Number.isFinite(co2e) ? co2e : 0, status: rec?.isEstimated ? "est" : "real", source: rec?.source || "Medición", hasEvidence: Boolean(rec?.hasEvidence), evidence: rec?.evidence || rec?.evidenceUrl || "", evidenceUrl: rec?.evidenceUrl || rec?.evidence || "", evidenceImage: rec?.evidenceImage || "", by: user?.name || "Tu" };
       localStorage.setItem(RKEY, JSON.stringify([newRec, ...existing].slice(0, 200)));
@@ -2227,97 +2448,128 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             </div>
 
             {/* Activity Feed */}
-            <SectionLabel action={() => {}}>Actividad reciente</SectionLabel>
+            {activityLoading ? (
+              <ActivityFeedSkeleton />
+            ) : (
+              <>
+                <SectionLabel action={() => {}}>Actividad reciente</SectionLabel>
 
-            <div
-              style={{
-                background: "white",
-                borderRadius: "var(--eco-radius-lg)",
-                border: "1px solid var(--eco-border)",
-                boxShadow: "var(--eco-shadow-sm)",
-                overflow: "hidden",
-                animation: "eco-fadeInUp 0.4s ease-out 450ms both",
-              }}
-            >
-              {visibleActivity.length === 0 ? (
-                <div style={{
-                  padding: "40px 20px",
-                  textAlign: "center",
-                }}>
-                  <ClipboardList size={36} style={{ color: "var(--eco-gray-300)", marginBottom: 10 }} />
-                  <p style={{ fontFamily: fb, fontSize: 14, fontWeight: 600, color: "var(--eco-gray-500)", margin: "0 0 4px" }}>
-                    Sin actividad reciente
-                  </p>
-                  <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)", margin: 0 }}>
-                    Los nuevos registros de emisiones aparecerán aquí.
-                  </p>
-                </div>
-              ) : (
-                visibleActivity.map((a, i) => (
                 <div
-                  key={activityKey(a)}
                   style={{
-                    padding: "13px 18px",
-                    borderBottom: i < visibleActivity.length - 1 ? "1px solid var(--eco-gray-100)" : "none",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    cursor: "pointer",
-                    transition: "background 100ms",
-                    background: i % 2 === 1 ? "var(--eco-gray-50)" : "white",
+                    background: "white",
+                    borderRadius: "var(--eco-radius-lg)",
+                    border: "1px solid var(--eco-border)",
+                    boxShadow: "var(--eco-shadow-sm)",
+                    overflow: "hidden",
+                    animation: "eco-fadeInUp 0.4s ease-out 450ms both",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(34,197,94,0.04)")}
-                  onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 1 ? "var(--eco-gray-50)" : "white")}
                 >
-                  {/* Status indicator dot */}
-                  <div style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: "50%",
-                    background: a.status === "real" ? "var(--eco-success)" : "var(--eco-warning)",
-                    flexShrink: 0,
-                    boxShadow: a.status === "real" ? "0 0 0 3px rgba(34,197,94,0.15)" : "0 0 0 3px rgba(234,179,8,0.15)",
-                  }} />
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
+                  {visibleActivity.length === 0 ? (
+                    <div style={{
+                      padding: "40px 20px",
+                      textAlign: "center",
+                    }}>
+                      <ClipboardList size={36} style={{ color: "var(--eco-gray-300)", marginBottom: 10 }} />
+                      <p style={{ fontFamily: fb, fontSize: 14, fontWeight: 600, color: "var(--eco-gray-500)", margin: "0 0 4px" }}>
+                        Sin actividad reciente
+                      </p>
+                      <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-400)", margin: 0 }}>
+                        Los nuevos registros de emisiones aparecerán aquí.
+                      </p>
+                    </div>
+                  ) : (
+                    visibleActivity.map((a, i) => (
+                    <button
+                      type="button"
+                      key={activityKey(a)}
+                      onClick={() => openActivityDetail(a)}
+                      aria-label={`Ver detalle de ${a.activity || a.area || "actividad reciente"}`}
                       style={{
-                        fontFamily: fb,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: "var(--eco-gray-700)",
-                        margin: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        width: "100%",
+                        padding: "13px 18px",
+                        borderBottom: i < visibleActivity.length - 1 ? "1px solid var(--eco-gray-100)" : "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        cursor: "pointer",
+                        transition: "background 120ms, transform 120ms, box-shadow 120ms",
+                        background: i % 2 === 1 ? "var(--eco-gray-50)" : "white",
+                        borderLeft: "none",
+                        borderRight: "none",
+                        borderTop: "none",
+                        outline: "none",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.04)";
+                        e.currentTarget.style.transform = "translateX(2px)";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = i % 2 === 1 ? "var(--eco-gray-50)" : "white";
+                        e.currentTarget.style.transform = "translateX(0)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                      onFocus={e => {
+                        e.currentTarget.style.background = "rgba(34,197,94,0.05)";
+                        e.currentTarget.style.boxShadow = "inset 0 0 0 1px rgba(34,197,94,0.22)";
+                      }}
+                      onBlur={e => {
+                        e.currentTarget.style.background = i % 2 === 1 ? "var(--eco-gray-50)" : "white";
+                        e.currentTarget.style.transform = "translateX(0)";
+                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
-                      {`${a.area} - ${toMonthEs(a.dateISO)} - ${fN(a.co2e_t, 3)} tCO2e`}
-                    </p>
-                    <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: "2px 0 0" }}>
-                      {a.by} · {a.time}
-                    </p>
-                  </div>
+                      {/* Status indicator dot */}
+                      <div style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        background: a.status === "real" ? "var(--eco-success)" : "var(--eco-warning)",
+                        flexShrink: 0,
+                        boxShadow: a.status === "real" ? "0 0 0 3px rgba(34,197,94,0.15)" : "0 0 0 3px rgba(234,179,8,0.15)",
+                      }} />
 
-                  <span
-                    style={{
-                      fontFamily: fb,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      padding: "3px 8px",
-                      borderRadius: "var(--eco-radius-full)",
-                      background: a.status === "real" ? "var(--eco-success-bg)" : "var(--eco-warning-bg)",
-                      color: a.status === "real" ? "var(--eco-success)" : "var(--eco-secondary-600)",
-                      border: `1px solid ${a.status === "real" ? "#BBF7D0" : "#FDE68A"}`,
-                    }}
-                  >
-                    {a.status === "real" ? "Real" : "Estimado"}
-                  </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontFamily: fb,
+                            fontSize: 13,
+                            fontWeight: 500,
+                            color: "var(--eco-gray-700)",
+                            margin: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {a.activity ? a.activity : `${a.area} - ${toMonthEs(a.dateISO)} - ${fN(a.co2e_t, 3)} tCO2e`}
+                        </p>
+                        <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: "2px 0 0" }}>
+                          {[a.area, a.by, a.time].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
 
-                  <ChevronRight size={14} style={{ color: "var(--eco-gray-300)" }} />
+                      <span
+                        style={{
+                          fontFamily: fb,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: "3px 8px",
+                          borderRadius: "var(--eco-radius-full)",
+                          background: a.status === "real" ? "var(--eco-success-bg)" : "var(--eco-warning-bg)",
+                          color: a.status === "real" ? "var(--eco-success)" : "var(--eco-secondary-600)",
+                          border: `1px solid ${a.status === "real" ? "#BBF7D0" : "#FDE68A"}`,
+                        }}
+                      >
+                        {a.status === "real" ? "Real" : "Estimado"}
+                      </span>
+
+                      <ChevronRight size={14} style={{ color: "var(--eco-gray-300)" }} />
+                    </button>
+                  )))}
                 </div>
-              )))}
-            </div>
+              </>
+            )}
 
             {/* Footer Info Strip */}
             <div
@@ -2357,6 +2609,14 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           onSave={handleCreateRecord}
         />
       )}
+
+      <RecentActivityDetailSheet
+        open={Boolean(selectedActivity)}
+        detail={selectedActivity}
+        onClose={closeActivityDetail}
+        onNavigateToRecord={goToActivityRecord}
+        onNavigateToModule={goToActivityModule}
+      />
 
       {toast && (
         <div
