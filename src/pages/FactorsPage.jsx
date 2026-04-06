@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Beaker,
@@ -14,7 +14,6 @@ import {
   Plus,
   Power,
   RotateCcw,
-  Save,
   Search,
   Shield,
   ShieldCheck,
@@ -27,6 +26,13 @@ import {
   Star,
   Hash,
 } from "lucide-react";
+import FactorModal, {
+  categoryOptions,
+  createEmptyFactorForm,
+  regionOptions,
+  resolveFactorDenominator,
+  scopeOptions,
+} from "../components/FactorModal";
 import { exportRowsToCsv } from "../lib/csvExport";
 import { add as addNotification } from "../lib/notificationsStore";
 import {
@@ -57,42 +63,6 @@ const PAGE_ANIMATIONS = `
 @media(max-width:640px){.ct-factors-kpis{grid-template-columns:1fr!important}}
 `;
 
-const scopeOptions = [
-  { value: "all", label: "Todos" },
-  { value: "scope1", label: "Scope 1" },
-  { value: "scope2", label: "Scope 2" },
-  { value: "scope3", label: "Scope 3" },
-];
-
-const categoryOptions = [
-  { value: "all", label: "Todas" },
-  { value: "electricidad", label: "Electricidad" },
-  { value: "combustible", label: "Combustible" },
-  { value: "otros", label: "Otros" },
-];
-
-const regionOptions = ["MX-SEN", "MX", "Tamaulipas", "Custom"];
-
-const emptyForm = (factor) => ({
-  id: factor?.id || "",
-  scope: factor?.scope || "scope2",
-  category: factor?.category || "electricidad",
-  denominatorUnit: factor?.denominatorUnit || "kWh",
-  value: factor?.value ?? "",
-  region: regionOptions.includes(factor?.region) ? factor.region : "Custom",
-  customRegion: regionOptions.includes(factor?.region) ? "" : factor?.region || "",
-  provider: factor?.provider || "",
-  sourceUrl: factor?.sourceUrl || "",
-  validFrom: factor?.validFrom || new Date().toISOString().slice(0, 10),
-  validTo: factor?.validTo || "",
-  isDefault: Boolean(factor?.isDefault),
-  isActive: typeof factor?.isActive === "boolean" ? factor.isActive : true,
-  uncertaintyPct: factor?.uncertaintyPct ?? "",
-  notes: factor?.notes || "",
-  editMode: factor ? "newVersion" : "edit",
-  confirmDirectEdit: false,
-});
-
 const numberFormat = (value, decimals = 3) =>
   Number(value || 0).toLocaleString("es-MX", {
     minimumFractionDigits: decimals,
@@ -118,13 +88,7 @@ const isValidUrl = (value) => {
   }
 };
 
-const resolveDenominator = (category, currentValue) => {
-  if (category === "electricidad") return "kWh";
-  if (category === "combustible") return "L";
-  return currentValue || "kWh";
-};
-
-/* ─── Base styles (dark-mode aware) ─── */
+/* --- Base styles (dark-mode aware) --- */
 const cardBase = {
   background: "var(--eco-card)",
   borderRadius: "var(--eco-radius-lg)",
@@ -209,7 +173,7 @@ const radioCardStyle = (active) => ({
   transition: "all 180ms ease",
 });
 
-/* ─── Pill-style filter select (matches EmissionsPage) ─── */
+/* --- Pill-style filter select (matches EmissionsPage) --- */
 function FilterSelect({ value, onChange, options, icon, placeholder }) {
   const isActive = value && value !== "all";
   return (
@@ -271,7 +235,7 @@ function FilterSelect({ value, onChange, options, icon, placeholder }) {
   );
 }
 
-/* ─── Toggle pill for boolean filters ─── */
+/* --- Toggle pill for boolean filters --- */
 function TogglePill({ label, icon, active, onClick }) {
   return (
     <button
@@ -300,7 +264,7 @@ function TogglePill({ label, icon, active, onClick }) {
   );
 }
 
-/* ─── Badge ─── */
+/* --- Badge --- */
 function Badge({ tone = "neutral", children }) {
   const theme = {
     success: {
@@ -356,7 +320,7 @@ function Badge({ tone = "neutral", children }) {
   );
 }
 
-/* ─── Field ─── */
+/* --- Field --- */
 function Field({ label, error, children }) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -367,7 +331,7 @@ function Field({ label, error, children }) {
   );
 }
 
-/* ─── Icon Action Button ─── */
+/* --- Icon Action Button --- */
 function IconActionButton({ label, onClick, icon, tone }) {
   const toneColors = {
     danger: { hover: "var(--eco-danger-bg, #FEE2E2)", color: "var(--eco-danger)", border: "#FECACA" },
@@ -409,7 +373,7 @@ function IconActionButton({ label, onClick, icon, tone }) {
   );
 }
 
-/* ─── Toast ─── */
+/* --- Toast --- */
 function Toast({ toast, onDismiss }) {
   useEffect(() => {
     if (!toast) return undefined;
@@ -467,7 +431,7 @@ function Toast({ toast, onDismiss }) {
   );
 }
 
-/* ─── Confirm Modal ─── */
+/* --- Confirm Modal --- */
 function ConfirmModal({ modal, onCancel, onConfirm }) {
   if (!modal) return null;
   return (
@@ -522,7 +486,7 @@ function ConfirmModal({ modal, onCancel, onConfirm }) {
   );
 }
 
-/* ─── Drawer ─── */
+/* --- Drawer --- */
 function Drawer({ factor, onClose }) {
   if (!factor) return null;
   const sampleAmount = factor.category === "electricidad" ? 100 : 10;
@@ -579,7 +543,7 @@ function Drawer({ factor, onClose }) {
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontFamily: fm, fontSize: 18, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>CO₂e</span>
+              <span style={{ fontFamily: fm, fontSize: 18, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>CO2e</span>
               <span style={{ color: "var(--eco-gray-400)", fontFamily: fm }}> = </span>
               <span style={{ fontFamily: fm, fontSize: 18, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>AD</span>
               <span style={{ color: "var(--eco-gray-400)", fontFamily: fm }}> × </span>
@@ -587,8 +551,8 @@ function Drawer({ factor, onClose }) {
             </div>
             <p style={{ margin: "12px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.55 }}>
               {factor.category === "electricidad"
-                ? `Ejemplo: ${sampleAmount} kWh × ${numberFormat(factor.value, 3)} kgCO₂e/kWh = ${numberFormat(sampleResult, 3)} kgCO₂e`
-                : `Ejemplo: ${sampleAmount} L × ${numberFormat(factor.value, 3)} kgCO₂e/L = ${numberFormat(sampleResult, 3)} kgCO₂e`}
+                ? `Ejemplo: ${sampleAmount} kWh × ${numberFormat(factor.value, 3)} kgCO2e/kWh = ${numberFormat(sampleResult, 3)} kgCO2e`
+                : `Ejemplo: ${sampleAmount} L × ${numberFormat(factor.value, 3)} kgCO2e/L = ${numberFormat(sampleResult, 3)} kgCO2e`}
             </p>
           </div>
 
@@ -601,7 +565,7 @@ function Drawer({ factor, onClose }) {
               ["Región", factor.region],
               ["Proveedor", factor.provider || "Sin proveedor"],
               ["Fuente", factor.sourceUrl || "Sin URL"],
-              ["Vigencia", `${formatDate(factor.validFrom)} → ${factor.validTo ? formatDate(factor.validTo) : "Vigente"}`],
+              ["Vigencia", `${formatDate(factor.validFrom)} ? ${factor.validTo ? formatDate(factor.validTo) : "Vigente"}`],
               ["Predeterminado", factor.isDefault ? "Sí" : "No"],
               ["Estado", factor.isActive ? "Activo" : "Inactivo"],
               ["Incertidumbre", factor.uncertaintyPct === null ? "Sin dato" : `${numberFormat(factor.uncertaintyPct, 1)}%`],
@@ -631,7 +595,7 @@ function Drawer({ factor, onClose }) {
   );
 }
 
-/* ─── KPI Card ─── */
+/* --- KPI Card --- */
 function KpiCard({ icon, iconBg, label, value, sub, delay = 0 }) {
   return (
     <div
@@ -678,9 +642,9 @@ function KpiCard({ icon, iconBg, label, value, sub, delay = 0 }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
+/* ---------------------------------------------------------------
    Page Skeleton (dark-mode aware)
-   ═══════════════════════════════════════════════════════════════ */
+   --------------------------------------------------------------- */
 function PageSkeleton() {
   const sh = {
     background: "linear-gradient(90deg, var(--eco-border) 25%, var(--eco-surface) 50%, var(--eco-border) 75%)",
@@ -800,199 +764,9 @@ function PageSkeleton() {
   );
 }
 
-/* ─── Factor Modal ─── */
-function FactorModal({ state, onClose, onSubmit }) {
-  if (!state) return null;
-  const { factor, form, errors, saving, usageCount } = state;
-  const isEdit = Boolean(factor);
-  const title = isEdit ? "Editar factor" : "Nuevo factor de emisión";
-  const helper =
-    isEdit && form.editMode === "newVersion"
-      ? "Crear nueva versión es la opción recomendada para mantener trazabilidad."
-      : isEdit
-        ? "Modifica los valores del factor existente."
-        : "Completa los datos base del factor de emisión.";
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "grid", placeItems: "center", padding: 16 }}>
-      <div
-        style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,.36)", backdropFilter: "blur(3px)", animation: "ctOverlay .2s ease-out" }}
-        onClick={onClose}
-      />
-      <div
-        style={{
-          position: "relative",
-          width: "min(96vw, 860px)",
-          maxHeight: "92vh",
-          overflowY: "auto",
-          background: "var(--eco-card)",
-          border: "1px solid var(--eco-border)",
-          borderRadius: "var(--eco-radius-xl)",
-          boxShadow: "var(--eco-shadow-xl)",
-          animation: "ctPop .22s ease-out",
-        }}
-      >
-        {/* Modal header */}
-        <div style={{ padding: "18px 20px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", background: "linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-700))", color: "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {isEdit ? <Pencil size={16} /> : <Plus size={16} />}
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))" }}>{title}</h3>
-              <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>{helper}</p>
-              {errors.editMode ? <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-danger)" }}>{errors.editMode}</p> : null}
-            </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Cerrar" style={iconButtonStyle}>
-            <X size={16} />
-          </button>
-        </div>
-
-        <form onSubmit={onSubmit} style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Edit mode selector */}
-          {isEdit && (
-            <div style={{ background: "var(--eco-surface)", borderRadius: "var(--eco-radius-lg)", padding: 14, border: "1px solid var(--eco-border)" }}>
-              <p style={{ margin: "0 0 10px", fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>
-                Modo de edición
-              </p>
-              <div style={{ display: "grid", gap: 10 }}>
-                <label style={radioCardStyle(form.editMode === "edit")}>
-                  <input type="radio" name="editMode" value="edit" checked={form.editMode === "edit"} onChange={() => state.setForm((prev) => ({ ...prev, editMode: "edit" }))} />
-                  <div>
-                    <div style={{ fontFamily: fb, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Editar este registro</div>
-                    <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-500))", marginTop: 2 }}>
-                      Úsalo si todavía no se ha usado o si confirmas cambiarlo directamente.
-                    </div>
-                  </div>
-                </label>
-                <label style={radioCardStyle(form.editMode === "newVersion")}>
-                  <input type="radio" name="editMode" value="newVersion" checked={form.editMode === "newVersion"} onChange={() => state.setForm((prev) => ({ ...prev, editMode: "newVersion" }))} />
-                  <div>
-                    <div style={{ fontFamily: fb, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Crear nueva versión</div>
-                    <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-500))", marginTop: 2 }}>
-                      Recomendado para conservar históricos de cálculos y reportes.
-                    </div>
-                  </div>
-                </label>
-              </div>
-              {usageCount > 0 && form.editMode === "edit" && (
-                <label style={{ marginTop: 12, display: "flex", alignItems: "flex-start", gap: 10, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))" }}>
-                  <input
-                    type="checkbox"
-                    checked={form.confirmDirectEdit}
-                    onChange={(event) => state.setForm((prev) => ({ ...prev, confirmDirectEdit: event.target.checked }))}
-                    style={{ marginTop: 2 }}
-                  />
-                  Confirmo editar un factor ya usado en {usageCount} registro(s).
-                </label>
-              )}
-            </div>
-          )}
-
-          {/* Form grid */}
-          <div className="ct-factor-modal-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 14 }}>
-            <Field label="Scope" error={errors.scope}>
-              <select value={form.scope} onChange={(event) => state.setForm((prev) => ({ ...prev, scope: event.target.value }))} style={inputStyle}>
-                {scopeOptions.slice(1).map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Categoría" error={errors.category}>
-              <select
-                value={form.category}
-                onChange={(event) =>
-                  state.setForm((prev) => ({
-                    ...prev,
-                    category: event.target.value,
-                    denominatorUnit: resolveDenominator(event.target.value, prev.denominatorUnit),
-                  }))
-                }
-                style={inputStyle}
-              >
-                {categoryOptions.slice(1).map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Unidad del denominador" error={errors.denominatorUnit}>
-              <input value={form.denominatorUnit} readOnly style={{ ...inputStyle, background: "var(--eco-surface)", opacity: 0.7 }} />
-            </Field>
-            <Field label="Valor EF" error={errors.value}>
-              <input type="number" min="0" step="0.0001" value={form.value} onChange={(event) => state.setForm((prev) => ({ ...prev, value: event.target.value }))} style={inputStyle} />
-            </Field>
-            <Field label="Región" error={errors.region}>
-              <select value={form.region} onChange={(event) => state.setForm((prev) => ({ ...prev, region: event.target.value }))} style={inputStyle}>
-                {regionOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Proveedor" error={errors.provider}>
-              <input value={form.provider} onChange={(event) => state.setForm((prev) => ({ ...prev, provider: event.target.value }))} style={inputStyle} placeholder="Ej. SENER, CFE..." />
-            </Field>
-            {form.region === "Custom" && (
-              <Field label="Región personalizada" error={errors.customRegion}>
-                <input value={form.customRegion} onChange={(event) => state.setForm((prev) => ({ ...prev, customRegion: event.target.value }))} style={inputStyle} />
-              </Field>
-            )}
-            <Field label="Fuente (URL opcional)" error={errors.sourceUrl}>
-              <input value={form.sourceUrl} onChange={(event) => state.setForm((prev) => ({ ...prev, sourceUrl: event.target.value }))} style={inputStyle} placeholder="https://..." />
-            </Field>
-            <Field label="Vigencia desde" error={errors.validFrom}>
-              <input type="date" value={form.validFrom} onChange={(event) => state.setForm((prev) => ({ ...prev, validFrom: event.target.value }))} style={inputStyle} />
-            </Field>
-            <Field label="Vigencia hasta" error={errors.validTo}>
-              <input type="date" value={form.validTo} onChange={(event) => state.setForm((prev) => ({ ...prev, validTo: event.target.value }))} style={inputStyle} />
-            </Field>
-            <Field label="Incertidumbre %" error={errors.uncertaintyPct}>
-              <input type="number" min="0" step="0.1" value={form.uncertaintyPct} onChange={(event) => state.setForm((prev) => ({ ...prev, uncertaintyPct: event.target.value }))} style={inputStyle} placeholder="Ej. 5.0" />
-            </Field>
-            <Field label="Notas" error={errors.notes}>
-              <textarea value={form.notes} onChange={(event) => state.setForm((prev) => ({ ...prev, notes: event.target.value }))} style={{ ...inputStyle, minHeight: 100, paddingTop: 10, resize: "vertical" }} placeholder="Observaciones adicionales..." />
-            </Field>
-          </div>
-
-          {/* Checkboxes */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: fb, fontSize: 13, color: "var(--eco-text, var(--eco-gray-700))", cursor: "pointer" }}>
-              <input type="checkbox" checked={form.isDefault} onChange={(event) => state.setForm((prev) => ({ ...prev, isDefault: event.target.checked }))} />
-              <Star size={14} style={{ color: form.isDefault ? "var(--eco-primary-500)" : "var(--eco-gray-400)" }} />
-              Predeterminado
-            </label>
-            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: fb, fontSize: 13, color: "var(--eco-text, var(--eco-gray-700))", cursor: "pointer" }}>
-              <input type="checkbox" checked={form.isActive} onChange={(event) => state.setForm((prev) => ({ ...prev, isActive: event.target.checked }))} />
-              <Power size={14} style={{ color: form.isActive ? "var(--eco-success)" : "var(--eco-gray-400)" }} />
-              Activo
-            </label>
-          </div>
-
-          {/* Actions */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 4 }}>
-            <button type="button" onClick={onClose} style={secondaryButtonStyle}>Cancelar</button>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                ...primaryButtonStyle,
-                opacity: saving ? 0.7 : 1,
-                minWidth: 160,
-              }}
-            >
-              <Save size={14} />
-              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear factor"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
+/* ---------------------------------------------------------------
    MAIN PAGE
-   ═══════════════════════════════════════════════════════════════ */
+   --------------------------------------------------------------- */
 export default function FactorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -1050,7 +824,7 @@ export default function FactorsPage() {
       const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
       return { ...prev, form: nextForm };
     });
-    setModalState({ factor: null, form: emptyForm(), errors: {}, saving: false, usageCount: 0, setForm });
+    setModalState({ factor: null, form: createEmptyFactorForm(), errors: {}, saving: false, usageCount: 0, setForm });
   };
 
   const openEdit = (factor, mode = "newVersion") => {
@@ -1061,7 +835,7 @@ export default function FactorsPage() {
     });
     setModalState({
       factor,
-      form: { ...emptyForm(factor), editMode: mode },
+      form: { ...createEmptyFactorForm(factor), editMode: mode },
       errors: {},
       saving: false,
       usageCount,
@@ -1109,7 +883,7 @@ export default function FactorsPage() {
       category: form.category,
       metric: form.category === "electricidad" ? "electricity_consumption" : form.category === "combustible" ? "fuel_volume" : "custom",
       numeratorUnit: "kgCO2e",
-      denominatorUnit: resolveDenominator(form.category, form.denominatorUnit),
+      denominatorUnit: resolveFactorDenominator(form.category, form.denominatorUnit),
       value: Number(form.value),
       region: form.region === "Custom" ? form.customRegion.trim() : form.region,
       provider: form.provider.trim(),
@@ -1252,7 +1026,7 @@ export default function FactorsPage() {
     setToast({ title: "CSV exportado", message: `Se exportaron ${filtered.length} factor(es).` });
   };
 
-  /* ─── Loading skeleton ─── */
+  /* --- Loading skeleton --- */
   if (loading) {
     return (
       <>
@@ -1267,7 +1041,7 @@ export default function FactorsPage() {
       <style>{PAGE_ANIMATIONS}</style>
       <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", maxWidth: "var(--content-max)", margin: "0 auto" }}>
 
-        {/* ═══ HEADER ═══ */}
+        {/* --- HEADER --- */}
         <div
           className="ct-factor-header"
           style={{
@@ -1300,7 +1074,7 @@ export default function FactorsPage() {
                   Factores de emisión
                 </h1>
                 <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>
-                  Administra los factores (EF) para convertir consumo en CO₂e.
+                  Administra los factores (EF) para convertir consumo en CO2e.
                 </p>
               </div>
             </div>
@@ -1346,7 +1120,7 @@ export default function FactorsPage() {
           </div>
         </div>
 
-        {/* ═══ DEMO WARNING ═══ */}
+        {/* --- DEMO WARNING --- */}
         <div
           style={{
             marginBottom: 18,
@@ -1369,7 +1143,7 @@ export default function FactorsPage() {
           </div>
         </div>
 
-        {/* ═══ ERROR BANNER ═══ */}
+        {/* --- ERROR BANNER --- */}
         {error && (
           <div
             style={{
@@ -1393,7 +1167,7 @@ export default function FactorsPage() {
           </div>
         )}
 
-        {/* ═══ KPI CARDS ═══ */}
+        {/* --- KPI CARDS --- */}
         <div
           className="ct-factors-kpis"
           style={{
@@ -1438,7 +1212,7 @@ export default function FactorsPage() {
           />
         </div>
 
-        {/* ═══ FILTER BAR (horizontal pill style, green border) ═══ */}
+        {/* --- FILTER BAR (horizontal pill style, green border) --- */}
         <div
           style={{
             ...cardBase,
@@ -1546,7 +1320,7 @@ export default function FactorsPage() {
           )}
         </div>
 
-        {/* ═══ TABLE SECTION ═══ */}
+        {/* --- TABLE SECTION --- */}
         <div
           style={{
             display: "flex",
@@ -1719,7 +1493,7 @@ export default function FactorsPage() {
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))" }}>
                             <Calendar size={12} style={{ color: "var(--eco-gray-400)" }} />
-                            <span>{formatDate(factor.validFrom)} → {factor.validTo ? formatDate(factor.validTo) : "Vigente"}</span>
+                            <span>{formatDate(factor.validFrom)} ? {factor.validTo ? formatDate(factor.validTo) : "Vigente"}</span>
                           </div>
                         </td>
                         <td style={{ padding: "12px" }}>
@@ -1807,3 +1581,4 @@ export default function FactorsPage() {
     </>
   );
 }
+
