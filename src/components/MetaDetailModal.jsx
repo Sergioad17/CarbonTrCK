@@ -466,6 +466,9 @@ export default function MetaDetailModal({
       .sort((a, b) => (b.dateISO || "").localeCompare(a.dateISO || ""))[0] || null;
 
   const progressPct = Math.max(0, Math.min(100, s.progressPct || 0));
+  // CSS variables can't be interpolated inside gradient/shadow strings → use hex
+  const progressHex =
+    s.state === "completed" ? "#22C55E" : s.state === "at_risk" ? "#F59E0B" : "#16A34A";
   const progressColor =
     s.state === "completed"
       ? "var(--eco-success)"
@@ -763,10 +766,10 @@ export default function MetaDetailModal({
                       style={{
                         height: "100%",
                         borderRadius: "var(--eco-radius-full)",
-                        background: `linear-gradient(90deg, ${progressColor}, ${progressColor}cc)`,
+                        background: `linear-gradient(90deg, ${progressHex}, ${progressHex}bb)`,
                         width: `${progressPct}%`,
                         transition: "width .8s cubic-bezier(.4,0,.2,1)",
-                        boxShadow: `0 0 8px ${progressColor}66`,
+                        boxShadow: `0 0 8px ${progressHex}66`,
                       }}
                     />
                   </div>
