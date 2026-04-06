@@ -37,7 +37,6 @@ import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
-import './BackgroundPatterns/Pattern1.css'
 
 
 const fd = "var(--eco-font-display)",

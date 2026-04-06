@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
 import "./landing.css";
-import "../BackgroundPatterns/Pattern3_Landing.css";
 
 import useScrolled from "./hooks/useScrolled";
 import Particles from "./components/Particles";

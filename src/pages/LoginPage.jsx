@@ -7,7 +7,6 @@ import {
   Zap, Flame, TreePine,
   BarChart3, Shield, Building2
 } from 'lucide-react'
-import './BackgroundPatterns/Pattern2_Login.css'
 import './Animations.css'
 
 const fd = "var(--eco-font-display)"

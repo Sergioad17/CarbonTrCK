@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
-import './styles/tokens.css'
+import './BackgroundSettings/themeStyles.css'
 import { applySettings, getSettings, startSettingsSync } from './lib/settingsStore'
 
 applySettings(getSettings())
