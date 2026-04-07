@@ -1,0 +1,9 @@
+node_modules
+frontend/node_modules
+frontend/dist
+.vite
+frontend/.vite
+.git
+.env
+vite-dev-check.err.log
+vite-dev-check.out.log

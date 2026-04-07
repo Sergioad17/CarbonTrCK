@@ -1,6 +1,17 @@
 # CarbonTrCK
 
-Aplicacion web para monitoreo y trazabilidad de huella de carbono orientada a instituciones educativas. El proyecto esta construido con React y Vite, e incluye una landing publica, flujo de inicio de sesion, dashboard y modulos de captura y consulta.
+Aplicacion web para monitoreo y trazabilidad de huella de carbono orientada a instituciones educativas. El repositorio esta organizado para separar frontend, backend y base de datos desde el inicio.
+
+## Estructura del repositorio
+
+```text
+/frontend
+/backend
+/backend/database
+/backend/src
+docker-compose.yml
+README.md
+```
 
 ## Modos de operacion
 
@@ -12,7 +23,7 @@ El frontend puede trabajar en dos modos:
 Comportamiento real:
 
 - En modo local, la aplicacion usa `localStorage` para sesion, registros y varios modulos.
-- En modo backend, `src/api` deja de caer a `localStorage`. Si falta un endpoint o no responde, la vista afectada queda vacia o muestra error.
+- En modo backend, `frontend/src/api` deja de caer a `localStorage`. Si falta un endpoint o no responde, la vista afectada queda vacia o muestra error.
 - `VITE_LOCAL_MODE=false` no garantiza datos por si solo. Solo muestra informacion si el backend implementa los contratos esperados y devuelve datos.
 
 ## Que se necesita para arrancar
@@ -36,15 +47,54 @@ Recomendado:
 
 ## Instalacion
 
-Desde la raiz del proyecto:
+Desde la carpeta del frontend:
 
 ```bash
+cd frontend
 npm install
 ```
+
+Para desarrollo local sin Docker, crea tambien:
+
+```bash
+copy frontend\\.env.example frontend\\.env
+```
+
+## Trabajo con Docker
+
+El repo ya incluye una base para levantar frontend y PostgreSQL con Docker Compose.
+
+Servicios incluidos:
+
+- `frontend`: Vite en `http://localhost:3000`
+- `postgres`: PostgreSQL 16 en `localhost:5432`
+- `pgadmin`: opcional, disponible con el perfil `tools` en `http://localhost:5050`
+
+Primer arranque:
+
+```bash
+copy .env.example .env
+docker compose up --build
+```
+
+Si quieres abrir pgAdmin tambien:
+
+```bash
+docker compose --profile tools up --build
+```
+
+Notas importantes:
+
+- La base se inicializa automaticamente con `backend/database/database.sql` y `backend/database/seed_catalogs.sql`.
+- La inicializacion solo corre la primera vez que se crea el volumen `postgres_data`.
+- Si necesitas reinicializar la BD desde cero, elimina el volumen manualmente antes de volver a levantar el stack.
+- En equipo, cada integrante trabaja en su rama y usa su propio `.env`. Solo `.env.example` debe ir al repo.
 
 ## Como arrancar en desarrollo
 
 ```bash
+copy .env.example .env
+cd frontend
 npm run dev
 ```
 
@@ -128,7 +178,7 @@ npm run preview
 ```
 
 - `npm run dev`: inicia el servidor de desarrollo
-- `npm run build`: genera la version de produccion en `dist/`
+- `npm run build`: genera la version de produccion en `frontend/dist/`
 - `npm run preview`: sirve localmente la build generada
 
 ## Como probar el acceso
@@ -143,14 +193,18 @@ Con `VITE_LOCAL_MODE=false`, el acceso depende de `POST /auth/login` del backend
 
 ## Estructura general
 
-- `src/App.jsx`: enrutamiento principal
-- `src/pages/Landing/`: landing publica
-- `src/pages/LoginPage.jsx`: acceso al sistema
-- `src/pages/DashboardPage.jsx`: dashboard principal
-- `src/components/`: componentes reutilizables
-- `src/lib/`: almacenamiento local, sesion y utilidades
-- `src/api/`: capa unica de integracion remota
-- `public/`: assets estaticos
+- `frontend/src/App.jsx`: enrutamiento principal
+- `frontend/src/pages/Landing/`: landing publica
+- `frontend/src/pages/LoginPage.jsx`: acceso al sistema
+- `frontend/src/pages/DashboardPage.jsx`: dashboard principal
+- `frontend/src/components/`: componentes reutilizables
+- `frontend/src/lib/`: almacenamiento local, sesion y utilidades
+- `frontend/src/api/`: capa unica de integracion remota
+- `backend/database/`: esquema, semillas y migraciones iniciales de PostgreSQL
+- `backend/src/`: espacio reservado para el backend real
+- `docker-compose.yml`: stack local compartido para frontend y base de datos
+- `frontend/Dockerfile`: imagen de desarrollo del frontend
+- `frontend/public/`: assets estaticos
 
 ## Rutas principales
 
@@ -162,6 +216,7 @@ Con `VITE_LOCAL_MODE=false`, el acceso depende de `POST /auth/login` del backend
 ## Build de produccion
 
 ```bash
+cd frontend
 npm run build
 npm run preview
 ```
@@ -170,7 +225,7 @@ npm run preview
 
 - Este repositorio sigue siendo util como frontend local y demo, pero tambien puede operar en integracion real con backend.
 - Parte del comportamiento local esta orientado a demostracion y prototipo.
-- El comportamiento exacto de integracion backend esta documentado en `BACKEND_READINESS.md`.
+- El comportamiento exacto de integracion backend esta documentado en `backend/BACKEND_READINESS.md`.
 - Si necesitas limpiar el estado local para volver a empezar, borra el `localStorage` del navegador.
 
 ## Solucion de problemas
@@ -181,3 +236,9 @@ Si el proyecto no arranca:
 2. Verifica la version de npm con `npm -v`.
 3. Reinstala dependencias con `npm install`.
 4. Si persiste el problema, elimina `node_modules` y vuelve a ejecutar `npm install`.
+
+Si trabajas con Docker y el frontend no refleja cambios:
+
+1. Verifica que el contenedor `frontend` siga corriendo.
+2. Reinicia con `docker compose up --build`.
+3. Si el problema viene de la BD inicial, recuerda que los scripts solo corren al crear el volumen por primera vez.
