@@ -54,10 +54,10 @@ cd frontend
 npm install
 ```
 
-Para desarrollo local sin Docker, crea tambien:
+Para Docker, crea el archivo raiz desde el ejemplo:
 
 ```bash
-copy frontend\\.env.example frontend\\.env
+copy .env.example .env
 ```
 
 ## Trabajo con Docker
@@ -88,7 +88,7 @@ Notas importantes:
 - La base se inicializa automaticamente con `backend/database/database.sql` y `backend/database/seed_catalogs.sql`.
 - La inicializacion solo corre la primera vez que se crea el volumen `postgres_data`.
 - Si necesitas reinicializar la BD desde cero, elimina el volumen manualmente antes de volver a levantar el stack.
-- En equipo, cada integrante trabaja en su rama y usa su propio `.env`. Solo `.env.example` debe ir al repo.
+- En equipo, cada integrante trabaja en su rama y usa su propio `.env`.
 
 ## Como arrancar en desarrollo
 
@@ -110,6 +110,7 @@ Notas de arranque:
 - Puedes ejecutar el proyecto sin backend usando `VITE_LOCAL_MODE=true`.
 - Si vas a integrar backend, define `VITE_API_URL` y usa `VITE_LOCAL_MODE=false`.
 - En modo local, la sesion y parte de la informacion se almacenan en `localStorage`.
+- Si vas a correr el backend fuera de Docker, usa tambien `backend/.env.local` basado en `backend/.env.local.example`.
 
 Ejemplo de `.env` para modo local:
 

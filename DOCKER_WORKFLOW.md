@@ -17,10 +17,10 @@ Estandarizar el entorno local del equipo de backend y frontend usando el mismo s
 copy .env.example .env
 ```
 
-Si va a correr el frontend sin Docker, tambien necesita:
+Si va a correr el backend fuera de Docker, tambien necesita:
 
 ```bash
-copy frontend\\.env.example frontend\\.env
+copy backend\\.env.local.example backend\\.env.local
 ```
 
 2. Levantar el stack:
@@ -52,7 +52,8 @@ Cada integrante debe:
 
 - No subir secretos reales.
 - No editar el `.env` de otra persona.
-- Versionar solo `.env.example`.
+- El `.env` raiz es para Docker Compose.
+- `backend/.env.local` es para backend local fuera de Docker.
 - No versionar volumenes ni datos de la BD.
 - Si cambian el modelo de datos, hacerlo mediante SQL versionado en `backend/database/migrations/`.
 - Documentar cualquier nuevo servicio agregado al `docker-compose.yml`.
@@ -69,7 +70,6 @@ La base se crea desde:
 
 - `backend/database/database.sql`
 - `backend/database/seed_catalogs.sql`
+- `backend/database/seed_auth.sql`
 
-## Paso siguiente recomendado
-
-Cuando el backend ya exista como codigo dentro de `backend/src`, agregar un servicio `backend` al `docker-compose.yml` para que el frontend deje de depender de un API externo.
+Si agregan tablas nuevas, crear primero una migracion incremental en `backend/database/migrations/` y luego reflejarla en `database.sql`.
