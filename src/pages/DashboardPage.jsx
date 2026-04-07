@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Leaf, Zap, Flame,
   Building2, TrendingDown, TrendingUp,
@@ -37,6 +37,9 @@ import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
+import { createEmissionRecord } from "../api/records"
+import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
+import { isLocalMode } from "../api/config"
 
 
 const fd = "var(--eco-font-display)",
@@ -52,8 +55,6 @@ const COLORS = [
   "#06B6D4",
   "#64748B",
   "#94A3B8"]
-const ACTIVITY_STORAGE_KEY = "carbontrack.activity"
-const RECORDS_STORAGE_KEY = "carbontrack.records"
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 const BASE_ACTIVITY = [
   { status: "real", area: "CC1", dateISO: "2026-01-01", co2e_t: 0.544, time: "Hace 2h", by: "Ana Garcia" },
@@ -134,15 +135,6 @@ const inferScopeLabel = (category, rawScope) => {
   return "No disponible"
 }
 const getFactorUnit = (category) => category === "combustible" ? "kgCO2e/L" : category === "electricidad" ? "kgCO2e/kWh" : "kgCO2e/unidad"
-const readStoredRecords = () => {
-  try {
-    const raw = window.localStorage.getItem(RECORDS_STORAGE_KEY);
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
 const findMatchingRecord = (activityItem, records) => {
   if (!activityItem || !Array.isArray(records) || !records.length) return null;
   const targetStatus = activityItem.status === "est" ? "est" : "real";
@@ -180,95 +172,6 @@ function useCount(t, dur = 650) {
   }, [t, dur]); return v
 }
 
-const monthlyData = [{
-  mes: "Ene",
-  scope2: 3.42,
-  scope1: 0.23,
-  est: 0.4
-},
-{
-  mes: "Feb",
-  scope2: 3.28,
-  scope1: 0.25,
-  est: 0.6
-},
-{
-  mes: "Mar",
-  scope2: 3.51,
-  scope1: 0.21,
-  est: 0.2
-},
-{
-  mes: "Abr",
-  scope2: 3.15,
-  scope1: 0.24,
-  est: 0.3
-},
-{
-  mes: "May",
-  scope2: 2.98,
-  scope1: 0.22,
-  est: 0.1
-},
-{
-  mes: "Jun",
-  scope2: 2.85,
-  scope1: 0.20,
-  est: 0.0
-}]
-const areaData = [{
-  area: "CC 1",
-  co2e: 3.21,
-  pct: 16.3
-},
-{
-  area: "CC 2",
-  co2e: 2.84,
-  pct: 14.4
-},
-{
-  area: "Aulas",
-  co2e: 7.80,
-  pct: 39.7
-},
-{
-  area: "Redes",
-  co2e: 1.42,
-  pct: 7.2
-},
-{
-  area: "Industrial",
-  co2e: 1.33,
-  pct: 6.8
-},
-{
-  area: "Agrícola",
-  co2e: 2.15,
-  pct: 10.9
-},
-{
-  area: "Admin",
-  co2e: 0.52,
-  pct: 2.6
-},
-{
-  area: "Otros",
-  co2e: 0.40,
-  pct: 2.0
-}]
-const scopeDonut = [{
-  name: "Scope 2 - Electricidad",
-  value: 17.52,
-  pct: 89.1,
-  color: "#22C55E"
-},
-{
-  name: "Scope 1 - Combustible",
-  value: 2.15,
-  pct: 10.9,
-  color: "#EAB308"
-}]
-
 const navItems = [{
   id: "dashboard",
   label: "Dashboard",
@@ -277,8 +180,7 @@ const navItems = [{
 {
   id: "emissions",
   label: "Emisiones",
-  icon: Leaf,
-  badge: 3
+  icon: Leaf
 },
 {
   id: "scopes",
@@ -1543,7 +1445,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [newRecordOpen, setNewRecordOpen] = useState(false);
   const [toast, setToast] = useState(null);
-  const [activity, setActivity] = useState(BASE_ACTIVITY);
+  const [activity, setActivity] = useState(() => (isLocalMode() ? BASE_ACTIVITY : []));
+  const [activityRecords, setActivityRecords] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(true);
   const [NewRecordModalComponent, setNewRecordModalComponent] = useState(null);
@@ -1552,15 +1455,12 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const profRef = useRef(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    if (navFromPath(location.pathname) !== "dashboard") return undefined;
-    setActivityLoading(true);
-    const t = setTimeout(() => setActivityLoading(false), loading ? 620 : 220);
-    return () => clearTimeout(t);
+    if (navFromPath(location.pathname) !== "dashboard") {
+      setActivityLoading(false);
+      return undefined;
+    }
+    setActivityLoading(loading);
+    return undefined;
   }, [location.pathname, loading]);
 
   useEffect(() => {
@@ -1587,25 +1487,40 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(ACTIVITY_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      const fromStorage = parsed.map(normalizeActivityItem).filter(Boolean);
-      const merged = [...fromStorage, ...BASE_ACTIVITY]
-        .filter((item, idx, arr) => arr.findIndex(x => activityKey(x) === activityKey(item)) === idx)
-        .slice(0, 20);
-      setActivity(merged);
-    } catch {
-      setActivity(BASE_ACTIVITY);
-    }
+    let mounted = true;
+    setLoading(true);
+    setActivityLoading(true);
+    Promise.allSettled([
+      fetchDashboardActivity(isLocalMode() ? BASE_ACTIVITY : [], normalizeActivityItem, activityKey),
+      fetchDashboardRecords(),
+    ]).then(([activityResult, recordsResult]) => {
+      if (!mounted) return;
+      setActivity(activityResult.status === "fulfilled" ? activityResult.value : isLocalMode() ? BASE_ACTIVITY : []);
+      setActivityRecords(recordsResult.status === "fulfilled" ? recordsResult.value : []);
+      setLoading(false);
+      setActivityLoading(false);
+    });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(activity.slice(0, 20)));
-    } catch {}
+    const syncRecords = () => {
+      fetchDashboardRecords()
+        .then((items) => setActivityRecords(items))
+        .catch(() => {});
+    };
+    window.addEventListener("carbontrack:newrecord", syncRecords);
+    window.addEventListener("storage", syncRecords);
+    return () => {
+      window.removeEventListener("carbontrack:newrecord", syncRecords);
+      window.removeEventListener("storage", syncRecords);
+    };
+  }, []);
+
+  useEffect(() => {
+    persistDashboardActivity(activity).catch(() => {});
   }, [activity]);
 
   useEffect(() => {
@@ -1623,7 +1538,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     try {
       window.sessionStorage.setItem("carbontrack.flash", JSON.stringify({
         title: "Sesión cerrada",
-        message: "Tu sesión local se cerró correctamente."
+        message: "La sesión se cerró correctamente."
       }));
     } catch {}
     onLogout?.();
@@ -1645,7 +1560,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const visibleActivity = activity.slice(0, 6);
 
   const openActivityDetail = (item) => {
-    const matched = findMatchingRecord(item, readStoredRecords());
+    const matched = findMatchingRecord(item, activityRecords);
     setSelectedActivity(buildActivityDetail(item, matched));
   };
 
@@ -1682,14 +1597,13 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     setActivity(prev => [nextItem, ...prev]
       .filter((item, idx, arr) => arr.findIndex(x => activityKey(x) === activityKey(item)) === idx)
       .slice(0, 20));
+    setActivityRecords(prev => [{ ...rec, id: rec?.id || "u" + Date.now(), by: user?.name || "Tu" }, ...prev]);
     if (!rec?.persisted) {
-    try {
-      const RKEY = RECORDS_STORAGE_KEY;
-      const existing = JSON.parse(localStorage.getItem(RKEY) || "[]");
-      const newRec = { id: "u" + Date.now(), dateISO: rec?.dateISO, area: rec?.area, category: rec?.category || "electricidad", activity: rec?.activity || "", value: Number(rec?.value) || 0, unit: rec?.unit || "kWh", factor: Number(rec?.factor) || 0, co2e_kg: Number(rec?.co2e_kg) || 0, co2e_t: Number.isFinite(co2e) ? co2e : 0, status: rec?.isEstimated ? "est" : "real", source: rec?.source || "Medición", hasEvidence: Boolean(rec?.hasEvidence), evidence: rec?.evidence || rec?.evidenceUrl || "", evidenceUrl: rec?.evidenceUrl || rec?.evidence || "", evidenceImage: rec?.evidenceImage || "", by: user?.name || "Tu" };
-      localStorage.setItem(RKEY, JSON.stringify([newRec, ...existing].slice(0, 200)));
-      window.dispatchEvent(new CustomEvent("carbontrack:newrecord", { detail: newRec }));
-    } catch {}
+      createEmissionRecord({
+        ...rec,
+        id: rec?.id || "u" + Date.now(),
+        by: user?.name || "Tu",
+      }).catch(() => {});
     }
     setNewRecordOpen(false);
     setToast({
@@ -1702,6 +1616,107 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
   const firstName = (user?.fullName || user?.name)?.split(" ")[0] || "Usuario";
   const todayFormatted = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const periodConfig = useMemo(() => (
+    periodo === "jul-dic-2025"
+      ? { year: 2025, startMonth: 7, endMonth: 12, label: "Julio – Diciembre 2025" }
+      : { year: 2026, startMonth: 1, endMonth: 6, label: "Enero – Junio 2026" }
+  ), [periodo]);
+  const dashboardRecords = useMemo(() => (
+    activityRecords.filter((record) => {
+      const raw = String(record?.dateISO || "");
+      if (!raw) return false;
+      const [yearText, monthText] = raw.split("-");
+      const year = Number(yearText);
+      const month = Number(monthText);
+      if (year !== periodConfig.year) return false;
+      if (month < periodConfig.startMonth || month > periodConfig.endMonth) return false;
+      if (!showEst && (record?.status === "est" || record?.isEstimated)) return false;
+      return true;
+    })
+  ), [activityRecords, periodConfig, showEst]);
+  const previousPeriodRecords = useMemo(() => {
+    const previousYear = periodConfig.startMonth === 1 ? periodConfig.year - 1 : periodConfig.year;
+    const previousStartMonth = periodConfig.startMonth === 1 ? 7 : 1;
+    const previousEndMonth = periodConfig.startMonth === 1 ? 12 : 6;
+    return activityRecords.filter((record) => {
+      const raw = String(record?.dateISO || "");
+      if (!raw) return false;
+      const [yearText, monthText] = raw.split("-");
+      const year = Number(yearText);
+      const month = Number(monthText);
+      if (year !== previousYear) return false;
+      if (month < previousStartMonth || month > previousEndMonth) return false;
+      if (!showEst && (record?.status === "est" || record?.isEstimated)) return false;
+      return true;
+    });
+  }, [activityRecords, periodConfig, showEst]);
+  const summarizeEmissions = useMemo(() => {
+    const sumCo2 = (items, predicate = () => true) => items.reduce((acc, item) => acc + (predicate(item) ? Number(item?.co2e_t || 0) : 0), 0);
+    const total = sumCo2(dashboardRecords);
+    const totalPrev = sumCo2(previousPeriodRecords);
+    const scope2 = sumCo2(dashboardRecords, (item) => inferCategory(item) === "electricidad");
+    const scope2Prev = sumCo2(previousPeriodRecords, (item) => inferCategory(item) === "electricidad");
+    const scope1 = sumCo2(dashboardRecords, (item) => inferCategory(item) === "combustible");
+    const scope1Prev = sumCo2(previousPeriodRecords, (item) => inferCategory(item) === "combustible");
+    const uniqueAreas = new Set(dashboardRecords.map((item) => String(item?.area || "").trim()).filter(Boolean)).size;
+    const estimatedCount = dashboardRecords.filter((item) => item?.status === "est" || item?.isEstimated).length;
+    const realCount = dashboardRecords.length - estimatedCount;
+    const calcDelta = (current, previous) => previous > 0 ? ((current - previous) / previous) * 100 : 0;
+    return {
+      total,
+      scope2,
+      scope1,
+      uniqueAreas,
+      estimatedCount,
+      realCount,
+      totalDelta: calcDelta(total, totalPrev),
+      scope2Delta: calcDelta(scope2, scope2Prev),
+      scope1Delta: calcDelta(scope1, scope1Prev),
+    };
+  }, [dashboardRecords, previousPeriodRecords]);
+  const monthlyData = useMemo(() => {
+    const rows = [];
+    for (let month = periodConfig.startMonth; month <= periodConfig.endMonth; month += 1) {
+      const monthRecords = dashboardRecords.filter((record) => {
+        const raw = String(record?.dateISO || "");
+        const parts = raw.split("-");
+        return Number(parts[0]) === periodConfig.year && Number(parts[1]) === month;
+      });
+      rows.push({
+        mes: MONTHS_ES[month - 1],
+        scope2: monthRecords.filter((item) => inferCategory(item) === "electricidad").reduce((acc, item) => acc + Number(item?.co2e_t || 0), 0),
+        scope1: monthRecords.filter((item) => inferCategory(item) === "combustible").reduce((acc, item) => acc + Number(item?.co2e_t || 0), 0),
+        est: monthRecords.filter((item) => item?.status === "est" || item?.isEstimated).reduce((acc, item) => acc + Number(item?.co2e_t || 0), 0),
+      });
+    }
+    return rows;
+  }, [dashboardRecords, periodConfig]);
+  const areaData = useMemo(() => {
+    const total = summarizeEmissions.total || 0;
+    const byArea = new Map();
+    dashboardRecords.forEach((record) => {
+      const key = String(record?.area || "Sin area");
+      byArea.set(key, (byArea.get(key) || 0) + Number(record?.co2e_t || 0));
+    });
+    return Array.from(byArea.entries())
+      .map(([area, co2e]) => ({
+        area,
+        co2e,
+        pct: total > 0 ? (co2e / total) * 100 : 0,
+      }))
+      .sort((left, right) => right.co2e - left.co2e)
+      .slice(0, 8);
+  }, [dashboardRecords, summarizeEmissions.total]);
+  const scopeDonut = useMemo(() => {
+    const total = summarizeEmissions.total || 0;
+    return [
+      { name: "Scope 2 - Electricidad", value: summarizeEmissions.scope2, pct: total > 0 ? (summarizeEmissions.scope2 / total) * 100 : 0, color: "#22C55E" },
+      { name: "Scope 1 - Combustible", value: summarizeEmissions.scope1, pct: total > 0 ? (summarizeEmissions.scope1 / total) * 100 : 0, color: "#EAB308" },
+    ].filter((item) => item.value > 0);
+  }, [summarizeEmissions]);
+  const totalSpark = useMemo(() => monthlyData.map((item) => item.scope1 + item.scope2 + (showEst ? item.est : 0)), [monthlyData, showEst]);
+  const scope2Spark = useMemo(() => monthlyData.map((item) => item.scope2), [monthlyData]);
+  const scope1Spark = useMemo(() => monthlyData.map((item) => item.scope1), [monthlyData]);
 
   return (
     <div
@@ -2077,7 +2092,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                   }}
                 >
                   <Calendar size={13} style={{ opacity: 0.6 }} />
-                  {todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1)} · {periodo === "ene-jun-2026" ? "Enero – Junio 2026" : "Julio – Diciembre 2025"}
+                  {todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1)} · {periodConfig.label}
                 </p>
               </div>
 
@@ -2163,49 +2178,50 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               <Kpi
                 title="Emisiones totales"
                 sub="Scope 1+2"
-                value={19.67}
+                value={summarizeEmissions.total}
                 unit="tCO₂e"
                 icon={<Leaf size={19} />}
-                delta={-8.3}
-                trend="down"
-                status="success"
+                delta={summarizeEmissions.totalDelta}
+                trend={summarizeEmissions.totalDelta < 0 ? "down" : summarizeEmissions.totalDelta > 0 ? "up" : "neutral"}
+                status={summarizeEmissions.totalDelta <= 0 ? "success" : "warning"}
                 onClick={() => setDrill({ type: "total" })}
                 delay={0}
-                spark={[22.1, 21.5, 21.8, 20.9, 19.8, 19.67]}
+                spark={totalSpark}
               />
               <Kpi
                 title="Electricidad"
                 sub="Scope 2"
-                value={17.52}
+                value={summarizeEmissions.scope2}
                 unit="tCO₂e"
                 icon={<Zap size={19} />}
                 iconBg="var(--eco-info-bg)"
                 iconColor="var(--eco-info)"
-                delta={-5.1}
-                trend="down"
+                delta={summarizeEmissions.scope2Delta}
+                trend={summarizeEmissions.scope2Delta < 0 ? "down" : summarizeEmissions.scope2Delta > 0 ? "up" : "neutral"}
                 onClick={() => setDrill({ type: "scope2" })}
                 delay={60}
-                spark={[19.2, 18.8, 19.0, 18.5, 18.0, 17.52]}
+                spark={scope2Spark}
               />
               <Kpi
                 title="Combustible"
                 sub="Scope 1"
-                value={2.15}
+                value={summarizeEmissions.scope1}
                 unit="tCO₂e"
                 icon={<Flame size={19} />}
                 iconBg="var(--eco-secondary-50)"
                 iconColor="var(--eco-secondary-600)"
-                delta={12.4}
-                trend="up"
-                status="warning"
+                delta={summarizeEmissions.scope1Delta}
+                trend={summarizeEmissions.scope1Delta < 0 ? "down" : summarizeEmissions.scope1Delta > 0 ? "up" : "neutral"}
+                status={summarizeEmissions.scope1Delta > 0 ? "warning" : "success"}
+                spark={scope1Spark}
                 onClick={() => setDrill({ type: "scope1" })}
                 delay={120}
               />
               <Kpi
                 title="Áreas completas"
                 sub="Con datos"
-                value={14}
-                unit="de 18"
+                value={summarizeEmissions.uniqueAreas}
+                unit="áreas"
                 icon={<Building2 size={19} />}
                 iconBg="var(--eco-gray-100)"
                 iconColor="var(--eco-gray-600)"
@@ -2273,7 +2289,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             >
               <ChartCard
                 title="Tendencia mensual"
-                sub="tCO₂e por scope - Ene a Jun 2026"
+                sub={`tCO₂e por scope - ${periodConfig.label}`}
                 delay={250}
                 onExpand={() => setDrill({ type: "trend" })}
                 legend={[
@@ -2372,7 +2388,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                         margin: 0,
                       }}
                     >
-                      19.67
+                      {fN(summarizeEmissions.total, 2)}
                     </p>
                     <p style={{ fontFamily: fb, fontSize: 10, color: "var(--eco-gray-400)", margin: 0 }}>
                       tCO₂e
@@ -2431,17 +2447,17 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Metas de reducción" sub="Progreso del periodo" delay={400}>
+              <ChartCard title="Cobertura operativa" sub="Estado actual del periodo" delay={400}>
                 <div style={{ padding: "0 4px" }}>
-                  <GoalMini title="Reducción anual 10%" current={15.2} target={20} deadline="Dic 2026" />
+                  <GoalMini title="Registros reales" current={summarizeEmissions.realCount} target={dashboardRecords.length || 1} unit="registros" deadline={periodConfig.label} />
                   <GoalMini
-                    title="Eficiencia eléctrica"
-                    current={42.0}
-                    target={40.0}
-                    unit="MWh"
-                    deadline="Jun 2026"
+                    title="Registros estimados"
+                    current={summarizeEmissions.estimatedCount}
+                    target={dashboardRecords.length || 1}
+                    unit="registros"
+                    deadline={periodConfig.label}
                   />
-                  <GoalMini title="Áreas 100% datos" current={14} target={18} unit="áreas" deadline="Mar 2026" />
+                  <GoalMini title="Áreas con datos" current={summarizeEmissions.uniqueAreas} target={Math.max(summarizeEmissions.uniqueAreas, 1)} unit="áreas" deadline={periodConfig.label} />
                 </div>
               </ChartCard>
             </div>

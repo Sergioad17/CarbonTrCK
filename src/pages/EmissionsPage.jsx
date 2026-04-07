@@ -48,7 +48,7 @@ import {
   ArrowUpDown,
   ChevronUp,
 } from "lucide-react";
-import { add as addNotification } from "../lib/notificationsStore";
+import { createNotification } from "../api/notifications";
 import {
   LineChart,
   Line,
@@ -63,6 +63,8 @@ import {
   Tooltip as RTooltip,
   ResponsiveContainer,
 } from "recharts";
+import { fetchEmissionRecords } from "../api/records";
+import { isLocalMode } from "../api/config";
 
 const fd = "var(--eco-font-display)",
   fb = "var(--eco-font-body)",
@@ -70,7 +72,6 @@ const fd = "var(--eco-font-display)",
 const fN = (n, d = 1) =>
   n.toLocaleString("es-MX", { minimumFractionDigits: d, maximumFractionDigits: d });
 const COLORS = ["#22C55E", "#EAB308", "#3B82F6", "#8B5CF6", "#EC4899", "#06B6D4", "#64748B", "#94A3B8"];
-const RECORDS_KEY = "carbontrack.records";
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -303,26 +304,6 @@ const SEED_RECORDS = [
     by: "Carlos López",
   },
 ];
-
-function loadRecords() {
-  try {
-    const raw = localStorage.getItem(RECORDS_KEY);
-    if (!raw) return [...SEED_RECORDS];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [...SEED_RECORDS];
-    const ids = new Set(parsed.map(r => r.id));
-    const missing = SEED_RECORDS.filter(s => !ids.has(s.id));
-    return [...parsed, ...missing];
-  } catch {
-    return [...SEED_RECORDS];
-  }
-}
-
-function saveRecords(recs) {
-  try {
-    localStorage.setItem(RECORDS_KEY, JSON.stringify(recs.slice(0, 200)));
-  } catch {}
-}
 
 const fmtDate = iso => {
   if (!iso) return "-";
@@ -1017,7 +998,7 @@ function PageSkeleton() {
    ═══════════════════════════════════════════════════════════════ */
 
 export default function EmissionsPage({ user, onOpenRecord }) {
-  const [records, setRecords] = useState(() => loadRecords());
+  const [records, setRecords] = useState([]);
   const [fArea, setFArea] = useState("");
   const [fCat, setFCat] = useState("");
   const [fStatus, setFStatus] = useState("");
@@ -1032,13 +1013,20 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   const PER_PAGE = 8;
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
+      const nextRecords = await fetchEmissionRecords(fallbackRecords).catch(() => fallbackRecords);
+      if (cancelled) return;
+      setRecords(nextRecords);
+      setLoading(false);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    saveRecords(records);
-  }, [records]);
 
   useEffect(() => {
     if (!toast) return;
@@ -1048,7 +1036,11 @@ export default function EmissionsPage({ user, onOpenRecord }) {
 
   /* Listen for new records from modal */
   useEffect(() => {
-    const h = () => setRecords(loadRecords());
+    const h = async () => {
+      const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
+      const nextRecords = await fetchEmissionRecords(fallbackRecords).catch(() => fallbackRecords);
+      setRecords(nextRecords);
+    };
     window.addEventListener("carbontrack:newrecord", h);
     window.addEventListener("storage", h);
     return () => {
@@ -1186,7 +1178,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     a.download = `emisiones_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    addNotification({
+    createNotification({
       type: "export_done",
       title: "CSV exportado",
       message: `Se exportaron ${filtered.length} registros.`,

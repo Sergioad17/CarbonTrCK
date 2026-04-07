@@ -27,14 +27,16 @@ import {
   Check,
 } from "lucide-react";
 import { getBindingsMap } from "../lib/deviceBinding";
-import { getDefaultFactor } from "../lib/factorsStore";
-import { applySettings, getSettings, normalizeSettings, resetSettings, saveSettings } from "../lib/settingsStore";
+import { fetchDefaultFactorValue } from "../api/factors";
+import { applySettings, fetchSettings, normalizeSettings, persistSettings, resetSettings } from "../api/settings";
+import { isBackendConfigured } from "../api/config";
 import { exportAll, getManagedStorageKeys, getStorageUsageEstimate, importAll, resetAll } from "../lib/storageExportImport";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
 const APP_VERSION = "1.0.0";
+const backendConfigured = isBackendConfigured();
 const TIMEZONE_OPTIONS = ["America/Monterrey", "America/Mexico_City", "UTC"];
 const THEME_OPTIONS = [
   { value: "light", label: "Claro", icon: SunMedium, desc: "Tema luminoso" },
@@ -469,7 +471,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
-  const [settings, setSettings] = useState(() => getSettings());
+  const [settings, setSettings] = useState(() => fetchSettings());
   const [resetWord, setResetWord] = useState("");
   const [importing, setImporting] = useState(false);
   const [bindingMap, setBindingMap] = useState({});
@@ -481,33 +483,42 @@ export default function SettingsPage() {
   const savedTimerRef = useRef(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let active = true;
+    const load = async () => {
       try {
-        setSettings(getSettings());
+        const [electricityFactor, fuelFactor] = await Promise.all([
+          fetchDefaultFactorValue("scope2", "electricidad").catch(() => null),
+          fetchDefaultFactorValue("scope1", "combustible").catch(() => null),
+        ]);
+        if (!active) return;
+        setSettings(fetchSettings());
         setBindingMap(getBindingsMap());
         setUsage(getStorageUsageEstimate());
         setFactorHints({
-          electricity: getDefaultFactor("scope2", "electricidad"),
-          fuel: getDefaultFactor("scope1", "combustible"),
+          electricity: electricityFactor,
+          fuel: fuelFactor,
         });
         initializedRef.current = true;
         setLoading(false);
       } catch {
+        if (!active) return;
         setError("No se pudo cargar configuración. Restablece a valores por defecto.");
         setLoading(false);
       }
-    }, 180);
+    };
+
+    load();
 
     const handleExternalRefresh = () => {
       setBindingMap(getBindingsMap());
       setUsage(getStorageUsageEstimate());
-      setSettings(getSettings());
+      setSettings(fetchSettings());
     };
 
     window.addEventListener("carbontrack:storage-restored", handleExternalRefresh);
 
     return () => {
-      window.clearTimeout(timer);
+      active = false;
       window.removeEventListener("carbontrack:storage-restored", handleExternalRefresh);
     };
   }, []);
@@ -517,25 +528,24 @@ export default function SettingsPage() {
     setDirty(true);
   }, [settings, loading]);
 
-  const handleManualSave = () => {
+  const handleManualSave = async () => {
     if (!dirty || saving) return;
     setSaving(true);
     window.clearTimeout(saveTimerRef.current);
     window.clearTimeout(savedTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      try {
-        setSettings(saveSettings(settings));
-        setUsage(getStorageUsageEstimate());
-        setError("");
-        setSaving(false);
-        setSaved(true);
-        setDirty(false);
-        savedTimerRef.current = window.setTimeout(() => setSaved(false), 2000);
-      } catch {
-        setSaving(false);
-        setError("No se pudo guardar la configuración local.");
-      }
-    }, 350);
+    try {
+      const persisted = await persistSettings(settings);
+      setSettings(persisted);
+      setUsage(getStorageUsageEstimate());
+      setError("");
+      setSaved(true);
+      setDirty(false);
+      savedTimerRef.current = window.setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError("No se pudo guardar la configuración.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -568,18 +578,22 @@ export default function SettingsPage() {
     });
   };
 
-  const restoreDefaults = () => {
-    const next = resetSettings();
-    setSettings(next);
-    setDirty(false);
-    setError("");
-    setToast({ tone: "success", title: "Configuración restaurada", message: "Se aplicaron los valores por defecto." });
+  const restoreDefaults = async () => {
+    try {
+      const next = await resetSettings();
+      setSettings(next);
+      setDirty(false);
+      setError("");
+      setToast({ tone: "success", title: "Configuración restaurada", message: "Se aplicaron los valores por defecto." });
+    } catch {
+      setToast({ tone: "error", title: "No se pudo restaurar", message: "El backend no aceptó la configuración por defecto." });
+    }
   };
 
   const handleExport = () => {
     exportAll();
     setUsage(getStorageUsageEstimate());
-    setToast({ tone: "success", title: "Datos exportados", message: "Se descargó el respaldo local en formato JSON." });
+    setToast({ tone: "success", title: "Datos exportados", message: "Se descargó el respaldo en formato JSON." });
   };
 
   const handleImportClick = () => fileInputRef.current?.click();
@@ -588,16 +602,16 @@ export default function SettingsPage() {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!window.confirm(`Se importará el contenido de "${file.name}". Esto reemplazará los datos locales actuales.`)) return;
+    if (!window.confirm(`Se importará el contenido de "${file.name}". Esto reemplazará los datos almacenados actualmente.`)) return;
     setImporting(true);
     try {
       const raw = await parseJsonFile(file);
       const result = importAll(raw);
       if (!result.ok) throw new Error(result.reason);
-      setSettings(getSettings());
+      setSettings(fetchSettings());
       setBindingMap(getBindingsMap());
       setUsage(getStorageUsageEstimate());
-      setToast({ tone: "success", title: "Datos importados", message: "Se restauró la información local de CarbonTrack." });
+      setToast({ tone: "success", title: "Datos importados", message: "Se restauró la información almacenada de CarbonTrack." });
       setError("");
     } catch {
       setToast({ tone: "error", title: "Importación fallida", message: "El archivo no tiene un formato compatible." });
@@ -616,11 +630,11 @@ export default function SettingsPage() {
       setToast({ tone: "error", title: "No se pudo restablecer", message: "Inténtalo de nuevo en unos segundos." });
       return;
     }
-    setSettings(getSettings());
+    setSettings(fetchSettings());
     setBindingMap(getBindingsMap());
     setUsage(getStorageUsageEstimate());
     setResetWord("");
-    setToast({ tone: "success", title: "Datos restablecidos", message: "El almacenamiento local quedó limpio y listo para reiniciar." });
+    setToast({ tone: "success", title: "Datos restablecidos", message: "La información almacenada se limpió correctamente." });
     setError("");
   };
 
@@ -710,7 +724,7 @@ export default function SettingsPage() {
                 )}
               </div>
               <p style={{ ...subtleText, marginTop: 5, maxWidth: 560 }}>
-                Personaliza la interfaz, ajusta parámetros de cálculo y administra los datos locales del MVP.
+                Personaliza la interfaz, ajusta parámetros de cálculo y administra la información disponible en este entorno.
               </p>
             </div>
           </div>
@@ -915,7 +929,7 @@ export default function SettingsPage() {
           </AnimatedCard>
 
           <AnimatedCard delay={240}>
-            <SectionLabel icon={Monitor} title="Dispositivos" description="Bindings activos, respaldos automáticos y estado de conexión local." />
+            <SectionLabel icon={Monitor} title="Dispositivos" description="Bindings activos, respaldos automáticos y estado actual de conexión." />
             <div style={{ display: "grid", gap: 16 }}>
               {/* Connection status */}
               <div
@@ -1000,7 +1014,9 @@ export default function SettingsPage() {
               </div>
 
               <p style={{ ...subtleText, padding: "10px 14px", borderRadius: "var(--eco-radius-md)", background: "var(--eco-card-muted)", border: "1px dashed var(--eco-border)" }}>
-                Los bindings y snapshots se almacenan en <span style={{ fontFamily: fm, fontSize: 11 }}>localStorage</span>. En producción, se migrarán a servidor.
+                {backendConfigured
+                  ? <>Los bindings y snapshots mantienen caché temporal para respuesta rápida y sincronización con backend.</>
+                  : <>Los bindings y snapshots se mantienen en almacenamiento del navegador mientras no haya backend configurado.</>}
               </p>
             </div>
           </AnimatedCard>
@@ -1009,7 +1025,7 @@ export default function SettingsPage() {
         {/* ═══ Row 3: Datos locales + Sistema ═══ */}
         <div style={sectionGrid}>
           <AnimatedCard delay={300}>
-            <SectionLabel icon={Database} title="Datos locales" description="Exporta, importa o limpia la información del MVP sin afectar la estructura de la app." />
+            <SectionLabel icon={Database} title="Datos almacenados" description="Exporta, importa o limpia la información persistida por el frontend en este entorno." />
             <div style={{ display: "grid", gap: 16 }}>
               {/* Storage stats */}
               <div
@@ -1058,7 +1074,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <p style={{ ...subtleText, color: "var(--eco-danger)", marginBottom: 14, opacity: 0.85 }}>
-                  Borra registros, factores, equipos, usuarios, bindings, metas, acciones y configuración del almacenamiento local.
+                  Borra registros, factores, equipos, usuarios, bindings, metas, acciones y configuración guardada en este entorno.
                 </p>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <StyledInput
@@ -1076,7 +1092,7 @@ export default function SettingsPage() {
           </AnimatedCard>
 
           <AnimatedCard delay={360}>
-            <SectionLabel icon={HelpCircle} title="Información del sistema" description="Resumen del entorno actual y accesos directos para administrar el MVP." />
+            <SectionLabel icon={HelpCircle} title="Información del sistema" description="Resumen del entorno actual y accesos directos de administración." />
             <div style={{ display: "grid", gap: 14 }}>
               {/* System info cards */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 10 }}>
@@ -1089,8 +1105,8 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: 16, display: "flex", flexDirection: "column", gap: 4 }}>
                   <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Ambiente</p>
-                  <p style={{ margin: 0, fontFamily: fb, fontSize: 14, fontWeight: 600, color: "var(--eco-text-strong)" }}>MVP local</p>
-                  <span style={{ fontFamily: fb, fontSize: 10, color: "var(--eco-text-soft)" }}>Sin backend conectado</span>
+                  <p style={{ margin: 0, fontFamily: fb, fontSize: 14, fontWeight: 600, color: "var(--eco-text-strong)" }}>{backendConfigured ? "Integrado con backend" : "Sin backend configurado"}</p>
+                  <span style={{ fontFamily: fb, fontSize: 10, color: "var(--eco-text-soft)" }}>{backendConfigured ? "Backend configurado por VITE_API_URL" : "Sin backend configurado"}</span>
                 </div>
                 <div style={{ borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: 16, display: "flex", flexDirection: "column", gap: 4 }}>
                   <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Dispositivo</p>
@@ -1168,7 +1184,7 @@ export default function SettingsPage() {
               {/* Deploy notes */}
               <div style={{ borderRadius: "var(--eco-radius-md)", padding: "14px 16px", background: "var(--eco-card-muted)", border: "1px dashed var(--eco-border)" }}>
                 <p style={{ ...subtleText, lineHeight: 1.6 }}>
-                  En producción estas opciones se guardarán en servidor. La estructura actual separa preferencias, parámetros de cálculo y mantenimiento local para una migración limpia.
+                  Cuando el backend esté disponible, estas opciones podrán persistirse en servidor. Mientras tanto, el frontend mantiene separadas preferencias, parámetros de cálculo y mantenimiento para facilitar la integración.
                 </p>
               </div>
             </div>

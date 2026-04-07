@@ -69,7 +69,7 @@ export default function HeroSection({ onGo }) {
         <div className="lnd-hc">
           <button className="btn1" onClick={onGo}>
             <Leaf size={16} strokeWidth={2.2} />
-            Agendar demo
+            Ingresar
           </button>
           <button className="btn2" onClick={onGo}>
             <span>
@@ -82,7 +82,7 @@ export default function HeroSection({ onGo }) {
       </R>
 
       <R>
-        <p className="lnd-hn">Fácil de usar · Datos locales · Listo para escalar a institución</p>
+        <p className="lnd-hn">Trazabilidad operativa · Captura estructurada · Integración por API</p>
       </R>
 
       <R>

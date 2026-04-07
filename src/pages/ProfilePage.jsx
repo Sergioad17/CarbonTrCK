@@ -22,11 +22,19 @@ import {
   User,
   X,
 } from "lucide-react";
-import { add as addNotification } from "../lib/notificationsStore";
-import { createChangeRequest, listChangeRequests, subscribeChangeRequests } from "../lib/profileChangeRequestsStore";
-import { getSettings, saveSettings } from "../lib/settingsStore";
-import { describeAreaAccess, getRoleLabel } from "../lib/usersStore";
-import { ensureMockSession, getCurrentUser, getSession, updateCurrentUser } from "../lib/sessionStore";
+import {
+  clearProfileSession,
+  fetchProfilePageData,
+  listProfileRequests,
+  persistProfileSettings,
+  persistProfileUser,
+  publishProfileNotification,
+  registerProfileChangeRequest,
+  submitProfilePasswordChange,
+  subscribeProfileRequests,
+} from "../api/profile";
+import { isBackendConfigured } from "../api/config";
+import { describeAreaAccess, getRoleLabel } from "../api/users";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -66,13 +74,13 @@ function initials(value) {
 }
 
 function browserSummary() {
-  if (typeof navigator === "undefined") return "Navegador local";
+  if (typeof navigator === "undefined") return "Navegador";
   const ua = navigator.userAgent;
   if (ua.includes("Edg")) return "Microsoft Edge";
   if (ua.includes("Chrome")) return "Google Chrome";
   if (ua.includes("Firefox")) return "Mozilla Firefox";
   if (ua.includes("Safari")) return "Safari";
-  return "Navegador local";
+  return "Navegador";
 }
 
 function buildFullName(firstName, paternalLastName, maternalLastName) {
@@ -494,7 +502,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
   const [toast, setToast] = useState(null);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [settings, setSettings] = useState(() => getSettings());
+  const [settings, setSettings] = useState({ theme: "system", ui: { reducedMotion: false } });
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -502,23 +510,29 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
   const [formErrors, setFormErrors] = useState({});
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
   const [passwordErrors, setPasswordErrors] = useState({});
-  const [requests, setRequests] = useState(() => listChangeRequests());
+  const [requests, setRequests] = useState(() => listProfileRequests());
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        const activeSession = getSession() || ensureMockSession();
-        const currentUser = getCurrentUser({ ensureMock: true }) || user || null;
-        setSession(activeSession);
-        setProfile(currentUser);
-        setSettings(getSettings());
-      } catch {
+    let active = true;
+    fetchProfilePageData(user)
+      .then((data) => {
+        if (!active) return;
+        setSession(data.session);
+        setProfile(data.profile);
+        setSettings(data.settings);
+        setRequests(data.requests);
+      })
+      .catch(() => {
+        if (!active) return;
         setError("No se pudo cargar tu perfil.");
-      } finally {
+      })
+      .finally(() => {
+        if (!active) return;
         setLoading(false);
-      }
-    }, 600);
-    return () => window.clearTimeout(timer);
+      });
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   useEffect(() => {
@@ -527,14 +541,16 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => subscribeChangeRequests(setRequests), []);
+  useEffect(() => subscribeProfileRequests(setRequests), []);
 
   useEffect(() => {
     const syncProfile = () => {
-      const activeSession = getSession() || ensureMockSession();
-      const currentUser = getCurrentUser({ ensureMock: true }) || user || null;
-      setSession(activeSession);
-      setProfile(currentUser);
+      fetchProfilePageData(user)
+        .then((data) => {
+          setSession(data.session);
+          setProfile(data.profile);
+        })
+        .catch(() => {});
     };
     window.addEventListener("carbontrack:users-changed", syncProfile);
     return () => window.removeEventListener("carbontrack:users-changed", syncProfile);
@@ -559,48 +575,27 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
     setEditOpen(true);
   };
 
-  const saveProfile = () => {
-    const errors = {};
-    const fullName = String(form.fullName || "").trim();
-    const email = String(form.email || "").trim().toLowerCase();
-    if (!fullName) errors.fullName = "Escribe tu nombre completo.";
-    if (!email) errors.email = "Escribe tu correo.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email)) errors.email = "Escribe un correo válido.";
-    if (Object.keys(errors).length > 0) return setFormErrors(errors);
-    const result = updateCurrentUser({ fullName, email });
-    if (!result.ok) return setFormErrors({ email: "No se pudieron guardar los cambios." });
-    setProfile(result.user);
-    setSession(result.session);
-    onUserChange?.(result.user);
-    setEditOpen(false);
-    setToast({ title: "Perfil actualizado", message: "Tus datos básicos se guardaron en este dispositivo.", tone: "success" });
+  const saveTheme = async (theme) => {
+    try {
+      const nextSettings = await persistProfileSettings({ ...settings, theme });
+      setSettings(nextSettings);
+      setToast({ title: "Tema actualizado", message: `Apariencia cambiada a "${themeOptions.find((o) => o.value === theme)?.label || theme}".`, tone: "success" });
+    } catch {
+      setToast({ title: "No se pudo guardar", message: "El backend no aceptó el cambio de tema.", tone: "error" });
+    }
   };
 
-  const saveTheme = (theme) => {
-    const nextSettings = saveSettings({ ...settings, theme });
-    setSettings(nextSettings);
-    setToast({ title: "Tema actualizado", message: `Apariencia cambiada a "${themeOptions.find((o) => o.value === theme)?.label || theme}".`, tone: "success" });
+  const toggleReducedMotion = async () => {
+    try {
+      const nextSettings = await persistProfileSettings({ ...settings, ui: { ...settings.ui, reducedMotion: !settings.ui.reducedMotion } });
+      setSettings(nextSettings);
+      setToast({ title: "Preferencia guardada", message: nextSettings.ui.reducedMotion ? "Animaciones reducidas activadas." : "Animaciones restauradas.", tone: "success" });
+    } catch {
+      setToast({ title: "No se pudo guardar", message: "El backend no aceptó la preferencia de movimiento.", tone: "error" });
+    }
   };
 
-  const toggleReducedMotion = () => {
-    const nextSettings = saveSettings({ ...settings, ui: { ...settings.ui, reducedMotion: !settings.ui.reducedMotion } });
-    setSettings(nextSettings);
-    setToast({ title: "Preferencia guardada", message: nextSettings.ui.reducedMotion ? "Animaciones reducidas activadas." : "Animaciones restauradas.", tone: "success" });
-  };
-
-  const savePassword = () => {
-    const errors = {};
-    if (!passwordForm.currentPassword) errors.currentPassword = "Escribe tu contraseña actual.";
-    if (!passwordForm.nextPassword || passwordForm.nextPassword.length < 8) errors.nextPassword = "La nueva contraseña debe tener al menos 8 caracteres.";
-    if (passwordForm.confirmPassword !== passwordForm.nextPassword) errors.confirmPassword = "La confirmación no coincide.";
-    if (Object.keys(errors).length > 0) return setPasswordErrors(errors);
-    setPasswordOpen(false);
-    setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "" });
-    setPasswordErrors({});
-    setToast({ title: "Contraseña actualizada (demo)", message: "En producción esto se validaría en servidor.", tone: "success" });
-  };
-
-  const submitProfileChanges = () => {
+  const submitProfileChanges = async () => {
     const errors = {};
     const firstName = String(form.firstName || "").trim();
     const paternalLastName = String(form.paternalLastName || "").trim();
@@ -626,20 +621,23 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
       return setToast({ title: "Sin cambios", message: "No detectamos cambios nuevos para guardar.", tone: "success" });
     }
     if (nameChanged || (isAdmin && emailChanged)) {
-      const result = updateCurrentUser({
+      const result = await persistProfileUser(profile, {
         firstName,
         paternalLastName,
         maternalLastName,
         fullName,
         email: isAdmin ? email : currentEmail,
-      });
-      if (!result.ok) return setFormErrors({ email: "No se pudieron guardar los cambios." });
+      }).catch(() => null);
+      if (!result?.ok) {
+        setFormErrors({ email: "No se pudieron guardar los cambios." });
+        return;
+      }
       setProfile(result.user);
       setSession(result.session);
       onUserChange?.(result.user);
     }
     if (!isAdmin && emailChanged) {
-      const request = createChangeRequest({
+      const request = await registerProfileChangeRequest({
         userId: profile.id,
         userName: fullName || profile.fullName || profile.name,
         requesterRole: profile.roleKey || profile.role,
@@ -649,7 +647,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
         reason: String(form.requestReason || "").trim(),
         detail: `Solicita sustituir ${currentEmail} por ${email}.`,
       });
-      addNotification({
+      await publishProfileNotification({
         type: "system",
         title: "Solicitud enviada",
         message: "Tu solicitud de cambio de correo fue enviada para validacion administrativa.",
@@ -662,12 +660,12 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
       title: !isAdmin && emailChanged ? "Solicitud registrada" : "Perfil actualizado",
       message: !isAdmin && emailChanged
         ? "Tu nombre se guardo y el cambio de correo quedo pendiente de aprobacion."
-        : "Tus datos basicos se guardaron en este dispositivo.",
+        : "Tus datos básicos se actualizaron correctamente.",
       tone: "success",
     });
   };
 
-  const submitPasswordChange = () => {
+  const submitPasswordChange = async () => {
     const errors = {};
     if (!passwordForm.currentPassword) errors.currentPassword = "Escribe tu contrasena actual.";
     if (!passwordForm.nextPassword || passwordForm.nextPassword.length < 8) errors.nextPassword = "La nueva contrasena debe tener al menos 8 caracteres.";
@@ -675,7 +673,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
     if (!isAdmin && !String(passwordForm.requestReason || "").trim()) errors.requestReason = "Describe por que solicitas el cambio.";
     if (Object.keys(errors).length > 0) return setPasswordErrors(errors);
     if (!isAdmin) {
-      const request = createChangeRequest({
+      const request = await registerProfileChangeRequest({
         userId: profile.id,
         userName: profile.fullName || profile.name,
         requesterRole: profile.roleKey || profile.role,
@@ -685,7 +683,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
         reason: String(passwordForm.requestReason || "").trim(),
         detail: "Solicita sustituir su contrasena vigente por una nueva credencial protegida.",
       });
-      addNotification({
+      await publishProfileNotification({
         type: "system",
         title: "Solicitud enviada",
         message: "Tu solicitud de cambio de contrasena fue enviada a un administrador.",
@@ -697,16 +695,33 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
       setPasswordErrors({});
       return setToast({ title: "Solicitud registrada", message: "Un administrador debe validar el cambio de contrasena.", tone: "success" });
     }
-    setPasswordOpen(false);
-    setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
-    setPasswordErrors({});
-    setToast({ title: "Contrasena actualizada (demo)", message: "En produccion esto se validaria en servidor.", tone: "success" });
+    submitProfilePasswordChange({
+      currentPassword: passwordForm.currentPassword,
+      nextPassword: passwordForm.nextPassword,
+      confirmPassword: passwordForm.confirmPassword,
+    }).then(() => {
+      setPasswordOpen(false);
+      setPasswordForm({ currentPassword: "", nextPassword: "", confirmPassword: "", requestReason: "" });
+      setPasswordErrors({});
+      setToast({
+        title: "Contraseña actualizada",
+        message: isBackendConfigured() ? "La contraseña se actualizó correctamente." : "La contraseña quedó actualizada como operación local técnica.",
+        tone: "success",
+      });
+    }).catch(() => {
+      setToast({
+        title: "No se pudo actualizar la contraseña",
+        message: "Verifica tus credenciales actuales o intenta nuevamente.",
+        tone: "error",
+      });
+    });
   };
 
   const handleLogout = () => {
     if (typeof window !== "undefined") {
-      window.sessionStorage.setItem("carbontrack.flash", JSON.stringify({ title: "Sesión cerrada", message: "Tu sesión local se cerró correctamente." }));
+      window.sessionStorage.setItem("carbontrack.flash", JSON.stringify({ title: "Sesión cerrada", message: "La sesión se cerró correctamente." }));
     }
+    clearProfileSession();
     onLogout?.();
   };
 
@@ -743,7 +758,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
         <div style={pageWrap}>
           <div style={{ ...cardBase, padding: 24 }}>
             <h1 style={{ margin: 0, fontFamily: fd, fontSize: 28, fontWeight: 800, color: "var(--eco-text-strong)" }}>Mi perfil</h1>
-            <p style={{ ...subtleText, marginTop: 8 }}>No hay sesión activa. Inicia sesión para ver tu perfil.</p>
+            <p style={{ ...subtleText, marginTop: 8 }}>No hay una sesión activa. Inicia sesión para ver tu perfil.</p>
             <div style={{ marginTop: 18 }}>
               <ActionButton tone="primary" icon={ChevronRight} onClick={() => navigate("/login")}>Ir a Login</ActionButton>
             </div>
@@ -906,7 +921,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <SectionHeader
                 icon={<PencilLine size={16} />}
                 title="Datos personales"
-                subtitle={isAdmin ? "Tu nombre y correo son editables. El rol y acceso los controla un administrador." : "Tu nombre se actualiza al momento. Los cambios de correo quedan sujetos a validacion administrativa."}
+                subtitle={isAdmin ? "Tu nombre y correo son editables. El rol y acceso los controla un administrador." : "Tu nombre se actualiza al momento. Los cambios de correo quedan sujetos a validación administrativa."}
               >
                 <ActionButton icon={PencilLine} onClick={openEdit}>Editar</ActionButton>
               </SectionHeader>
@@ -1123,7 +1138,9 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
                 ))}
               </div>
               <p style={{ ...subtleText, fontSize: 11, marginBottom: 14 }}>
-                {isAdmin ? "En producción la contraseña se valida en servidor." : "Tu solicitud quedará en revisión hasta que un administrador la apruebe."}
+                {isAdmin
+                  ? "La contraseña se envía al endpoint de seguridad configurado o queda registrada como operación local técnica."
+                  : "Tu solicitud quedará en revisión hasta que un administrador la apruebe."}
               </p>
               <ActionButton
                 tone="primary"
@@ -1196,7 +1213,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <SectionHeader
                 icon={<Clock size={16} />}
                 title="Sesión"
-                subtitle="Tu actividad reciente y sesión local activa."
+                subtitle="Tu actividad reciente y la sesión actualmente abierta."
               />
               <div className="ct-profile-session-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 14 }}>
                 {[
@@ -1225,7 +1242,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <ActionButton
                   icon={Mail}
-                  onClick={() => { window.location.href = "mailto:soporte@carbontrack.local?subject=Soporte%20CarbonTrack"; }}
+                  onClick={() => { window.location.href = "mailto:soporte@carbontrack.app?subject=Soporte%20CarbonTrack"; }}
                 >
                   Contactar soporte
                 </ActionButton>
@@ -1312,7 +1329,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
             }}
           >
             <AlertCircle size={16} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 2 }} />
-            <p style={{ ...subtleText, color: "var(--eco-text)" }}>Se limpiará la sesión local actual y volverás a la pantalla de acceso.</p>
+            <p style={{ ...subtleText, color: "var(--eco-text)" }}>Se cerrará la sesión actual y volverás a la pantalla de acceso.</p>
           </div>
         </ModalShell>
       ) : null}

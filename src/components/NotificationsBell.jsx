@@ -16,15 +16,15 @@ import {
   Upload,
 } from "lucide-react";
 import {
-  archive,
-  clearArchived,
-  countUnread,
-  list,
-  markAllRead,
-  markRead,
-  markUnread,
-  subscribe,
-} from "../lib/notificationsStore";
+  archiveNotification,
+  clearArchivedNotifications,
+  fetchNotifications,
+  fetchUnreadNotificationsCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  markNotificationUnread,
+  subscribeNotifications,
+} from "../api/notifications";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -160,12 +160,12 @@ export default function NotificationsBell({ onNavigate, onToast }) {
   const shellRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
-  const [items, setItems] = useState(() => list());
+  const [items, setItems] = useState(() => fetchNotifications());
   const [hoveredId, setHoveredId] = useState(null);
   const [bellHovered, setBellHovered] = useState(false);
   const [panelReady, setPanelReady] = useState(false);
 
-  useEffect(() => subscribe(setItems), []);
+  useEffect(() => subscribeNotifications(setItems), []);
 
   useEffect(() => {
     if (!open) {
@@ -193,7 +193,7 @@ export default function NotificationsBell({ onNavigate, onToast }) {
     };
   }, [open]);
 
-  const unreadCount = useMemo(() => countUnread(), [items]);
+  const unreadCount = useMemo(() => fetchUnreadNotificationsCount(), [items]);
   const filteredItems = useMemo(() => getFiltered(items, activeFilter), [items, activeFilter]);
   const archivedCount = useMemo(() => items.filter((item) => item.status === "archived").length, [items]);
 
@@ -208,23 +208,23 @@ export default function NotificationsBell({ onNavigate, onToast }) {
 
   const handleToggle = () => setOpen((prev) => !prev);
 
-  const handleItemClick = (item) => {
-    if (item.status === "unread") markRead(item.id);
+  const handleItemClick = async (item) => {
+    if (item.status === "unread") await markNotificationRead(item.id).catch(() => {});
     if (item.link) {
       onNavigate?.(item.link);
       setOpen(false);
     }
   };
 
-  const handleMarkAll = () => {
+  const handleMarkAll = async () => {
     if (!unreadCount) return;
-    markAllRead();
+    await markAllNotificationsRead().catch(() => {});
     onToast?.({ title: "Marcadas como leídas", message: "Todas las notificaciones activas quedaron revisadas." });
   };
 
-  const handleClearArchived = () => {
+  const handleClearArchived = async () => {
     if (!archivedCount) return;
-    clearArchived();
+    await clearArchivedNotifications().catch(() => {});
     onToast?.({ title: "Archivadas eliminadas", message: "Se limpiaron las notificaciones archivadas." });
   };
 
@@ -611,19 +611,19 @@ export default function NotificationsBell({ onNavigate, onToast }) {
                             <MiniAction
                               icon={isUnread ? Check : CheckCheck}
                               label={isUnread ? "Leída" : "No leída"}
-                              onClick={(event) => {
+                              onClick={async (event) => {
                                 event.stopPropagation();
-                                if (isUnread) markRead(item.id);
-                                else markUnread(item.id);
+                                if (isUnread) await markNotificationRead(item.id).catch(() => {});
+                                else await markNotificationUnread(item.id).catch(() => {});
                               }}
                             />
                             {!isArchived && (
                               <MiniAction
                                 icon={FolderArchive}
                                 label="Archivar"
-                                onClick={(event) => {
+                                onClick={async (event) => {
                                   event.stopPropagation();
-                                  archive(item.id);
+                                  await archiveNotification(item.id).catch(() => {});
                                   onToast?.({ title: "Archivada", message: "La notificación se movió a archivadas." });
                                 }}
                               />

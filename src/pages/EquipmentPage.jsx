@@ -30,26 +30,25 @@ import EquipmentModal, {
   validateEquipmentForm,
 } from "../components/EquipmentModal";
 import { exportRowsToCsv } from "../lib/csvExport";
-import { add as addNotification } from "../lib/notificationsStore";
+import { createNotification } from "../api/notifications";
 import {
   EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
-  appendEstimatedRecord,
-  buildEstimatedRecord,
+  createEquipmentEstimatedEmissionRecord,
   computeCo2eMonth,
   computeHoursMonth,
   computeKwhMonth,
-  deactivate,
-  duplicate,
+  duplicateEquipment,
+  fetchEquipment,
+  fetchEquipmentElectricityFactor,
   filterEquipment,
-  getAll,
   getAreaLabel,
   getCategoryLabel,
   getTypeLabel,
-  upsert,
-} from "../lib/equipmentStore";
-import { getDefaultElectricityFactor } from "../lib/factorsStore";
+  persistEquipment,
+  updateEquipmentStatus,
+} from "../api/equipment";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -65,7 +64,6 @@ const PAGE_ANIMATIONS = `
 @media(max-width:760px){.ct-equipment-header{flex-direction:column;align-items:flex-start!important}.ct-equipment-toolbar{width:100%}.ct-equipment-toolbar button{flex:1}.ct-equipment-kpis{grid-template-columns:1fr!important}.ct-equipment-modal-grid{grid-template-columns:1fr!important}}
 `;
 
-const DEMO_FACTOR = 0.433;
 
 /* --- Base styles (dark-mode aware) --- */
 const cardBase = {
@@ -648,7 +646,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
             <div style={{ background: "var(--eco-warning-bg)", border: "1px solid #FDE68A", borderRadius: "var(--eco-radius-lg)", padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
               <Info size={15} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
               <div>
-                <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Cálculo disponible próximamente</p>
+                <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Cálculo no disponible para esta categoría</p>
                 <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
                   Este registro se conserva en inventario, pero el cálculo para combustible se habilitará cuando exista el modelo de litros/hora.
                 </p>
@@ -681,9 +679,9 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
           <div style={{ background: usingFallbackFactor ? "var(--eco-warning-bg)" : "var(--eco-info-bg)", border: `1px solid ${usingFallbackFactor ? "#FDE68A" : "#BFDBFE"}`, borderRadius: "var(--eco-radius-lg)", padding: "12px 14px", display: "flex", alignItems: "flex-start", gap: 10 }}>
             <Info size={15} style={{ color: usingFallbackFactor ? "var(--eco-warning)" : "var(--eco-info)", flexShrink: 0, marginTop: 1 }} />
             <div>
-              <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>{usingFallbackFactor ? "Factor no configurado" : "Factor aplicado"}</p>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>{usingFallbackFactor ? "Factor requerido" : "Factor aplicado"}</p>
               <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-                {usingFallbackFactor ? "Se usa un valor de ejemplo para mantener el preview disponible." : factorSourceLabel}
+                {usingFallbackFactor ? "El cálculo de CO₂e requiere configurar un factor eléctrico activo." : factorSourceLabel}
               </p>
             </div>
           </div>
@@ -698,7 +696,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
                 <Pencil size={14} />
                 Editar
               </button>
-              <button type="button" onClick={() => onGenerate("confirm")} style={{ ...primaryButtonStyle, opacity: equipment.category === "electricidad" ? 1 : 0.7 }} disabled={equipment.category !== "electricidad"}>
+              <button type="button" onClick={() => onGenerate("confirm")} style={{ ...primaryButtonStyle, opacity: equipment.category === "electricidad" && !usingFallbackFactor ? 1 : 0.7 }} disabled={equipment.category !== "electricidad" || usingFallbackFactor}>
                 <Leaf size={14} />
                 Generar registro
               </button>
@@ -717,6 +715,7 @@ export default function EquipmentPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [defaultFactor, setDefaultFactor] = useState(null);
   const [hoverRow, setHoverRow] = useState(null);
   const [filters, setFilters] = useState({
     search: "",
@@ -730,15 +729,20 @@ export default function EquipmentPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [detailState, setDetailState] = useState(null);
 
-  const loadEquipment = useCallback(() => {
+  const loadEquipment = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      setItems(getAll());
+      const [nextItems, nextFactor] = await Promise.all([
+        fetchEquipment(),
+        fetchEquipmentElectricityFactor().catch(() => null),
+      ]);
+      setItems(nextItems);
+      setDefaultFactor(nextFactor);
     } catch {
       setError("No se pudieron cargar los equipos. Intenta de nuevo.");
     } finally {
-      setTimeout(() => setLoading(false), 600);
+      setLoading(false);
     }
   }, []);
 
@@ -756,12 +760,11 @@ export default function EquipmentPage() {
     };
   }, [loadEquipment]);
 
-  const defaultFactor = useMemo(() => getDefaultElectricityFactor(), [items]);
-  const factorValue = defaultFactor?.value ?? DEMO_FACTOR;
+  const factorValue = defaultFactor?.value ?? 0;
   const usingFallbackFactor = !defaultFactor;
   const factorSourceLabel = defaultFactor
     ? `Factor predeterminado de electricidad: ${defaultFactor.provider || defaultFactor.region || "Configurado"}`
-    : "Factor no configurado (usa valor de ejemplo).";
+    : "No hay factor eléctrico predeterminado disponible.";
 
   const filtered = useMemo(() => filterEquipment(items, filters), [items, filters]);
 
@@ -805,7 +808,7 @@ export default function EquipmentPage() {
 
   const closeDetail = () => setDetailState(null);
 
-  const persistModal = (event) => {
+  const persistModal = async (event) => {
     event.preventDefault();
     if (!modalState) return;
     const payload = parseEquipmentFormData(event.currentTarget, modalState.form);
@@ -817,7 +820,7 @@ export default function EquipmentPage() {
 
     setModalState((prev) => ({ ...prev, saving: true, errors: {} }));
     try {
-      const result = upsert(payload);
+      const result = await persistEquipment(payload);
       setItems(result.items);
       closeModal();
       setToast({
@@ -830,8 +833,12 @@ export default function EquipmentPage() {
     }
   };
 
-  const toggleActive = (equipment) => {
-    const next = deactivate(equipment.id, !equipment.isActive);
+  const toggleActive = async (equipment) => {
+    const next = await updateEquipmentStatus(equipment.id, !equipment.isActive).catch(() => null);
+    if (!next) {
+      setError("No se pudo actualizar el estado del equipo.");
+      return;
+    }
     setItems(next);
     setToast({ title: "Estado actualizado", message: equipment.isActive ? "Equipo desactivado." : "Equipo activado." });
     if (detailState?.equipment?.id === equipment.id) {
@@ -840,8 +847,8 @@ export default function EquipmentPage() {
     }
   };
 
-  const handleDuplicate = (equipment) => {
-    const result = duplicate(equipment.id);
+  const handleDuplicate = async (equipment) => {
+    const result = await duplicateEquipment(equipment.id).catch(() => ({ ok: false }));
     if (!result.ok) return;
     setItems(result.items);
     setToast({ title: "Equipo duplicado", message: `${equipment.name} tiene una copia lista para editar.` });
@@ -875,7 +882,7 @@ export default function EquipmentPage() {
         { label: "Notas", get: (row) => row.notes },
       ],
     });
-    addNotification({
+    createNotification({
       type: "export_done",
       title: "CSV exportado",
       message: `Se exportaron ${filtered.length} equipo(s).`,
@@ -896,15 +903,20 @@ export default function EquipmentPage() {
     setConfirmModal({
       title: "Generar registro estimado",
       message: `Se creará un registro Scope 2 estimado para ${detailState.equipment.name} con fecha ${recordDate}. Confirma para evitar duplicados.`,
-      onConfirm: () => {
-        const record = buildEstimatedRecord(detailState.equipment, {
-          factor: detailState.factorValue,
-          factorId: defaultFactor?.id || null,
-          dateISO: recordDate,
-        });
-        appendEstimatedRecord(record);
-        setConfirmModal(null);
-        setToast({ title: "Registro estimado generado", message: `${detailState.equipment.name} · ${numberFormat(record.value, 2)} kWh` });
+      onConfirm: async () => {
+        try {
+          const { record } = await createEquipmentEstimatedEmissionRecord({
+            equipment: detailState.equipment,
+            factorValue: detailState.factorValue,
+            factorId: defaultFactor?.id || null,
+            dateISO: recordDate,
+          });
+          setConfirmModal(null);
+          setToast({ title: "Registro estimado generado", message: `${detailState.equipment.name} · ${numberFormat(record.value, 2)} kWh` });
+        } catch {
+          setConfirmModal(null);
+          setError("No se pudo generar el registro estimado.");
+        }
       },
     });
   };
@@ -953,7 +965,7 @@ export default function EquipmentPage() {
           </div>
 
           <div className="ct-equipment-toolbar" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 80ms both" }}>
-            <button type="button" onClick={() => setToast({ title: "Importación próximamente", message: "La interfaz queda preparada para conectar importación futura." })} style={secondaryButtonStyle}>
+            <button type="button" onClick={() => setToast({ title: "Importación no disponible", message: "La importación masiva para esta pantalla aún requiere un endpoint dedicado." })} style={secondaryButtonStyle}>
               <Upload size={14} />
               Importar
             </button>
@@ -1000,10 +1012,10 @@ export default function EquipmentPage() {
           }
           <div>
             <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>
-              {usingFallbackFactor ? "Factor no configurado" : "Factor listo para cálculo"}
+              {usingFallbackFactor ? "Factor requerido" : "Factor disponible"}
             </p>
             <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-              {usingFallbackFactor ? "Se usa un valor de ejemplo mientras no se configure uno oficial." : factorSourceLabel}
+              {usingFallbackFactor ? "Las estimaciones de CO₂e quedan en espera hasta contar con un factor eléctrico vigente." : factorSourceLabel}
             </p>
           </div>
         </div>
@@ -1067,7 +1079,7 @@ export default function EquipmentPage() {
             title="CO₂e estimado / mes"
             value={numberFormat(summary.totalCo2eT, 4)}
             unit="tCO₂e"
-            sub={usingFallbackFactor ? "Usa factor demo mientras no se configure." : "Con factor eléctrico predeterminado."}
+            sub={usingFallbackFactor ? "Requiere factor eléctrico configurado." : "Con factor eléctrico predeterminado."}
             delay={200}
           />
           <KpiCard
@@ -1260,7 +1272,7 @@ export default function EquipmentPage() {
             </div>
             <p style={{ margin: "0 0 4px", fontFamily: fd, fontSize: 16, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-700))" }}>Sin resultados</p>
             <p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, var(--eco-gray-500))", maxWidth: 360, marginInline: "auto", lineHeight: 1.55 }}>
-              No hay equipos con estos filtros. Agrega un equipo para comenzar.
+              {items.length === 0 ? "No hay equipos registrados todavía." : "No hay equipos con estos filtros."}
             </p>
           </div>
         ) : (
@@ -1319,7 +1331,7 @@ export default function EquipmentPage() {
                             <div style={{ fontFamily: fb, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>{equipment.name}</div>
                             <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
                               <Badge tone="info">Estimación</Badge>
-                              {equipment.category !== "electricidad" ? <Badge tone="warning">Próximamente</Badge> : null}
+                              {equipment.category !== "electricidad" ? <Badge tone="warning">Requiere endpoint dedicado</Badge> : null}
                             </div>
                           </div>
                         </td>

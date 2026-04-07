@@ -1,20 +1,39 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import LandingPage from './pages/Landing/LandingPage'
-import { clearSession, createSessionForUser, getCurrentUser } from './lib/sessionStore'
+import { hydrateCurrentUser, login as loginRequest } from './api/auth'
+import { fetchCurrentUser, removeSession } from './api/session'
 
 function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => getCurrentUser())
+  const [user, setUser] = useState(() => fetchCurrentUser())
+  const [ready, setReady] = useState(false)
 
-  const login = (userData) => {
-    const nextUser = createSessionForUser(userData)
+  useEffect(() => {
+    let cancelled = false
+
+    const hydrate = async () => {
+      const nextUser = await hydrateCurrentUser().catch(() => null)
+      if (cancelled) return
+      setUser(nextUser || fetchCurrentUser())
+      setReady(true)
+    }
+
+    hydrate()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const login = async (credentials) => {
+    const nextUser = await loginRequest(credentials)
     setUser(nextUser)
+    return nextUser
   }
 
   const logout = () => {
-    clearSession()
+    removeSession()
     setUser(null)
   }
 
@@ -22,14 +41,15 @@ function AuthProvider({ children }) {
     setUser(nextUser)
   }
 
-  return children({ user, login, logout, updateUser })
+  return children({ user, login, logout, updateUser, ready })
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      {({ user, login, logout, updateUser }) => (
+      {({ user, login, logout, updateUser, ready }) => (
         <BrowserRouter>
+          {!ready ? null : (
           <Routes>
             <Route
               path="/"
@@ -67,6 +87,7 @@ export default function App() {
               }
             />
           </Routes>
+          )}
         </BrowserRouter>
       )}
     </AuthProvider>

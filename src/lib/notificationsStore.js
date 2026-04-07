@@ -37,38 +37,7 @@ function normalizeNotification(input, fallbackId) {
 }
 
 function seedNotifications() {
-  return [
-    normalizeNotification({
-      id: "demo-registro",
-      type: "record_created",
-      title: "Registro guardado",
-      message: "Tu último registro de emisiones quedó almacenado localmente.",
-      status: "unread",
-      createdAt: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-      link: "/emisiones",
-      meta: { demo: true },
-    }),
-    normalizeNotification({
-      id: "demo-exportacion",
-      type: "export_done",
-      title: "CSV exportado",
-      message: "El reporte de ejemplo se exportó correctamente.",
-      status: "read",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      link: "/reportes",
-      meta: { demo: true },
-    }),
-    normalizeNotification({
-      id: "demo-factor",
-      type: "factor_updated",
-      title: "Factor actualizado",
-      message: "Revisa la version predeterminada del factor de electricidad.",
-      status: "unread",
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-      link: "/catalogos/factores",
-      meta: { demo: true },
-    }),
-  ];
+  return [];
 }
 
 function sortNotifications(items) {
@@ -83,9 +52,8 @@ function emitChange(items) {
 function readNotifications() {
   const stored = safeReadJson(NOTIFICATIONS_KEY, null);
   if (!Array.isArray(stored) || stored.length === 0) {
-    const seeded = seedNotifications();
-    safeWriteJson(NOTIFICATIONS_KEY, seeded);
-    return seeded;
+    safeWriteJson(NOTIFICATIONS_KEY, []);
+    return [];
   }
   return sortNotifications(stored.map((item, index) => normalizeNotification(item, `ntf-${index + 1}`)));
 }
@@ -99,6 +67,10 @@ function writeNotifications(items) {
 
 export function list() {
   return readNotifications();
+}
+
+export function replaceAll(notifications = []) {
+  return writeNotifications(Array.isArray(notifications) ? notifications : []);
 }
 
 export function add(notification) {

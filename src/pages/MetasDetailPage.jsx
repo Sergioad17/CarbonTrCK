@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, ExternalLink, X, Filter, Target, CheckCircle2, ChevronRight, Paperclip, Eye } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart as RPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip } from "recharts";
-import { loadTargets, loadActions, loadRecords, saveActions, upsertAction, computeTargetSummary, buildTargetLine, filterRecordsByTarget, uid } from "../lib/targetsStore";
+import { buildTargetLine, computeTargetSummary, fetchTargetsModuleData, filterRecordsByTarget, persistAction, uid } from "../api/targets";
 
 const fd="var(--eco-font-display)",fb="var(--eco-font-body)",fm="var(--eco-font-mono)";
 const CSS=`@keyframes ctUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes ctSlideR{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}@keyframes ctOverlay{from{opacity:0}to{opacity:1}}@keyframes ctPop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}@keyframes ctRowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}@media(max-width:1024px){.ct-kpi-g{grid-template-columns:1fr 1fr!important}.ct-ch-m{grid-template-columns:1fr!important}}@media(max-width:640px){.ct-kpi-g{grid-template-columns:1fr!important}}`;
@@ -24,7 +24,7 @@ export default function MetasDetailPage(){
   const{id}=useParams();const navigate=useNavigate();const today=new Date().toISOString().slice(0,10);
   const[targets,setTargets]=useState([]),[actions,setActions]=useState([]),[records,setRecords]=useState([]),[trace,setTrace]=useState(null),[toast,setToast]=useState(null),[aModal,setAModal]=useState(false),[hovRow,setHovRow]=useState(null);
   const[f,setF]=useState({title:"",owner:"",status:"planned",startDate:"",endDate:"",impact_tco2e:"",evidence:"",notes:""});
-  useEffect(()=>{const a=loadTargets(),b=loadActions(),c=loadRecords();setTargets(a.targets);setActions(b.actions);setRecords(c.records);},[]);
+  useEffect(()=>{fetchTargetsModuleData().then(data=>{if(!data)return;setTargets(data.targets);setActions(data.actions);setRecords(data.records);}).catch(()=>null);},[]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
   const target=useMemo(()=>targets.find(t=>t.id===id),[targets,id]);
   const sum=useMemo(()=>target?computeTargetSummary(target,records,actions,today):null,[target,records,actions,today]);
@@ -33,12 +33,11 @@ export default function MetasDetailPage(){
   const linkedActions=useMemo(()=>actions.filter(a=>a.targetId===id),[actions,id]);
   const byArea=useMemo(()=>{const m=linkedRecords.reduce((a,r)=>{a[r.area]=(a[r.area]||0)+Number(r.co2e_t||0);return a;},{});return Object.keys(m).map(k=>({area:k,value:m[k]})).sort((a,b)=>b.value-a.value).slice(0,8);},[linkedRecords]);
   const quality=useMemo(()=>{const r=linkedRecords.filter(x=>x.status!=="est").length,e=linkedRecords.filter(x=>x.status==="est").length;return[{name:"Real",value:r,color:"#22C55E"},{name:"Estimado",value:e,color:"#EAB308"}];},[linkedRecords]);
-  const fallbackDetail=useMemo(()=>{if(!sum)return{line:[],areas:[],quality:[]};const start=new Date(`${target?.targetStart||today}T12:00:00`);const points=Array.from({length:6}).map((_,i)=>{const d=new Date(start);d.setMonth(d.getMonth()+i);const goal=Math.max(sum.targetAbsolute,sum.baseline-((sum.baseline-sum.targetAbsolute)*(i/5)));const actual=Math.max(goal*0.94,goal+(i<3?0.38:0.16));return{label:d.toLocaleDateString("es-MX",{month:"short",year:"numeric"}).replace(".",""),goal,actual};});const baseArea=(target?.areaId&&target.areaId!=="all")?target.areaId:"Aulas";return{line:points,areas:[{area:baseArea,value:1.42},{area:"CC1",value:1.11},{area:"CC2",value:0.98},{area:"Administracion",value:0.66}],quality:[{name:"Real",value:7,color:"#22C55E"},{name:"Estimado",value:3,color:"#EAB308"}]};},[sum,target,today]);
-  const visLine=line.length?line:fallbackDetail.line;
-  const visByArea=byArea.length?byArea:fallbackDetail.areas;
-  const visQuality=(quality[0]?.value||quality[1]?.value)?quality:fallbackDetail.quality;
-  const visCount=linkedRecords.length||visQuality.reduce((a,b)=>a+Number(b.value||0),0);
-  const saveActionForm=e=>{e.preventDefault();if(!f.title.trim()){setToast({title:"Validación",message:"Ingresa nombre de acción."});return;}const payload={...f,id:uid("action"),targetId:id,impact_tco2e:Number(f.impact_tco2e||0)};const next=upsertAction(actions,payload);setActions(next);saveActions(next);setAModal(false);setF({title:"",owner:"",status:"planned",startDate:"",endDate:"",impact_tco2e:"",evidence:"",notes:""});setToast({title:"Acción creada",message:payload.title});};
+  const visLine=line;
+  const visByArea=byArea;
+  const visQuality=(quality[0]?.value||quality[1]?.value)?quality:[];
+  const visCount=linkedRecords.length;
+  const saveActionForm=async e=>{e.preventDefault();if(!f.title.trim()){setToast({title:"Validación",message:"Ingresa nombre de acción."});return;}const payload={...f,id:uid("action"),targetId:id,impact_tco2e:Number(f.impact_tco2e||0)};const result=await persistAction(payload).catch(()=>null);if(!result?.ok){setToast({title:"Error",message:"No se pudo guardar la acción."});return;}setActions(result.actions);setAModal(false);setF({title:"",owner:"",status:"planned",startDate:"",endDate:"",impact_tco2e:"",evidence:"",notes:""});setToast({title:"Acción creada",message:payload.title});};
 
   if(!target||!sum)return<div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)"}}><button onClick={()=>navigate("/metas")} style={{...btnS,height:34}} onMouseEnter={hS} onMouseLeave={lS}><ArrowLeft size={14}/>Volver</button><p style={{fontFamily:fd,fontSize:18,color:"var(--eco-gray-700)",marginTop:16}}>Meta no encontrada.</p></div>;
 

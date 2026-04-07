@@ -30,8 +30,9 @@ import {
   upsertDeviceBinding,
 } from "../lib/deviceBinding";
 import { parseDevicePayload } from "../lib/deviceParser";
-import { add as addNotification } from "../lib/notificationsStore";
-import { STORAGE_KEYS, safeReadJson, safeWriteJson } from "../lib/storageKeys";
+import { createNotification } from "../api/notifications";
+import { createEmissionRecord } from "../api/records";
+import { fetchDefaultFactorValue } from "../api/factors";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -57,8 +58,8 @@ const SOURCES = [
 ];
 
 const DEFAULT_FACTORS = {
-  electricidad: 0.435,
-  combustible: 2.68,
+  electricidad: 0,
+  combustible: 0,
 };
 
 const DEVICE_ACTIVITY_TEXT = "Lectura automatica (ESP32)";
@@ -78,12 +79,6 @@ function formatNumber(value, digits = 3) {
 
 function buildRecordId(prefix = "u") {
   return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
-}
-
-function writeDeviceRecord(record) {
-  const existing = safeReadJson(STORAGE_KEYS.records, []);
-  const nextRows = Array.isArray(existing) ? existing : [];
-  safeWriteJson(STORAGE_KEYS.records, [record, ...nextRows].slice(0, 200));
 }
 
 function ModePill({ active, disabled, icon, label, hint, onClick }) {
@@ -654,7 +649,8 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   const [note, setNote] = useState("");
   const [evidenceEnabled, setEvidenceEnabled] = useState(false);
   const [evidenceName, setEvidenceName] = useState("");
-  const [evidenceDataUrl, setEvidenceDataUrl] = useState("");
+  const [evidencePreviewUrl, setEvidencePreviewUrl] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceError, setEvidenceError] = useState("");
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -670,6 +666,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   const [deviceCounts, setDeviceCounts] = useState({ total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
   const [deviceBinding, setDeviceBinding] = useState(getDefaultBinding(""));
   const [deviceToast, setDeviceToast] = useState(null);
+  const [factorDefaults, setFactorDefaults] = useState(DEFAULT_FACTORS);
 
   useEffect(() => {
     if (!open) return;
@@ -683,11 +680,12 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setActivity("");
     setValue("");
     setFuelType("Diesel");
-    setFactor(DEFAULT_FACTORS.electricidad);
+    setFactor(factorDefaults.electricidad);
     setNote("");
     setEvidenceEnabled(false);
     setEvidenceName("");
-    setEvidenceDataUrl("");
+    setEvidencePreviewUrl("");
+    setEvidenceFile(null);
     setEvidenceError("");
     setSaving(false);
     setDeviceInput("");
@@ -701,15 +699,38 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setDeviceCounts({ total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
     setDeviceBinding(getDefaultBinding(""));
     setDeviceToast(null);
-  }, [open]);
+  }, [open, factorDefaults]);
+
+  useEffect(() => () => {
+    if (evidencePreviewUrl) URL.revokeObjectURL(evidencePreviewUrl);
+  }, [evidencePreviewUrl]);
 
   useEffect(() => {
-    setFactor(cat === "electricidad" ? DEFAULT_FACTORS.electricidad : DEFAULT_FACTORS.combustible);
+    let cancelled = false;
+    const loadDefaults = async () => {
+      const [electricityFactor, fuelFactor] = await Promise.all([
+        fetchDefaultFactorValue("scope2", "electricidad").catch(() => null),
+        fetchDefaultFactorValue("scope1", "combustible").catch(() => null),
+      ]);
+      if (cancelled) return;
+      setFactorDefaults({
+        electricidad: Number(electricityFactor?.value) > 0 ? Number(electricityFactor.value) : DEFAULT_FACTORS.electricidad,
+        combustible: Number(fuelFactor?.value) > 0 ? Number(fuelFactor.value) : DEFAULT_FACTORS.combustible,
+      });
+    };
+    loadDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setFactor(cat === "electricidad" ? factorDefaults.electricidad : factorDefaults.combustible);
     if (cat !== "electricidad") {
       setRecordMode("manual");
       setSource("Medicion");
     }
-  }, [cat]);
+  }, [cat, factorDefaults]);
 
   useEffect(() => {
     if (!deviceToast) return;
@@ -753,9 +774,9 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     if (!activity.trim()) nextErrors.activity = "Describe la actividad";
     if (!numericValue || numericValue <= 0) nextErrors.value = `Ingresa un valor valido en ${unit}`;
     if (!factorNum || factorNum <= 0) nextErrors.factor = "Factor invalido";
-    if (evidenceEnabled && !evidenceDataUrl) nextErrors.evidence = "Adjunta una imagen de evidencia";
+    if (evidenceEnabled && !evidenceFile) nextErrors.evidence = "Adjunta un archivo de evidencia";
     return nextErrors;
-  }, [recordMode, date, area, source, activity, numericValue, unit, factorNum, evidenceEnabled, evidenceDataUrl]);
+  }, [recordMode, date, area, source, activity, numericValue, unit, factorNum, evidenceEnabled, evidenceFile]);
 
   const canSaveDevice = Boolean(deviceCounts.registrable > 0 && factorNum > 0);
   const canSave = recordMode === "device" ? canSaveDevice : Object.keys(errors).length === 0;
@@ -773,22 +794,14 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   function handleEvidenceChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.type?.startsWith("image/")) {
-      setEvidenceError("Solo se permiten imagenes (jpg, png, webp).");
+    if (file.size > 8 * 1024 * 1024) {
+      setEvidenceError("El archivo supera 8 MB. Usa un archivo más ligero.");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setEvidenceError("La imagen supera 2 MB. Usa una captura mas ligera.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setEvidenceDataUrl(String(reader.result || ""));
-      setEvidenceName(file.name || "evidencia.jpg");
-      setEvidenceError("");
-    };
-    reader.onerror = () => setEvidenceError("No se pudo leer la imagen seleccionada.");
-    reader.readAsDataURL(file);
+    setEvidenceFile(file);
+    setEvidenceName(file.name || "evidencia");
+    setEvidencePreviewUrl(file.type?.startsWith("image/") ? URL.createObjectURL(file) : "");
+    setEvidenceError("");
   }
 
   function normalizeBindingFromPayload(payload) {
@@ -867,62 +880,60 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
     setDeviceStatus("loading");
 
-    window.setTimeout(() => {
-      const parsed = parseDevicePayload(text);
-      if (!parsed.ok && !parsed.summary?.valid) {
-        setDeviceStatus("error");
-        setDeviceErrors(parsed.errors || []);
-        setDeviceWarnings([]);
-        setDevicePayload(null);
-        setDeviceSummary(null);
-        setDevicePreparedItems([]);
-        setDeviceCounts(parsed.summary || { total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
-        return;
+    const parsed = parseDevicePayload(text);
+    if (!parsed.ok && !parsed.summary?.valid) {
+      setDeviceStatus("error");
+      setDeviceErrors(parsed.errors || []);
+      setDeviceWarnings([]);
+      setDevicePayload(null);
+      setDeviceSummary(null);
+      setDevicePreparedItems([]);
+      setDeviceCounts(parsed.summary || { total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
+      return;
+    }
+
+    const historyMap = {};
+    const preparedItems = parsed.validItems.map((item) => {
+      const prepared = evaluateDeviceReading(item.payload, historyMap);
+      if (!prepared.block) {
+        historyMap[item.payload.deviceId] = {
+          lastTotalKWh: prepared.totalKWh,
+          lastTimestamp: item.payload.timestamp,
+        };
       }
+      return prepared;
+    });
 
-      const historyMap = {};
-      const preparedItems = parsed.validItems.map((item) => {
-        const prepared = evaluateDeviceReading(item.payload, historyMap);
-        if (!prepared.block) {
-          historyMap[item.payload.deviceId] = {
-            lastTotalKWh: prepared.totalKWh,
-            lastTimestamp: item.payload.timestamp,
-          };
-        }
-        return prepared;
-      });
+    const preview = preparedItems[0] || null;
+    const previewPayload = preview?.payload || parsed.payload;
+    const nextBinding = previewPayload ? normalizeBindingFromPayload(previewPayload) : getDefaultBinding("");
+    const warnings = [];
+    const blockedCount = preparedItems.filter((item) => item.block).length;
+    const registrableCount = preparedItems.length - blockedCount;
 
-      const preview = preparedItems[0] || null;
-      const previewPayload = preview?.payload || parsed.payload;
-      const nextBinding = previewPayload ? normalizeBindingFromPayload(previewPayload) : getDefaultBinding("");
-      const warnings = [];
-      const blockedCount = preparedItems.filter((item) => item.block).length;
-      const registrableCount = preparedItems.length - blockedCount;
+    warnings.push(`${parsed.summary.valid} validas y ${parsed.summary.invalid} invalidas.`);
+    if (parsed.summary.invalid) warnings.push(...parsed.errors);
+    if (blockedCount) warnings.push(`${blockedCount} lectura(s) validas requieren revision manual antes de registrarse.`);
+    if (preview?.warnings?.length) warnings.push(...preview.warnings);
 
-      warnings.push(`${parsed.summary.valid} validas y ${parsed.summary.invalid} invalidas.`);
-      if (parsed.summary.invalid) warnings.push(...parsed.errors);
-      if (blockedCount) warnings.push(`${blockedCount} lectura(s) validas requieren revision manual antes de registrarse.`);
-      if (preview?.warnings?.length) warnings.push(...preview.warnings);
-
-      setDeviceBinding(nextBinding);
-      setArea(nextBinding.areaCode);
-      setDate(previewPayload?.dateISO || new Date().toISOString().slice(0, 10));
-      setSource("Medicion");
-      setIsEstimated(false);
-      setDeviceErrors(parsed.summary.invalid ? parsed.errors : []);
-      setDeviceWarnings(warnings);
-      setDevicePayload(previewPayload || null);
-      setDeviceSummary(preview || null);
-      setDevicePreparedItems(preparedItems);
-      setDeviceCounts({
-        total: parsed.summary.total,
-        valid: parsed.summary.valid,
-        invalid: parsed.summary.invalid,
-        registrable: registrableCount,
-        blocked: blockedCount,
-      });
-      setDeviceStatus(registrableCount > 0 ? (warnings.length ? "warn" : "ready") : "warn");
-    }, 220);
+    setDeviceBinding(nextBinding);
+    setArea(nextBinding.areaCode);
+    setDate(previewPayload?.dateISO || new Date().toISOString().slice(0, 10));
+    setSource("Medicion");
+    setIsEstimated(false);
+    setDeviceErrors(parsed.summary.invalid ? parsed.errors : []);
+    setDeviceWarnings(warnings);
+    setDevicePayload(previewPayload || null);
+    setDeviceSummary(preview || null);
+    setDevicePreparedItems(preparedItems);
+    setDeviceCounts({
+      total: parsed.summary.total,
+      valid: parsed.summary.valid,
+      invalid: parsed.summary.invalid,
+      registrable: registrableCount,
+      blocked: blockedCount,
+    });
+    setDeviceStatus(registrableCount > 0 ? (warnings.length ? "warn" : "ready") : "warn");
   }
 
   function handleDeviceFile(event) {
@@ -979,19 +990,19 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
       co2e_t: co2eT,
       fuelType: cat === "combustible" ? fuelType : null,
       note: note.trim(),
-      hasEvidence: evidenceEnabled,
+      hasEvidence: evidenceEnabled && Boolean(evidenceFile),
       evidence: evidenceEnabled ? evidenceName : "",
       evidenceUrl: evidenceEnabled ? evidenceName : "",
-      evidenceImage: evidenceEnabled ? evidenceDataUrl : "",
+      evidenceUpload: evidenceEnabled && evidenceFile ? { file: evidenceFile, kind: source === "Recibo" ? "receipt" : "other" } : null,
     };
   }
 
-  function buildDeviceRecords() {
+  async function buildDeviceRecords() {
     const historyMap = {};
     const createdRecords = [];
     const skipped = [];
 
-    devicePreparedItems.forEach((item, index) => {
+    for (const [index, item] of devicePreparedItems.entries()) {
       const baseBinding =
         devicePayload?.deviceId && item.payload.deviceId === devicePayload.deviceId
           ? {
@@ -1011,13 +1022,12 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
       const prepared = evaluateDeviceReading(item.payload, historyMap, baseBinding);
       if (prepared.block) {
         skipped.push(`Item #${index + 1}: ${prepared.warnings.join(", ")}`);
-        return;
+        continue;
       }
 
       const savedBinding = upsertDeviceBinding(baseBinding);
       const record = {
         id: buildRecordId("dev"),
-        persisted: true,
         scope: "scope2",
         metric: "electricity_consumption",
         category: "electricidad",
@@ -1041,7 +1051,6 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         hasEvidence: false,
         evidence: "",
         evidenceUrl: "",
-        evidenceImage: "",
         deviceId: item.payload.deviceId,
         readingId: item.payload.readingId,
         readingTimestamp: item.payload.timestamp,
@@ -1053,7 +1062,11 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         quality: item.payload.quality || {},
       };
 
-      writeDeviceRecord(record);
+      const created = await createEmissionRecord(record).catch(() => null);
+      if (!created?.ok || !created.record) {
+        skipped.push(`Item #${index + 1}: no se pudo guardar la lectura.`);
+        continue;
+      }
       setLastTotal(item.payload.deviceId, {
         lastTotalKWh: Number(prepared.totalKWh) || 0,
         lastTimestamp: item.payload.timestamp,
@@ -1062,23 +1075,22 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         lastTotalKWh: Number(prepared.totalKWh) || 0,
         lastTimestamp: item.payload.timestamp,
       };
-      createdRecords.push(record);
-    });
+      createdRecords.push(created.record);
+    }
 
     return { createdRecords, skipped };
   }
 
-  function handleSave() {
+  async function handleSave() {
     setTouched(true);
     if (!canSave) return;
 
     setSaving(true);
-
-    window.setTimeout(() => {
+    try {
       if (recordMode === "device") {
-        const result = buildDeviceRecords();
+        const result = await buildDeviceRecords();
         if (result.createdRecords.length > 0) {
-          addNotification({
+          createNotification({
             type: "record_imported",
             title: result.createdRecords.length > 1 ? "Lecturas importadas" : "Lectura importada",
             message:
@@ -1102,8 +1114,14 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
               : `${formatNumber(result.createdRecords[0]?.value || 0)} kWh importados en ${result.createdRecords[0]?.area || area}.`,
         });
       } else {
-        const record = buildManualRecord();
-        addNotification({
+        const created = await createEmissionRecord(buildManualRecord()).catch(() => null);
+        if (!created?.ok || !created.record) {
+          setSaving(false);
+          setEvidenceError("No se pudo guardar el registro con la evidencia seleccionada.");
+          return;
+        }
+        const record = created.record;
+        createNotification({
           type: "record_created",
           title: "Registro guardado",
           message: `${record.area} · ${formatNumber(record.co2e_t, 3)} tCO2e registradas.`,
@@ -1117,8 +1135,9 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         });
         notify?.(record);
       }
+    } finally {
       setSaving(false);
-    }, recordMode === "device" ? 320 : 800);
+    }
   }
 
   if (!open) return null;
@@ -1356,7 +1375,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                         label={`Factor (kgCO2e/${unit})`}
                         required
                         error={touched && errors.factor}
-                        helper={cat === "electricidad" ? "SEMARNAT 2024" : "INECC 2023"}
+                        helper="Ingresa el factor vigente publicado por la fuente oficial aplicable."
                       >
                         <EcoInput
                           value={String(factor)}
@@ -1438,10 +1457,10 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
                     {evidenceEnabled && (
                       <Field
-                        label="Evidencia (imagen)"
+                        label="Evidencia"
                         required
                         error={(touched && errors.evidence) || evidenceError}
-                        helper="Sube una foto o captura del recibo/medicion (max. 2 MB)"
+                        helper="Adjunta un archivo de evidencia del recibo o medición (máx. 8 MB)"
                       >
                         <label
                           style={{
@@ -1462,11 +1481,11 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                           }}
                         >
                           <ImagePlus size={15} />
-                          {evidenceName || "Seleccionar imagen o captura"}
-                          <input type="file" accept="image/*" capture="environment" onChange={handleEvidenceChange} style={{ display: "none" }} />
+                          {evidenceName || "Seleccionar archivo de evidencia"}
+                          <input type="file" accept="image/*,.pdf,.csv,.xlsx,.xls,.doc,.docx" onChange={handleEvidenceChange} style={{ display: "none" }} />
                         </label>
 
-                        {evidenceDataUrl && (
+                        {evidencePreviewUrl && (
                           <div
                             style={{
                               marginTop: 8,
@@ -1480,7 +1499,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                             }}
                           >
                             <img
-                              src={evidenceDataUrl}
+                              src={evidencePreviewUrl}
                               alt="Vista previa de evidencia"
                               style={{
                                 width: 44,
@@ -1788,7 +1807,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
                   <Section title="Factor y nota" icon={<Beaker size={14} />}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <Field label="Factor (kgCO2e/kWh)">
+                      <Field label="Factor (kgCO2e/kWh)" helper="Requiere un factor eléctrico vigente para registrar la lectura.">
                         <EcoInput
                           value={String(factor)}
                           onChange={(event) => setFactor(event.target.value)}
@@ -1843,7 +1862,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                     },
                     {
                       label: "Evidencia",
-                      value: recordMode === "device" ? "No aplica" : evidenceEnabled ? evidenceName || "Pendiente de carga" : "No disponible",
+                      value: recordMode === "device" ? "No aplica" : evidenceEnabled ? evidenceName || "Pendiente de adjuntar" : "No disponible",
                     },
                   ].map((row) => (
                     <div
@@ -1890,8 +1909,8 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                 <Info size={15} style={{ color: "var(--eco-info)", flexShrink: 0, marginTop: 1 }} />
                 <p style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)", margin: 0, lineHeight: 1.5 }}>
                   {recordMode === "device"
-                    ? "La conexion actual es simulada: acepta una lectura, un arreglo de lecturas o NDJSON para importar el lote."
-                    : "El calculo usa la formula consumo x factor = CO2e. Adjunta evidencia con foto o captura para validar el registro."}
+                    ? "La importación acepta una lectura, un arreglo de lecturas o NDJSON para registrar el lote."
+                    : "El cálculo usa la fórmula consumo x factor = CO2e. La evidencia se envía como archivo separado para asociarla al registro."}
                 </p>
               </div>
 

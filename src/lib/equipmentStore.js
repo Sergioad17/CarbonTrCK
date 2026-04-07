@@ -5,7 +5,7 @@ const RECORDS_KEY = STORAGE_KEYS.records;
 
 const DEFAULT_CAMPUS = "CAMPUS-CT";
 const DEFAULT_WEEKS_PER_MONTH = 4.3;
-const DEFAULT_ELECTRICITY_FACTOR = 0.433;
+const DEFAULT_ELECTRICITY_FACTOR = 0;
 
 export const EQUIPMENT_CATEGORY_OPTIONS = [
   { value: "electricidad", label: "Electricidad" },
@@ -33,27 +33,6 @@ export const EQUIPMENT_AREA_OPTIONS = [
   { value: "Agricola", label: "Agrícola" },
   { value: "Admin", label: "Administración" },
   { value: "SalaJuntas", label: "Sala de juntas" },
-];
-
-const SEED_EQUIPMENT = [
-  { areaCode: "CC1", name: "PC de escritorio", type: "it", quantity: 28, powerW: 180, usage: { hoursPerDay: 7, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Equipo de laboratorio para prácticas." },
-  { areaCode: "CC1", name: "Monitor LED", type: "it", quantity: 28, powerW: 32, usage: { hoursPerDay: 7, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Monitores asociados al centro de cómputo." },
-  { areaCode: "CC1", name: "Impresora láser", type: "admin", quantity: 2, powerW: 600, usage: { hoursPerDay: 0.7, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Uso administrativo y académico." },
-  { areaCode: "CC2", name: "PC de escritorio", type: "it", quantity: 24, powerW: 170, usage: { hoursPerDay: 7, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Inventario para clases prácticas." },
-  { areaCode: "CC2", name: "Monitor LED", type: "it", quantity: 24, powerW: 30, usage: { hoursPerDay: 7, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Operación durante horario escolar." },
-  { areaCode: "Aulas", name: "Proyector", type: "it", quantity: 16, powerW: 250, usage: { hoursPerDay: 4, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Promedio por salón." },
-  { areaCode: "Aulas", name: "Pantalla / TV", type: "it", quantity: 6, powerW: 120, usage: { hoursPerDay: 3, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Uso mixto en aulas y auditorios." },
-  { areaCode: "Redes", name: "Switch administrable", type: "redes", quantity: 8, powerW: 75, usage: { hoursPerDay: 24, daysPerWeek: 7, weeksPerMonth: 4.3 }, notes: "Operación continua." },
-  { areaCode: "Redes", name: "Router", type: "redes", quantity: 4, powerW: 18, usage: { hoursPerDay: 24, daysPerWeek: 7, weeksPerMonth: 4.3 }, notes: "Backbone de conectividad." },
-  { areaCode: "Redes", name: "UPS", type: "redes", quantity: 3, powerW: 90, usage: { hoursPerDay: 24, daysPerWeek: 7, weeksPerMonth: 4.3 }, notes: "Consumo base estimado sin carga pico." },
-  { areaCode: "Industrial", name: "Banco de pruebas", type: "industrial", quantity: 2, powerW: 2200, usage: { hoursPerDay: 2.5, daysPerWeek: 4, weeksPerMonth: 4.3 }, notes: "Potencia estimada para prácticas." },
-  { areaCode: "Industrial", name: "Maquinaria ligera", type: "industrial", quantity: 3, powerW: 1500, usage: { hoursPerDay: 2, daysPerWeek: 4, weeksPerMonth: 4.3 }, notes: "Se usa cuando no hay medición directa." },
-  { areaCode: "Agricola", name: "Bomba de riego", type: "agricola", quantity: 2, powerW: 1100, usage: { hoursPerDay: 3, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Consumo eléctrico del vivero." },
-  { areaCode: "Agricola", name: "Iluminación exterior", type: "iluminacion", quantity: 14, powerW: 45, usage: { hoursPerDay: 5, daysPerWeek: 7, weeksPerMonth: 4.3 }, notes: "Luminarias de apoyo agrícola." },
-  { areaCode: "Agricola", name: "Tractor", category: "combustible", type: "agricola", quantity: 1, powerW: 0, usage: { hoursPerDay: 2, daysPerWeek: 3, weeksPerMonth: 4.3 }, notes: "Próximamente: litros/hora y factor específico.", isActive: true },
-  { areaCode: "Admin", name: "PC de oficina", type: "admin", quantity: 12, powerW: 140, usage: { hoursPerDay: 8, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Uso administrativo." },
-  { areaCode: "Admin", name: "Pantalla de recepción", type: "admin", quantity: 2, powerW: 95, usage: { hoursPerDay: 8, daysPerWeek: 5, weeksPerMonth: 4.3 }, notes: "Señalización y recepción." },
-  { areaCode: "SalaJuntas", name: "Pantalla de juntas", type: "admin", quantity: 1, powerW: 160, usage: { hoursPerDay: 2, daysPerWeek: 4, weeksPerMonth: 4.3 }, notes: "Sala de juntas." },
 ];
 
 const nowIso = () => new Date().toISOString();
@@ -114,20 +93,6 @@ function sortEquipment(items) {
   });
 }
 
-function seedRows() {
-  return SEED_EQUIPMENT.map((item, index) =>
-    normalizeEquipment(
-      {
-        campusCode: DEFAULT_CAMPUS,
-        category: "electricidad",
-        isActive: true,
-        ...item,
-      },
-      `seed-eq-${index + 1}`
-    )
-  );
-}
-
 function readEquipment() {
   const parsed = safeReadJson(EQUIPMENT_KEY, null);
   if (!Array.isArray(parsed)) return [];
@@ -146,7 +111,7 @@ function writeEquipment(items) {
 export function ensureSeedData() {
   const current = readEquipment();
   if (current.length > 0) return current;
-  return writeEquipment(seedRows());
+  return current;
 }
 
 export function getAll() {

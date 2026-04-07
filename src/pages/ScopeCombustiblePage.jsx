@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Flame, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, X, CheckCircle2, TrendingUp, TrendingDown, Minus, Droplets, Fuel, ChevronRight, ChevronDown, ChevronUp, ChevronLeft, Filter, AlertTriangle, Leaf, ArrowRight, Paperclip, } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart as RPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, Area, AreaChart, } from "recharts";
+import { fetchScopeCombustibleRecords } from "../api/scopeCombustible";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
-const RECORDS_KEY = "carbontrack.records";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const COLORS = ["#EAB308","#3B82F6","#22C55E","#8B5CF6","#EC4899","#06B6D4","#64748B","#94A3B8"];
 
@@ -18,17 +18,6 @@ const ANIM_CSS = `
 @media(max-width:1024px){.ct-kpi-g{grid-template-columns:1fr 1fr!important}.ct-ch-main,.ct-ch-donuts{grid-template-columns:1fr!important}}
 @media(max-width:640px){.ct-kpi-g{grid-template-columns:1fr!important}.ct-hdr-acts{flex-direction:column;width:100%}.ct-hdr-acts button{width:100%}}
 `;
-
-const BASE_FUEL_RECORDS = [
-  {id:"fuel-1",dateISO:"2026-01-12",area:"Agricola",activity:"Riego de parcelas",category:"combustible",fuelType:"Diesel",value:38,unit:"L",factor:2.68,status:"real",source:"Inventario",equipment:"Tractor",evidence:"ticket-enero.pdf"},
-  {id:"fuel-2",dateISO:"2026-01-28",area:"Vivero",activity:"Traslado de composta",category:"combustible",fuelType:"Gasolina",value:22,unit:"L",factor:2.31,status:"real",source:"Recibo",equipment:"Camioneta",evidence:""},
-  {id:"fuel-3",dateISO:"2026-02-10",area:"Agricola",activity:"Preparacion de suelo",category:"combustible",fuelType:"Diesel",value:41,unit:"L",factor:2.68,status:"real",source:"Medicion",equipment:"Tractor",evidence:"foto-medidor-02.jpg"},
-  {id:"fuel-4",dateISO:"2026-02-20",area:"Mantenimiento",activity:"Planta electrica de respaldo",category:"combustible",fuelType:"Diesel",value:17,unit:"L",factor:2.68,status:"est",source:"Estimacion",equipment:"Planta",evidence:""},
-  {id:"fuel-5",dateISO:"2026-03-05",area:"Vivero",activity:"Distribucion de insumos",category:"combustible",fuelType:"Gasolina",value:29,unit:"L",factor:2.31,status:"real",source:"Recibo",equipment:"Camioneta",evidence:""},
-  {id:"fuel-6",dateISO:"2026-03-18",area:"Agricola",activity:"Tractor en siembra",category:"combustible",fuelType:"Diesel",value:36,unit:"L",factor:2.68,status:"real",source:"Inventario",equipment:"Tractor",evidence:"factura-diesel-marzo.pdf"},
-  {id:"fuel-7",dateISO:"2026-04-08",area:"Agricola",activity:"Bomba de riego",category:"combustible",fuelType:"Diesel",value:19,unit:"L",factor:2.68,status:"est",source:"Encuesta",equipment:"Planta",evidence:""},
-  {id:"fuel-8",dateISO:"2026-04-24",area:"Logistica",activity:"Entrega de material",category:"combustible",fuelType:"Gasolina",value:27,unit:"L",factor:2.31,status:"real",source:"Recibo",equipment:"Camioneta",evidence:"ticket-abril.pdf"},
-];
 
 const ST_C={real:{bg:"var(--eco-success-bg)",c:"var(--eco-success)",b:"#BBF7D0",l:"Real"},est:{bg:"var(--eco-warning-bg)",c:"var(--eco-secondary-600)",b:"#FDE68A",l:"Estimado"}};
 const TR_C={up:{c:"var(--eco-danger)",i:<TrendingUp size={13}/>,bg:"var(--eco-danger-bg)"},down:{c:"var(--eco-success)",i:<TrendingDown size={13}/>,bg:"var(--eco-success-bg)"},neutral:{c:"var(--eco-gray-500)",i:<Minus size={13}/>,bg:"var(--eco-gray-100)"}};
@@ -48,15 +37,6 @@ function normRec(r,fid){
   const lit=Number.isFinite(Number(r?.value))?Number(r.value):0;const fac=Number.isFinite(Number(r?.factor))&&Number(r?.factor)>0?Number(r.factor):2.68;
   const co2=Number.isFinite(Number(r?.co2e_kg))&&Number(r?.co2e_kg)>0?Number(r.co2e_kg):lit*fac;
   return{id:r?.id||fid,dateISO:String(r?.dateISO||""),area:String(r?.area||"Sin area"),activity:String(r?.activity||"Sin actividad"),category:"combustible",fuelType:r?.fuelType==="Gasolina"?"Gasolina":"Diesel",value:lit,unit:"L",factor:fac,co2e_kg:co2,co2e_t:co2/1000,status:r?.status==="est"?"est":"real",source:String(r?.source||"Medicion"),equipment:String(r?.equipment||inferEq(r?.activity||"")),evidence:String(r?.evidence||"")};
-}
-
-function loadFuel(){
-  let err="",parsed=[];
-  try{const raw=window.localStorage.getItem(RECORDS_KEY);if(raw){const j=JSON.parse(raw);if(Array.isArray(j))parsed=j;}}catch{err="No se pudo leer localStorage.";}
-  const all=[...parsed,...BASE_FUEL_RECORDS];
-  const fuel=all.filter(r=>{if(!r||typeof r!=="object")return false;if(r.category==="combustible")return true;if(String(r.unit||"").toUpperCase()==="L")return true;return r.fuelType==="Diesel"||r.fuelType==="Gasolina";});
-  const byId=new Map();fuel.forEach((row,i)=>{const k=String(row?.id||`c-${i}`);if(!byId.has(k))byId.set(k,normRec(row,k));});
-  return{records:Array.from(byId.values()),storageError:err};
 }
 
 function periodFilter(recs,mode,mo,yr,fd2,td){
@@ -237,7 +217,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const[filtersOpen,setFiltersOpen]=useState(true);const[drill,setDrill]=useState(null);const[toast,setToast]=useState(null);const[hovRow,setHovRow]=useState(null);
   const[sortCol,setSortCol]=useState("dateISO");const[sortAsc,setSortAsc]=useState(false);const[page,setPage]=useState(0);const PER_PAGE=8;
 
-  const loadAll=useCallback(()=>{setLoading(true);setTimeout(()=>{const ld=loadFuel();setRecords(ld.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setStorageError(ld.storageError);setLoading(false);},600);},[]);
+  const loadAll=useCallback(async()=>{setLoading(true);const data=await fetchScopeCombustibleRecords();setRecords(data.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setStorageError(data.storageError);setLoading(false);},[]);
   useEffect(()=>{loadAll();},[loadAll]);
   useEffect(()=>{const h=()=>loadAll();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[loadAll]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
@@ -472,7 +452,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
         </div>
 
         <div style={{background:"var(--eco-gray-50)",borderRadius:"var(--eco-radius-md)",overflow:"hidden"}}>
-          {[{l:"Fecha",v:fDate(drill.dateISO)},{l:"Área",v:drill.area},{l:"Scope",v:"Scope 1 - Combustible"},{l:"Actividad",v:drill.activity},{l:"Combustible",v:drill.fuelType},{l:"Consumo",v:`${fN(drill.value,1)} L`},{l:"Factor aplicado",v:`${fN(drill.factor,3)} kgCO₂e/L (INECC 2023)`},{l:"CO₂e (kg)",v:`${fN(drill.co2e_kg,1)} kgCO₂e`},{l:"Estado",v:null,badge:true},{l:"Fuente",v:drill.source},{l:"Equipo",v:drill.equipment||"-"},{l:"Evidencia",v:drill.evidence||"-"}].map((row,i)=>
+          {[{l:"Fecha",v:fDate(drill.dateISO)},{l:"Área",v:drill.area},{l:"Scope",v:"Scope 1 - Combustible"},{l:"Actividad",v:drill.activity},{l:"Combustible",v:drill.fuelType},{l:"Consumo",v:`${fN(drill.value,1)} L`},{l:"Factor aplicado",v:`${fN(drill.factor,3)} kgCO₂e/L`},{l:"CO₂e (kg)",v:`${fN(drill.co2e_kg,1)} kgCO₂e`},{l:"Estado",v:null,badge:true},{l:"Fuente",v:drill.source},{l:"Equipo",v:drill.equipment||"-"},{l:"Evidencia",v:drill.evidence||"-"}].map((row,i)=>
             <div key={row.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"10px 14px",borderBottom:i<11?"1px solid var(--eco-gray-100)":"none",animation:`ctFadeUp .3s ease-out ${i*30}ms both`}}>
               <span style={{fontFamily:fb,fontSize:12,color:"var(--eco-gray-500)"}}>{row.l}</span>
               {row.badge?<Badge status={drill.status}/>:<span style={{fontFamily:fb,fontSize:12,fontWeight:600,color:"var(--eco-gray-700)",textAlign:"right"}}>{row.v}</span>}

@@ -8,28 +8,11 @@ import {
   BarChart3, Shield, Building2
 } from 'lucide-react'
 import './Animations.css'
+import { isUsingBackendAuth, requestPasswordReset } from '../api/auth'
 
 const fd = "var(--eco-font-display)"
 const fb = "var(--eco-font-body)"
 const fm = "var(--eco-font-mono)"
-
-const demoAccounts = {
-  "admin@itsmante.edu.mx": {
-    pass: "admin123",
-    name: "Ing. Roberto Sánchez",
-    role: "Administrador"
-  },
-  "ana@itsmante.edu.mx": {
-    pass: "captura1",
-    name: "Ana García López",
-    role: "Operativo"
-  },
-  "director@itsmante.edu.mx": {
-    pass: "consulta",
-    name: "Dr. Miguel Torres",
-    role: "Directivo"
-  },
-}
 
 export default function LoginPage({ onLogin }) {
   const location = useLocation()
@@ -46,6 +29,7 @@ export default function LoginPage({ onLogin }) {
   const [emailFocused, setEmailFocused] = useState(false)
   const [passFocused, setPassFocused] = useState(false)
   const [flashToast, setFlashToast] = useState(null)
+  const usingBackend = isUsingBackendAuth()
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   const passValid = password.length >= 6
@@ -56,33 +40,35 @@ export default function LoginPage({ onLogin }) {
 
   const triggerShake = () => { setShaking(true); setTimeout(() => setShaking(false), 500) }
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setSubmitted(true)
     setLoginError(null)
     if (!email || !emailValid || !password || !passValid) { triggerShake(); return }
     setLoading(true)
-    setTimeout(() => {
-      const account = demoAccounts[email.toLowerCase()]
-      if (!account || account.pass !== password) {
-        setLoading(false)
-        setLoginError("credentials")
-        triggerShake()
-      } else {
-        setLoading(false)
-        setSuccess(account)
-        // Navigate to dashboard after success animation
-        setTimeout(() => {
-          onLogin({ email: email.toLowerCase(), name: account.name, role: account.role })
-        }, 2000)
-      }
-    }, 1500)
+    try {
+      await onLogin({ email: email.toLowerCase(), password })
+    } catch {
+      setLoginError("credentials")
+      triggerShake()
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleForgot = () => {
+  const handleForgot = async () => {
     setSubmitted(true)
     if (!email || !emailValid) { triggerShake(); return }
     setLoading(true)
-    setTimeout(() => { setLoading(false); setForgotSent(true) }, 1500)
+    setLoginError(null)
+    try {
+      await requestPasswordReset(email)
+      setForgotSent(true)
+    } catch {
+      setLoginError("credentials")
+      triggerShake()
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -385,7 +371,11 @@ export default function LoginPage({ onLogin }) {
                 color: "var(--eco-gray-500)",
                 margin: "0 0 24px",
                 lineHeight: 1.5
-              }}>Accede al sistema de huella de carbono del Instituto Tecnológico de El Mante.</p>
+              }}>
+                {usingBackend
+                  ? "Accede con tus credenciales del backend configurado."
+                  : "Acceso técnico local para desarrollo mientras el backend de autenticación no esté disponible."}
+              </p>
 
               {loginError && (
                 <div style={{
@@ -504,74 +494,31 @@ export default function LoginPage({ onLogin }) {
               <div style={{
                 marginTop: 24,
                 padding: "14px 16px",
-                background: "var(--eco-info-bg)",
-                border: "1px solid #BFDBFE",
+                background: usingBackend ? "var(--eco-card-muted)" : "var(--eco-warning-bg)",
+                border: `1px solid ${usingBackend ? "var(--eco-border)" : "#FDE68A"}`,
                 borderRadius: "var(--eco-radius-md)"
               }}>
                 <p style={{
                   fontFamily: fb,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "var(--eco-info)",
-                  margin: "0 0 8px",
+                  color: usingBackend ? "var(--eco-text)" : "var(--eco-secondary-600)",
+                  margin: "0 0 6px",
                   display: "flex",
                   alignItems: "center",
                   gap: 4
-                }}><Shield size={13} /> Cuentas de demostración</p>
-                {Object.entries(demoAccounts).map(([em, acc]) => (
-                  <button key={em} onClick={() => {
-                    setEmail(em);
-                    setPassword(acc.pass);
-                    setSubmitted(false);
-                    setLoginError(null)
-                  }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "6px 8px",
-                      borderRadius: "var(--eco-radius-sm)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "background 100ms",
-                      textAlign: "left"
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = "rgba(37,99,235,0.06)"}
-                    onMouseLeave={e => e.currentTarget.style.background = "none"}>
-                    <div style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "var(--eco-radius-sm)",
-                      background: "white",
-                      border: "1px solid #BFDBFE",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontFamily: fd,
-                      fontSize: 10,
-                      fontWeight: 800,
-                      color: "var(--eco-info)"
-                    }}>{acc.name.charAt(0)}</div>
-                    <p style={{
-                      fontFamily: fm,
-                      fontSize: 11,
-                      color: "var(--eco-gray-700)",
-                      margin: 0, flex: 1
-                    }}>{em}</p>
-                    <span style={{
-                      fontFamily: fb,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "var(--eco-info)",
-                      padding: "1px 6px",
-                      borderRadius: "var(--eco-radius-full)",
-                      background: "white",
-                      border: "1px solid #BFDBFE"
-                    }}>{acc.role}</span>
-                  </button>
-                ))}
+                }}><Shield size={13} /> {usingBackend ? "Autenticación remota" : "Modo técnico local"}</p>
+                <p style={{
+                  fontFamily: fb,
+                  fontSize: 11,
+                  color: "var(--eco-text-soft)",
+                  margin: 0,
+                  lineHeight: 1.55
+                }}>
+                  {usingBackend
+                    ? "El inicio de sesión depende del endpoint `/auth/login` y del perfil remoto."
+                    : "Sin backend configurado, el acceso local usa el correo capturado para crear una sesión técnica mínima en este navegador."}
+                </p>
               </div>
             </div>
           )}

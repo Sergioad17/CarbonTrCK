@@ -28,7 +28,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { buildTargetLine, filterRecordsByTarget } from "../lib/targetsStore";
+import { buildTargetLine, filterRecordsByTarget } from "../api/targets";
 
 /* ─── Design tokens ─── */
 const fd = "var(--eco-font-display)";

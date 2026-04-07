@@ -76,6 +76,10 @@ export function listChangeRequests() {
   return readRequests();
 }
 
+export function replaceChangeRequests(requests = []) {
+  return writeRequests(Array.isArray(requests) ? requests : []);
+}
+
 export function createChangeRequest(input) {
   const createdAt = nowIso();
   const request = normalizeRequest(

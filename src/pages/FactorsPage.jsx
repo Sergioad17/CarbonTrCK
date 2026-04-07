@@ -34,17 +34,18 @@ import FactorModal, {
   scopeOptions,
 } from "../components/FactorModal";
 import { exportRowsToCsv } from "../lib/csvExport";
-import { add as addNotification } from "../lib/notificationsStore";
 import {
-  deactivate,
-  duplicateAsNewVersion,
+  createNotification,
+} from "../api/notifications";
+import {
+  fetchFactorUsageCount,
+  fetchFactors,
   filterFactors,
   findDefaultConflict,
-  getAll,
-  getUsageCount,
-  setDefault,
-  upsert,
-} from "../lib/factorsStore";
+  persistFactor,
+  updateFactorDefault,
+  updateFactorStatus,
+} from "../api/factors";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -784,16 +785,16 @@ export default function FactorsPage() {
     onlyCurrent: true,
   });
 
-  const loadFactors = () => {
+  const loadFactors = async () => {
     try {
       setLoading(true);
-      const next = getAll();
+      const next = await fetchFactors();
       setFactors(next);
       setError("");
     } catch {
       setError("No se pudieron cargar los factores. Intenta de nuevo.");
     } finally {
-      setTimeout(() => setLoading(false), 600);
+      setLoading(false);
     }
   };
 
@@ -827,8 +828,8 @@ export default function FactorsPage() {
     setModalState({ factor: null, form: createEmptyFactorForm(), errors: {}, saving: false, usageCount: 0, setForm });
   };
 
-  const openEdit = (factor, mode = "newVersion") => {
-    const usageCount = getUsageCount(factor.id);
+  const openEdit = async (factor, mode = "newVersion") => {
+    const usageCount = await fetchFactorUsageCount(factor.id).catch(() => 0);
     const setForm = (updater) => setModalState((prev) => {
       const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
       return { ...prev, form: nextForm };
@@ -868,7 +869,7 @@ export default function FactorsPage() {
     return errors;
   };
 
-  const persistModal = (forceDefaultOverride = false) => {
+  const persistModal = async (forceDefaultOverride = false) => {
     if (!modalState) return;
     const { factor, form, usageCount } = modalState;
     const errors = validateForm(form, usageCount, Boolean(factor));
@@ -916,9 +917,12 @@ export default function FactorsPage() {
     setModalState((prev) => ({ ...prev, saving: true, errors: {} }));
 
     try {
-      const result = factor && form.editMode === "newVersion"
-        ? duplicateAsNewVersion(factor.id, payload, { forceDefaultOverride })
-        : upsert({ ...factor, ...payload }, { forceDefaultOverride });
+      const result = await persistFactor({
+        factor,
+        payload,
+        mode: factor ? form.editMode : "edit",
+        forceDefaultOverride,
+      });
 
       if (!result.ok) {
         throw new Error("save_failed");
@@ -926,7 +930,7 @@ export default function FactorsPage() {
 
       setFactors(result.factors);
       closeModal();
-      addNotification({
+      createNotification({
         type: "factor_updated",
         title: factor ? (form.editMode === "newVersion" ? "Nueva versión de factor" : "Factor actualizado") : "Factor guardado",
         message: `${payload.scope.replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
@@ -954,17 +958,17 @@ export default function FactorsPage() {
     persistModal(false);
   };
 
-  const handleDefault = (factor) => {
-    const result = setDefault(factor.id);
+  const handleDefault = async (factor) => {
+    const result = await updateFactorDefault(factor.id).catch(() => ({ ok: false }));
     if (!result.ok && result.reason === "default_conflict") {
       setConfirmModal({
         title: "Cambiar factor predeterminado",
         message: `Se reemplazará el predeterminado activo de ${result.conflict.scope.replace("scope", "Scope ")} / ${result.conflict.category} / ${result.conflict.region}.`,
-        onConfirm: () => {
-          const forced = setDefault(factor.id, { force: true });
+        onConfirm: async () => {
+          const forced = await updateFactorDefault(factor.id, true).catch(() => ({ ok: false }));
           if (forced.ok) {
             setFactors(forced.factors);
-            addNotification({
+            createNotification({
               type: "factor_updated",
               title: "Factor predeterminado actualizado",
               message: `${factor.scope.replace("scope", "Scope ")} / ${factor.category} ahora usa un nuevo predeterminado.`,
@@ -980,7 +984,7 @@ export default function FactorsPage() {
     }
     if (result.ok) {
       setFactors(result.factors);
-      addNotification({
+      createNotification({
         type: "factor_updated",
         title: "Factor predeterminado actualizado",
         message: `${factor.scope.replace("scope", "Scope ")} / ${factor.category} ahora usa un nuevo predeterminado.`,
@@ -991,8 +995,12 @@ export default function FactorsPage() {
     }
   };
 
-  const toggleActive = (factor) => {
-    const next = deactivate(factor.id, !factor.isActive);
+  const toggleActive = async (factor) => {
+    const next = await updateFactorStatus(factor.id, !factor.isActive).catch(() => null);
+    if (!next) {
+      setToast({ title: "No se pudo actualizar", message: "Intenta de nuevo en un momento." });
+      return;
+    }
     setFactors(next);
     setToast({ title: "Factor actualizado", message: factor.isActive ? "Factor desactivado." : "Factor activado." });
   };
@@ -1016,7 +1024,7 @@ export default function FactorsPage() {
         { label: "Notas", get: (row) => row.notes },
       ],
     });
-    addNotification({
+    createNotification({
       type: "export_done",
       title: "CSV exportado",
       message: `Se exportaron ${filtered.length} factor(es) del catálogo.`,
@@ -1091,7 +1099,7 @@ export default function FactorsPage() {
           >
             <button
               type="button"
-              onClick={() => setToast({ title: "Importación próximamente", message: "La estructura está lista para conectar backend más adelante." })}
+              onClick={() => setToast({ title: "Importación no disponible", message: "La importación masiva de factores requiere un endpoint dedicado." })}
               style={secondaryButtonStyle}
             >
               <Upload size={14} />
@@ -1117,29 +1125,6 @@ export default function FactorsPage() {
               <Plus size={14} />
               Nuevo factor
             </button>
-          </div>
-        </div>
-
-        {/* --- DEMO WARNING --- */}
-        <div
-          style={{
-            marginBottom: 18,
-            animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 100ms both",
-            background: "linear-gradient(135deg,var(--eco-warning-bg),var(--eco-surface))",
-            border: "1px solid #FDE68A",
-            borderRadius: "var(--eco-radius-lg)",
-            padding: "12px 14px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-          }}
-        >
-          <AlertTriangle size={16} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
-          <div>
-            <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong, var(--eco-gray-800))" }}>Valores de ejemplo</p>
-            <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-600))", lineHeight: 1.5 }}>
-              Se cargan factores demo para que la pantalla se vea funcionando. Edítalos con una fuente oficial antes de usarlos en producción.
-            </p>
           </div>
         </div>
 

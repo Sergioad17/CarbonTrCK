@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getSettings, saveSettings, resolveTheme } from "../../../lib/settingsStore";
+import { fetchSettings, persistSettings, resolveTheme } from "../../../api/settings";
 import LeafIcon from "../components/LeafIcon";
 
 function SunIcon() {
@@ -27,21 +27,23 @@ function MoonIcon() {
 }
 
 export default function Navbar({ scrolled, onGo }) {
-  const [isDark, setIsDark] = useState(() => resolveTheme(getSettings().theme) === "dark");
+  const [isDark, setIsDark] = useState(() => resolveTheme(fetchSettings().theme) === "dark");
 
   useEffect(() => {
     const sync = () => {
-      const s = getSettings();
+      const s = fetchSettings();
       setIsDark(resolveTheme(s.theme) === "dark");
     };
     window.addEventListener("carbontrack:settings-changed", sync);
     return () => window.removeEventListener("carbontrack:settings-changed", sync);
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = async () => {
     const next = isDark ? "light" : "dark";
-    saveSettings({ theme: next });
-    setIsDark(next === "dark");
+    try {
+      await persistSettings({ theme: next });
+      setIsDark(next === "dark");
+    } catch {}
   };
 
   return (

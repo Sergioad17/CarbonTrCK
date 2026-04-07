@@ -7,49 +7,6 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const nowIso = () => new Date().toISOString();
 
-const seedFactors = [
-  {
-    id: "factor-scope2-mx-sen-demo",
-    scope: "scope2",
-    category: "electricidad",
-    metric: "electricity_consumption",
-    numeratorUnit: "kgCO2e",
-    denominatorUnit: "kWh",
-    value: 0.433,
-    region: "MX-SEN",
-    provider: "CFE demo",
-    sourceUrl: "",
-    validFrom: "2026-01-01",
-    validTo: null,
-    isDefault: true,
-    isActive: true,
-    uncertaintyPct: 2.5,
-    notes: "Valor de ejemplo, editalo con una fuente oficial.",
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  },
-  {
-    id: "factor-scope1-diesel-demo",
-    scope: "scope1",
-    category: "combustible",
-    metric: "fuel_volume",
-    numeratorUnit: "kgCO2e",
-    denominatorUnit: "L",
-    value: 2.68,
-    region: "MX",
-    provider: "SEMARNAT demo",
-    sourceUrl: "",
-    validFrom: "2026-01-01",
-    validTo: null,
-    isDefault: true,
-    isActive: true,
-    uncertaintyPct: 1.8,
-    notes: "Valor de ejemplo para diesel, editalo con una fuente oficial.",
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  },
-];
-
 const cleanString = (value) => String(value ?? "").trim();
 
 const normalizeDate = (value) => {
@@ -144,7 +101,7 @@ const writeFactors = (factors) => {
 export function ensureSeedData() {
   const current = readFactors();
   if (current.length > 0) return current;
-  return writeFactors(seedFactors);
+  return current;
 }
 
 export function getAll() {

@@ -29,24 +29,18 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
-import { add as addNotification } from "../lib/notificationsStore";
-import { listChangeRequests, subscribeChangeRequests, updateChangeRequest } from "../lib/profileChangeRequestsStore";
-import { getCurrentUser, getSession, setSession } from "../lib/sessionStore";
+import { createNotification } from "../api/notifications";
+import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../api/profileRequests";
+import { fetchCurrentUser, fetchSession, persistSession } from "../api/session";
+import { fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../api/users";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
   USER_ROLE_SUMMARY,
-  activate,
-  deactivate,
   describeAreaAccess,
   filterUsers,
-  getAll,
   getRoleLabel,
-  getStoreMeta,
-  getRoles,
-  resetPasswordMock,
-  upsert,
-} from "../lib/usersStore";
+} from "../api/users";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -782,7 +776,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
                   ))}
                 </StyledSelect>
               </Field>
-              <Field label="Campus" helper="Campus fijo en esta versión del MVP.">
+              <Field label="Campus" helper="El campus se toma del contexto actual del frontend.">
                 <StyledInput value={DEFAULT_CAMPUS} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
               </Field>
             </div>
@@ -1392,42 +1386,32 @@ export default function UsersPage() {
   const [detailUser, setDetailUser] = useState(null);
   const [passwordResetState, setPasswordResetState] = useState({ user: null, password: "" });
   const [filters, setFilters] = useState({ search: "", role: "all", status: "active", areaCode: "all" });
-  const [requests, setRequests] = useState(() => listChangeRequests());
+  const [requests, setRequests] = useState(() => fetchProfileChangeRequests());
   const [requestsOpen, setRequestsOpen] = useState(false);
-  const currentUser = useMemo(() => getCurrentUser({ ensureMock: true }), []);
+  const currentUser = useMemo(() => fetchCurrentUser(), []);
   const currentRole = currentUser?.roleKey || currentUser?.role || "operativo";
   const canManageUsers = currentRole === "admin";
   const canViewUsers = canManageUsers || currentRole === "directivo";
 
-  const loadUsers = () => {
+  const loadUsers = async () => {
     try {
       setError("");
       setLoading(true);
-      const nextRoles = getRoles();
-      const nextUsers = getAll();
-      const meta = getStoreMeta();
-      setTimeout(() => {
-        setRoles(nextRoles);
-        setUsers(nextUsers);
-        if (meta.seededFromEmpty) {
-          setToast({ title: "Usuarios de ejemplo", message: "Se cargaron tres cuentas demo para comenzar." });
-        }
-        setLoading(false);
-      }, 240);
+      const { users: nextUsers, roles: nextRoles } = await fetchUsersModuleData();
+      setRoles(nextRoles);
+      setUsers(nextUsers);
     } catch {
       setError("No se pudieron cargar los usuarios. Intenta de nuevo.");
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
     loadUsers();
-    const syncUsers = (event) => setUsers(Array.isArray(event.detail) ? event.detail : getAll());
-    window.addEventListener("carbontrack:users-changed", syncUsers);
-    return () => window.removeEventListener("carbontrack:users-changed", syncUsers);
   }, []);
 
-  useEffect(() => subscribeChangeRequests(setRequests), []);
+  useEffect(() => subscribeProfileChangeRequests(setRequests), []);
 
   const filteredUsers = useMemo(() => filterUsers(users, filters), [users, filters]);
   const pendingRequests = useMemo(() => requests.filter((item) => item.status === "pending"), [requests]);
@@ -1440,11 +1424,6 @@ export default function UsersPage() {
     const recentLoginUsers = users.filter((u) => isRecentLogin(u.lastLoginAt)).length;
     return { activeUsers, adminUsers, operativoUsers, directivoUsers, recentLoginUsers };
   }, [users]);
-
-  const demoUsers = useMemo(
-    () => users.filter((u) => u.notes === "Usuario de ejemplo" || u.email.endsWith("@itsmante.edu.mx")),
-    [users]
-  );
 
   const openCreateModal = () => {
     if (!canManageUsers) return;
@@ -1503,7 +1482,7 @@ export default function UsersPage() {
     return errs;
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!canManageUsers) return;
     if (!formState) return;
@@ -1532,7 +1511,7 @@ export default function UsersPage() {
       notes: form.notes.trim(),
       lastLoginAt: user?.lastLoginAt || null,
     };
-    const result = upsert(payload);
+    const result = await saveUser(payload).catch(() => ({ ok: false }));
     if (!result.ok) {
       setFormState((prev) => (prev ? { ...prev, saving: false, errors: { email: "Este correo ya está registrado." } } : prev));
       return;
@@ -1545,9 +1524,13 @@ export default function UsersPage() {
     });
   };
 
-  const handleToggleStatus = (user) => {
+  const handleToggleStatus = async (user) => {
     if (!canManageUsers) return;
-    const nextUsers = user.isActive ? deactivate(user.id, false) : activate(user.id);
+    const nextUsers = await updateUserStatus(user, !user.isActive).catch(() => null);
+    if (!nextUsers) {
+      setToast({ title: "No se pudo actualizar", message: "Intenta de nuevo en un momento.", tone: "error" });
+      return;
+    }
     setUsers(nextUsers);
     setToast({
       title: "Estado actualizado",
@@ -1569,7 +1552,7 @@ export default function UsersPage() {
       ],
     });
     setToast({ title: "CSV exportado", message: "Se exportó el listado filtrado actual." });
-    addNotification({
+    createNotification({
       type: "export_done",
       title: "CSV exportado",
       message: "Se exportó el listado filtrado actual.",
@@ -1578,43 +1561,43 @@ export default function UsersPage() {
     });
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (!canManageUsers) return;
     if (!passwordResetState.user) return;
-    const result = resetPasswordMock(passwordResetState.user.id);
+    const result = await resetUserPassword(passwordResetState.user.id).catch(() => ({ ok: false }));
     if (!result.ok) return;
-    setUsers(getAll());
+    await loadUsers();
     setPasswordResetState({ user: passwordResetState.user, password: result.password });
     setToast({ title: "Contraseña temporal generada", message: `Nueva contraseña para ${passwordResetState.user.fullName}.` });
   };
 
-  const handleApproveRequest = (request) => {
+  const handleApproveRequest = async (request) => {
     if (!canManageUsers) return;
     const actorName = currentUser?.fullName || "Administrador";
     let resolutionDetail = "";
 
     if (request.type === "email") {
-      const targetUser = getAll().find((item) => item.id === request.userId);
+      const targetUser = users.find((item) => item.id === request.userId);
       if (!targetUser) {
         setToast({ title: "No se pudo aprobar", message: "El usuario asociado ya no existe.", tone: "error" });
         return;
       }
-      const result = upsert({ ...targetUser, email: request.requestedValue, fullName: targetUser.fullName });
+      const result = await saveUser({ ...targetUser, email: request.requestedValue, fullName: targetUser.fullName }).catch(() => ({ ok: false }));
       if (!result.ok) {
         setToast({ title: "Correo duplicado", message: "No fue posible aplicar el cambio solicitado.", tone: "error" });
         return;
       }
       setUsers(result.users);
-      const activeSession = getSession();
+      const activeSession = fetchSession();
       if (activeSession?.userId === targetUser.id) {
-        setSession({ ...activeSession, email: request.requestedValue, role: targetUser.role });
+        persistSession({ ...activeSession, email: request.requestedValue, role: targetUser.role });
       }
       resolutionDetail = `Se sustituyó ${request.currentValue} por ${request.requestedValue} tras validación administrativa.`;
     } else {
       resolutionDetail = "Se autorizó sustituir la contraseña anterior por una nueva credencial protegida.";
     }
 
-    updateChangeRequest(request.id, (current) => ({
+    await updateProfileChangeRequest(request.id, (current) => ({
       ...current,
       status: "approved",
       resolvedAt: new Date().toISOString(),
@@ -1633,7 +1616,7 @@ export default function UsersPage() {
       ],
     }));
 
-    addNotification({
+    await createNotification({
       type: "system",
       title: "Petición aprobada",
       message: `${request.userName}: ${requestTypeLabel(request.type)} aprobada.`,
@@ -1643,14 +1626,14 @@ export default function UsersPage() {
     setToast({ title: "Petición aprobada", message: resolutionDetail });
   };
 
-  const handleRejectRequest = (request) => {
+  const handleRejectRequest = async (request) => {
     if (!canManageUsers) return;
     const actorName = currentUser?.fullName || "Administrador";
     const resolutionDetail = request.type === "email"
       ? `Se rechazó sustituir ${request.currentValue} por ${request.requestedValue}.`
       : "Se rechazó el cambio de contraseña solicitado.";
 
-    updateChangeRequest(request.id, (current) => ({
+    await updateProfileChangeRequest(request.id, (current) => ({
       ...current,
       status: "rejected",
       resolvedAt: new Date().toISOString(),
@@ -1669,7 +1652,7 @@ export default function UsersPage() {
       ],
     }));
 
-    addNotification({
+    await createNotification({
       type: "system",
       title: "Petición rechazada",
       message: `${request.userName}: ${requestTypeLabel(request.type)} rechazada.`,
@@ -1779,46 +1762,6 @@ export default function UsersPage() {
             Ver peticiones ({pendingRequests.length})
           </ActionButton>
         </div>
-
-        {/* ─── Demo Banner ─── */}
-        {demoUsers.length >= 3 && (
-          <div
-            style={{
-              marginBottom: 20,
-              background: "linear-gradient(135deg, var(--eco-primary-50), var(--eco-card-muted))",
-              border: "1px solid var(--eco-primary-200)",
-              borderRadius: "var(--eco-radius-lg)",
-              padding: "16px 20px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 40ms both",
-            }}
-          >
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: "var(--eco-radius-md)",
-                background: ICON_GRADIENT,
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                boxShadow: "0 2px 8px rgba(34,197,94,0.22)",
-              }}
-            >
-              <Sparkles size={19} />
-            </div>
-            <div>
-              <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>Usuarios de ejemplo cargados</p>
-              <p style={{ ...subtleText, marginTop: 3 }}>
-                Se crearon cuentas demo para Administrador, Operativo y Directivo. Edítalas libremente o crea usuarios nuevos.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* ─── KPI Cards ─── */}
         <div className="ct-users-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
@@ -1965,6 +1908,42 @@ export default function UsersPage() {
               <p style={{ ...subtleText, color: "var(--eco-danger)", marginTop: 3, opacity: 0.85 }}>{error}</p>
             </div>
             <ActionButton type="button" icon={RotateCcw} onClick={loadUsers}>Reintentar</ActionButton>
+          </div>
+        ) : users.length === 0 ? (
+          <div
+            style={{
+              ...cardBase,
+              padding: "56px 24px",
+              textAlign: "center",
+              animation: "ctFadeUp .4s ease-out",
+            }}
+          >
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                background: "var(--eco-gray-100)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 16px",
+                color: "var(--eco-text-soft)",
+              }}
+            >
+              <Users size={30} />
+            </div>
+            <p style={{ margin: "0 0 6px", fontFamily: fd, fontSize: 17, fontWeight: 700, color: "var(--eco-text-strong)" }}>
+              Sin usuarios registrados
+            </p>
+            <p style={{ ...subtleText, maxWidth: 360, margin: "0 auto 16px" }}>
+              Este módulo está listo para listar usuarios desde backend. Mientras no existan registros, la tabla permanece vacía.
+            </p>
+            {canManageUsers ? (
+              <ActionButton type="button" tone="primary" icon={Plus} onClick={openCreateModal}>
+                Crear usuario
+              </ActionButton>
+            ) : null}
           </div>
         ) : filteredUsers.length === 0 ? (
           <div

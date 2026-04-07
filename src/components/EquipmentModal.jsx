@@ -16,7 +16,7 @@ import {
   EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
-} from "../lib/equipmentStore";
+} from "../api/equipment";
 
 /* ─── Design tokens ─── */
 const fd = "var(--eco-font-display)";
@@ -536,7 +536,7 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
                 subtitle={
                   isElectric
                     ? "kWh/mes = (W × horas/día × días/sem × sem/mes × cantidad) ÷ 1 000"
-                    : "Combustible: inventario disponible, campos específicos próximamente."
+                    : "Combustible: inventario disponible; algunos parámetros requieren datos adicionales del equipo."
                 }
                 delay={60}
               >
@@ -556,10 +556,10 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
                     <Info size={14} style={{ color: "var(--eco-warning)", flexShrink: 0, marginTop: 1 }} />
                     <div>
                       <p style={{ margin: 0, fontFamily: fd, fontSize: 12, fontWeight: 700, color: "var(--eco-text-strong)" }}>
-                        Combustible: campos específicos próximamente
+                        Combustible: parámetros pendientes de integración
                       </p>
                       <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.5 }}>
-                        En este MVP se guarda el inventario. Los campos de litros/hora se habilitarán con el backend.
+                        El inventario ya puede registrarse. Los parámetros específicos de combustible requieren un endpoint dedicado.
                       </p>
                     </div>
                   </div>
@@ -821,7 +821,7 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
                 <Activity size={13} style={{ color: "var(--eco-primary-600)", flexShrink: 0, marginTop: 2 }} />
                 <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-primary-700)", lineHeight: 1.55 }}>
                   <strong>Consumo estimado:</strong> kWh/mes = (W × h/día × d/semana × s/mes × cantidad) ÷ 1 000.
-                  Los datos se guardan localmente y estarán listos para conectar al backend.
+                  Si no hay factor eléctrico configurado, el equipo se guarda sin cálculo de CO₂e asociado.
                 </p>
               </div>
             </div>
@@ -844,7 +844,7 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
             }}
           >
             <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.4, maxWidth: 340 }}>
-              Los cambios se guardan en localStorage y quedan listos para conectar al backend.
+              Los cambios del inventario quedan listos para persistencia remota cuando el endpoint de equipos esté disponible.
             </p>
             <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
               <button

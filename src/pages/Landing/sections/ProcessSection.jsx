@@ -22,7 +22,7 @@ export default function ProcessSection() {
           <div className="lnd-stp">
             <div className="lnd-sn">3</div>
             <h3>Analiza, define metas y mejora</h3>
-            <p>Dashboards y scopes para entender el presente, metas y acciones para reducir y demostrar avances con evidencia.</p>
+            <p>Dashboards y scopes para entender el presente, metas y acciones para reducir emisiones y respaldar cada avance con evidencia.</p>
           </div>
         </div>
       </R>

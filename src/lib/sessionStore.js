@@ -46,11 +46,28 @@ function normalizeSession(input) {
   const userId = cleanString(input.userId);
   const email = cleanString(input.email).toLowerCase();
   if (!userId || !email) return null;
+  const embeddedUser =
+    input.user && typeof input.user === "object" && !Array.isArray(input.user)
+      ? {
+          ...input.user,
+          id: cleanString(input.user.id || userId),
+          userId: cleanString(input.user.userId || input.user.id || userId),
+          email: cleanString(input.user.email || email).toLowerCase(),
+          role: normalizeRole(input.user.role || input.role),
+          roleKey: normalizeRole(input.user.roleKey || input.user.role || input.role),
+          name: cleanString(input.user.name || input.user.fullName),
+          fullName: cleanString(input.user.fullName || input.user.name),
+          areaAccess: normalizeAreaAccess(input.user.areaAccess),
+        }
+      : null;
   return {
     userId,
     email,
     role: normalizeRole(input.role),
     createdAt: cleanString(input.createdAt) || nowIso(),
+    token: cleanString(input.token) || null,
+    refreshToken: cleanString(input.refreshToken) || null,
+    user: embeddedUser,
   };
 }
 
@@ -63,6 +80,7 @@ function writeSession(session) {
 
 function ensureUserRecord(userInput = {}) {
   const email = cleanString(userInput.email).toLowerCase();
+  if (!email) return null;
   const existing = getAll().find((user) => user.email === email);
   const payload = {
     id: existing?.id || cleanString(userInput.id) || undefined,
@@ -70,13 +88,13 @@ function ensureUserRecord(userInput = {}) {
     paternalLastName: cleanString(userInput.paternalLastName, existing?.paternalLastName || ""),
     maternalLastName: cleanString(userInput.maternalLastName, existing?.maternalLastName || ""),
     fullName: cleanString(userInput.fullName || userInput.name, existing?.fullName || "Usuario CarbonTrack"),
-    email: email || existing?.email || "demo@carbontrack.local",
+    email: email || existing?.email,
     role: normalizeRole(userInput.role || existing?.role),
     campusCode: cleanString(userInput.campusCode, existing?.campusCode || DEFAULT_CAMPUS) || DEFAULT_CAMPUS,
     areaAccess: userInput.areaAccess || existing?.areaAccess || { mode: "all", areaCodes: [] },
     isActive: typeof userInput.isActive === "boolean" ? userInput.isActive : existing?.isActive ?? true,
     lastLoginAt: cleanString(userInput.lastLoginAt, nowIso()) || nowIso(),
-    notes: cleanString(userInput.notes, existing?.notes || "Usuario local del MVP"),
+    notes: cleanString(userInput.notes, existing?.notes || "Acceso local técnico"),
   };
 
   const result = upsert(payload);
@@ -114,37 +132,20 @@ export function createSessionForUser(userInput = {}) {
   return toViewUser(findById(user.id) || user);
 }
 
-export function ensureMockSession() {
-  const currentSession = getSession();
-  if (currentSession) return currentSession;
-  const users = getAll();
-  const fallbackUser =
-    users.find((user) => user.role === "admin" && user.isActive) ||
-    users.find((user) => user.isActive) ||
-    ensureUserRecord({
-      fullName: "Usuario CarbonTrack",
-      email: "demo@carbontrack.local",
-      role: "admin",
-      campusCode: DEFAULT_CAMPUS,
-      areaAccess: { mode: "all", areaCodes: [] },
-      isActive: true,
-      notes: "Sesión local generada automáticamente para el perfil.",
-    });
-  if (!fallbackUser) return null;
-  return writeSession({
-    userId: fallbackUser.id,
-    email: fallbackUser.email,
-    role: fallbackUser.role,
-    createdAt: nowIso(),
-  });
-}
-
 export function getCurrentUser(options = {}) {
-  const session = options.ensureMock ? ensureMockSession() : getSession();
+  const session = getSession();
   if (!session) return null;
+  if (session.user && session.user.id) {
+    return toViewUser({
+      ...session.user,
+      id: session.user.id,
+      email: session.user.email || session.email,
+      role: session.user.role || session.role,
+    });
+  }
   const user = findById(session.userId);
   if (user) return toViewUser(user);
-  if (!options.ensureMock) return null;
+  if (!options.rebuildMissingUser) return null;
   const rebuiltUser = ensureUserRecord({
     id: session.userId,
     email: session.email,
@@ -177,6 +178,7 @@ export function updateCurrentUser(patch = {}) {
     userId: result.user.id,
     email: result.user.email,
     role: result.user.role,
+    user: toViewUser(result.user),
   });
   return {
     ok: true,

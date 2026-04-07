@@ -10,9 +10,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
   Area, AreaChart,
 } from "recharts";
+import { fetchEmissionRecords } from "../api/records";
+import { isLocalMode } from "../api/config";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
-const RECORDS_KEY = "carbontrack.records";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const COLORS = ["#3B82F6","#22C55E","#8B5CF6","#EC4899","#06B6D4","#EAB308","#64748B","#94A3B8"];
 
@@ -75,10 +76,13 @@ function normRec(r, fid) {
   return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-") };
 }
 
-function loadElec() {
-  let err = "", parsed = [];
-  try { const raw = window.localStorage.getItem(RECORDS_KEY); if (raw) { const j = JSON.parse(raw); if (Array.isArray(j)) parsed = j; } } catch { err = "No se pudo leer localStorage."; }
-  const all = [...parsed, ...SEED_RECORDS];
+async function loadElec() {
+  let err = "";
+  const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
+  const all = await fetchEmissionRecords(fallbackRecords).catch(() => {
+    err = "No se pudieron cargar los registros.";
+    return fallbackRecords;
+  });
   const elec = all.filter(r => { if (!r || typeof r !== "object") return false; return r.category === "electricidad" || String(r.unit || "").toLowerCase() === "kwh"; });
   const byId = new Map(); elec.forEach((row, i) => { const k = String(row?.id || `e-${i}`); if (!byId.has(k)) byId.set(k, normRec(row, k)); });
   return { records: Array.from(byId.values()), storageError: err };
@@ -334,7 +338,13 @@ export default function Scope2Page({ onOpenRecord }) {
   const [page, setPage] = useState(0);
   const PER_PAGE = 8;
 
-  const loadAll = useCallback(() => { setLoading(true); setTimeout(() => { const ld = loadElec(); setRecords(ld.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO))); setStorageError(ld.storageError); setLoading(false); }, 600); }, []);
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    const ld = await loadElec();
+    setRecords(ld.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO)));
+    setStorageError(ld.storageError);
+    setLoading(false);
+  }, []);
   useEffect(() => { loadAll(); }, [loadAll]);
   useEffect(() => { const h = () => loadAll(); window.addEventListener("carbontrack:newrecord", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("storage", h); }; }, [loadAll]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);

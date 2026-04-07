@@ -139,66 +139,12 @@ const compareUsers = (left, right) => {
 
 const sortUsers = (users) => [...users].sort(compareUsers);
 
-const seedUsers = () => {
-  const timestamp = nowIso();
-  return sortUsers([
-    {
-      id: "user-admin-demo",
-      firstName: "Administrador",
-      paternalLastName: "Sistema",
-      maternalLastName: "",
-      fullName: "Administrador Sistema",
-      email: "admin@itsmante.edu.mx",
-      role: "admin",
-      campusCode: DEFAULT_CAMPUS,
-      areaAccess: { mode: "all", areaCodes: [] },
-      isActive: true,
-      lastLoginAt: timestamp,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      notes: "Usuario de ejemplo",
-    },
-    {
-      id: "user-operativo-demo",
-      firstName: "Usuario",
-      paternalLastName: "Capturista",
-      maternalLastName: "Demo",
-      fullName: "Usuario Capturista Demo",
-      email: "capturista@itsmante.edu.mx",
-      role: "operativo",
-      campusCode: DEFAULT_CAMPUS,
-      areaAccess: { mode: "custom", areaCodes: ["CC1", "Aulas", "Redes"] },
-      isActive: true,
-      lastLoginAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      notes: "Usuario de ejemplo",
-    },
-    {
-      id: "user-directivo-demo",
-      firstName: "Usuario",
-      paternalLastName: "Directivo",
-      maternalLastName: "Demo",
-      fullName: "Usuario Directivo Demo",
-      email: "directivo@itsmante.edu.mx",
-      role: "directivo",
-      campusCode: DEFAULT_CAMPUS,
-      areaAccess: { mode: "custom", areaCodes: ["Admin", "Industrial"] },
-      isActive: true,
-      lastLoginAt: null,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      notes: "Usuario de ejemplo",
-    },
-  ]);
-};
-
 let storeMeta = {
-  seededFromEmpty: false,
+  initializedEmpty: false,
 };
 
 function readUsers() {
-  storeMeta = { seededFromEmpty: false };
+  storeMeta = { initializedEmpty: false };
   const parsed = safeReadJson(USERS_KEY, null);
   if (!Array.isArray(parsed)) return [];
   return sortUsers(parsed.map((user, index) => normalizeUser(user, `user-${index + 1}`)));
@@ -232,8 +178,8 @@ export function ensureSeedData() {
   ensureRoles();
   const current = readUsers();
   if (current.length > 0) return current;
-  storeMeta = { seededFromEmpty: true };
-  return writeUsers(seedUsers());
+  storeMeta = { initializedEmpty: true };
+  return current;
 }
 
 export function getAll() {
@@ -242,7 +188,7 @@ export function getAll() {
 
 export function saveAll(users) {
   ensureRoles();
-  storeMeta = { seededFromEmpty: false };
+  storeMeta = { initializedEmpty: false };
   return writeUsers(users);
 }
 

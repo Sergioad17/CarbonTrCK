@@ -2,9 +2,9 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './BackgroundSettings/themeStyles.css'
-import { applySettings, getSettings, startSettingsSync } from './lib/settingsStore'
+import { applySettings, fetchSettings, startSettingsSync } from './api/settings'
 
-applySettings(getSettings())
+applySettings(fetchSettings())
 startSettingsSync()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
