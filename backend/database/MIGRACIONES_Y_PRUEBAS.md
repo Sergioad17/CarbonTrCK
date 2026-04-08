@@ -2,18 +2,22 @@
 
 ## 1. Estrategia de migraciones
 
-El archivo `database.sql` debe considerarse la migracion inicial base.
+El archivo `backend/database/migrations/001_init_postgresql.sql` es la migracion inicial base y debe permanecer congelado.
+
+El archivo `database.sql` debe considerarse un snapshot consolidado del estado actual del esquema. Sirve para inspeccion y para inicializaciones rapidas, pero las migraciones no deben depender de el ni invocarlo.
 
 Reglas:
 
 1. Nunca modificar produccion manualmente.
-2. Cada cambio nuevo debe crear una migracion incremental.
-3. Cada migracion debe incluir:
+2. Nunca reescribir una migracion ya publicada.
+3. Cada cambio nuevo debe crear una migracion incremental.
+4. Cada migracion debe incluir:
    - objetivo;
    - cambio de esquema;
    - posible backfill;
    - validacion posterior;
    - rollback cuando aplique.
+5. Toda validacion importante debe comprobar que una BD vacia puede reconstruirse aplicando `001`, `002`, `003`... en orden.
 
 Convencion sugerida:
 
@@ -84,6 +88,8 @@ Validar en ambiente de prueba:
 
 - modelo conceptual, logico y fisico documentado;
 - esquema PostgreSQL ejecutable;
+- `001` congelada y cambios nuevos versionados de forma incremental;
+- `database.sql` actualizado como snapshot actual cuando aplique;
 - catalogos iniciales definidos;
 - roles y privilegios definidos;
 - backups y restore probados;

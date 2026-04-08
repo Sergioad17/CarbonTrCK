@@ -288,4 +288,10 @@ Migraciones disponibles:
 - `backend/database/migrations/001_init_postgresql.sql`
 - `backend/database/migrations/002_auth_sessions_and_password_reset_tokens.sql`
 
-`database.sql` sigue siendo el esquema consolidado para inicializacion limpia, y `seed_auth.sql` agrega los datos demo de autenticacion en arranques nuevos.
+Reglas vigentes:
+
+- `001_init_postgresql.sql` es la base historica congelada.
+- cada cambio nuevo de esquema debe entrar en una migracion incremental nueva.
+- `database.sql` es el snapshot consolidado del esquema actual y no debe ser invocado desde `001`.
+
+`database.sql` sigue siendo util para inicializacion limpia por snapshot, y `seed_auth.sql` agrega los datos demo de autenticacion en arranques nuevos.
