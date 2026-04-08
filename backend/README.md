@@ -259,6 +259,23 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Acepta `kind`.
 - Guarda metadata en `files` y persiste el binario en storage local de desarrollo.
 
+### Reglas funcionales de `files`
+
+- Limite actual por archivo: `10 MB`.
+- MIME types permitidos:
+  - `application/pdf`
+  - `image/png`
+  - `image/jpeg`
+  - `image/webp`
+  - `text/csv`
+  - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- El nombre del archivo se sanitiza para storage local y solo conserva caracteres seguros.
+- Se calcula `checksum_sha256` al subir el archivo.
+- Por ahora no se aplica deduplicacion automatica por checksum; el checksum queda persistido para trazabilidad y posible limpieza futura.
+- Un mismo archivo puede adjuntarse a varios records; lo que se evita es duplicar el mismo par `record_id + file_id`.
+- Los archivos huerfanos subidos pero no asociados se permiten temporalmente en desarrollo.
+- La politica actual para huerfanos es limpieza posterior; no se bloquea la subida por no venir asociada a un record en el mismo request.
+
 ### `GET /files/:id`
 
 - Requiere token valido.
