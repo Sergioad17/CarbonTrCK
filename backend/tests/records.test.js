@@ -620,6 +620,45 @@ if (!hasDb) {
     assert.equal(record.evidenceFiles[0].fileName, "test-records-shape.pdf");
   });
 
+  test("GET /records devuelve shape consistente cuando el record no tiene archivos de evidencia", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+
+    const recordId = await createRecordFixture({
+      organizationId: context.organization_id,
+      campusId: context.campus_id,
+      areaId: context.area_adm_id,
+      scopeCode: "scope2",
+      categoryCode: "electricidad",
+      metricCode: "electricity_consumption",
+      unitCode: "kwh",
+      sourceCode: "metered",
+      createdBy: context.ana_user_id,
+      activityText: "Test GET Records Without Files",
+      value: 95,
+      factorValue: 0.455,
+      note: "TEST_RECORDS",
+      evidenceText: null,
+    });
+
+    const auth = await login();
+    const { response, body } = await request("/records?category=electricidad&source=Medicion", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(body.items));
+
+    const record = body.items.find((item) => item.id === recordId);
+    assert.ok(record, "should include record without evidence files");
+    assert.equal(record.hasEvidence, false);
+    assert.equal(record.evidenceFileId, null);
+    assert.deepEqual(record.evidenceFiles, []);
+    assert.equal(record.evidence, "");
+    assert.equal(record.evidenceUrl, "");
+  });
+
   test("GET /records respeta areaAccess custom", async () => {
     const context = await getSeedContext();
     await ensureRecordCatalogFixtures();
