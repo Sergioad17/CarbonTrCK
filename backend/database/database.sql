@@ -631,6 +631,18 @@ CREATE TABLE user_settings (
   CONSTRAINT user_settings_user_uq UNIQUE (user_id),
   CONSTRAINT user_settings_theme_chk CHECK (theme IN ('light','dark','system'))
 );
+CREATE TABLE dashboard_activity_feeds (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  items jsonb NOT NULL DEFAULT '[]'::jsonb,
+  updated_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT dashboard_activity_feeds_organization_fk FOREIGN KEY (organization_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT dashboard_activity_feeds_updated_by_fk FOREIGN KEY (updated_by,organization_id) REFERENCES users(id,organization_id) ON UPDATE CASCADE ON DELETE SET NULL,
+  CONSTRAINT dashboard_activity_feeds_organization_uq UNIQUE (organization_id),
+  CONSTRAINT dashboard_activity_feeds_items_array_chk CHECK (jsonb_typeof(items) = 'array')
+);
 CREATE TABLE profile_change_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -942,6 +954,7 @@ CREATE TRIGGER records_set_updated_at BEFORE UPDATE ON records FOR EACH ROW EXEC
 CREATE TRIGGER targets_set_updated_at BEFORE UPDATE ON targets FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER target_actions_set_updated_at BEFORE UPDATE ON target_actions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER user_settings_set_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER dashboard_activity_feeds_set_updated_at BEFORE UPDATE ON dashboard_activity_feeds FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER profile_change_requests_set_updated_at BEFORE UPDATE ON profile_change_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER iot_devices_set_updated_at BEFORE UPDATE ON iot_devices FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER device_bindings_set_updated_at BEFORE UPDATE ON device_bindings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
