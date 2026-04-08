@@ -305,6 +305,18 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Respeta `campusCode` y `areaAccess` del usuario autenticado.
 - `includeInactive=true` solo se expone para perfiles con acceso administrativo.
 
+### Orden de implementacion aplicado
+
+- `GET /records`: implementado primero sobre `v_frontend_records` y enriquecido con evidencia desde `record_files` y `files`.
+- `POST /records`: implementado con transaccion, `record_revisions` y `audit_events`.
+- `POST /files`: implementado con upload multipart, storage local de desarrollo y metadata persistida.
+- `POST /records/:id/files`: implementado despues del upload y alineado con el flujo real del frontend.
+- `GET /dashboard/activity`: implementado sobre persistencia por organizacion.
+- `PUT /dashboard/activity`: implementado con limite de 20 items y auditoria.
+- `GET /areas`: implementado al final del bloque funcional de lectura.
+- `PATCH /records/:id`: sigue pospuesto en esta fase.
+- Pruebas e integracion real con frontend: implementadas al cierre del bloque, incluyendo consumidores reales de `frontend/src/api`.
+
 ### `PATCH /users/:id/status`
 
 ```json
