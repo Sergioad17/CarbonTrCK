@@ -31,6 +31,16 @@ function cleanString(value) {
   return String(value ?? "").trim();
 }
 
+function triggerTransactionalFailpoint(options, failpoint) {
+  if (options?.failpoint === failpoint) {
+    throw new AppError({
+      statusCode: 500,
+      code: "TEST_FAILPOINT",
+      message: `Triggered transactional failpoint: ${failpoint}`,
+    });
+  }
+}
+
 function normalizeLooseText(value) {
   return cleanString(value)
     .normalize("NFD")
@@ -810,7 +820,7 @@ export async function getRecordByIdForActor(actor, recordId, client = { query })
   return result.rows[0] ? buildNormalizedRecordShape(result.rows[0]) : null;
 }
 
-export async function createRecord(actor, payload, auditContext) {
+export async function createRecord(actor, payload, auditContext, options = {}) {
   return withTransaction(async (client) => {
     const references = await resolveRecordCreateReferences(actor, payload, client);
     const fileIds = await validateFilesForRecord(actor, payload.fileIds, client);
@@ -888,6 +898,7 @@ export async function createRecord(actor, payload, auditContext) {
     );
 
     const recordId = insertResult.rows[0].id;
+    triggerTransactionalFailpoint(options, "after_record_insert");
 
     for (const [index, fileId] of fileIds.entries()) {
       await client.query(
@@ -903,6 +914,7 @@ export async function createRecord(actor, payload, auditContext) {
         [recordId, fileId, index === 0],
       );
     }
+    triggerTransactionalFailpoint(options, "after_files_attach");
 
     const createdRecord = await getRecordByIdForActor(actor, recordId, client);
     await insertRecordRevision(client, {
@@ -911,6 +923,7 @@ export async function createRecord(actor, payload, auditContext) {
       changeReason: "create",
       snapshot: createdRecord,
     });
+    triggerTransactionalFailpoint(options, "before_audit_insert");
 
     await insertAuditEvent(client, {
       organizationId: actor.organizationId,

@@ -13,6 +13,8 @@ let server;
 let baseUrl;
 let query;
 let closePool;
+let createRecord;
+let getUserAuthorizationContext;
 
 async function request(pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, options);
@@ -325,12 +327,45 @@ async function createCustomAreaUser(context) {
   return { email, password, userId };
 }
 
+async function createStandaloneFileFixture({ organizationId, uploadedBy, fileName = `test-records-tx-${Date.now()}.pdf` }) {
+  const result = await query(
+    `
+      INSERT INTO files (
+        organization_id,
+        uploaded_by,
+        kind,
+        file_name,
+        mime_type,
+        size_bytes,
+        storage_url,
+        metadata
+      )
+      VALUES (
+        $1,
+        $2,
+        'report',
+        $3,
+        'application/pdf',
+        128,
+        $4,
+        '{"storage":"local","diskPath":"storage/uploads/tests/rollback.pdf"}'::jsonb
+      )
+      RETURNING id
+    `,
+    [organizationId, uploadedBy, fileName, `https://example.test/files/${fileName}`],
+  );
+
+  return result.rows[0].id;
+}
+
 if (!hasDb) {
   test.skip("records integration tests require DATABASE_URL", () => {});
 } else {
   before(async () => {
     const { createApp } = await import("../src/app.js");
     ({ query, closePool } = await import("../src/shared/db/pool.js"));
+    ({ createRecord } = await import("../src/domains/records/records.repository.js"));
+    ({ getUserAuthorizationContext } = await import("../src/domains/users/users.repository.js"));
 
     const app = createApp();
     server = app.listen(0);
@@ -872,5 +907,112 @@ if (!hasDb) {
     });
 
     assert.equal(response.status, 422);
+  });
+
+  test("createRecord hace rollback si falla despues de insertar el record", async () => {
+    const context = await getSeedContext();
+    const actor = await getUserAuthorizationContext(context.ana_user_id);
+    await ensureRecordCatalogFixtures();
+    const note = `TEST_RECORDS_TXN_INSERT_${Date.now()}`;
+
+    await assert.rejects(
+      () =>
+        createRecord(
+          actor,
+          {
+            dateISO: "2026-04-12",
+            scope: "scope2",
+            category: "electricidad",
+            metric: "electricity_consumption",
+            unit: "kWh",
+            source: "Medicion",
+            campusCode: "CAMPUS-CT",
+            areaCode: "LAB",
+            activityText: "Rollback After Insert",
+            value: 15,
+            factor: 0.455,
+            note,
+          },
+          { ipAddress: "127.0.0.1", userAgent: "records-test" },
+          { failpoint: "after_record_insert" },
+        ),
+      (error) => error?.code === "TEST_FAILPOINT",
+    );
+
+    const recordCount = await query(`SELECT count(*)::int AS total FROM records WHERE note = $1`, [note]);
+    const revisionCount = await query(
+      `
+        SELECT count(*)::int AS total
+        FROM record_revisions rr
+        JOIN records r ON r.id = rr.record_id
+        WHERE r.note = $1
+      `,
+      [note],
+    );
+    const auditCount = await query(
+      `
+        SELECT count(*)::int AS total
+        FROM audit_events
+        WHERE event_type = 'records.create'
+          AND entity_id IN (SELECT id FROM records WHERE note = $1)
+      `,
+      [note],
+    );
+
+    assert.equal(recordCount.rows[0].total, 0);
+    assert.equal(revisionCount.rows[0].total, 0);
+    assert.equal(auditCount.rows[0].total, 0);
+  });
+
+  test("createRecord hace rollback si falla despues de asociar archivos y antes de auditar", async () => {
+    const context = await getSeedContext();
+    const actor = await getUserAuthorizationContext(context.ana_user_id);
+    await ensureRecordCatalogFixtures();
+    const fileId = await createStandaloneFileFixture({
+      organizationId: context.organization_id,
+      uploadedBy: context.ana_user_id,
+    });
+    const note = `TEST_RECORDS_TXN_ATTACH_${Date.now()}`;
+
+    await assert.rejects(
+      () =>
+        createRecord(
+          actor,
+          {
+            dateISO: "2026-04-13",
+            scope: "scope2",
+            category: "electricidad",
+            metric: "electricity_consumption",
+            unit: "kWh",
+            source: "Medicion",
+            campusCode: "CAMPUS-CT",
+            areaCode: "LAB",
+            activityText: "Rollback After Attach",
+            value: 20,
+            factor: 0.455,
+            fileIds: [fileId],
+            note,
+          },
+          { ipAddress: "127.0.0.1", userAgent: "records-test" },
+          { failpoint: "before_audit_insert" },
+        ),
+      (error) => error?.code === "TEST_FAILPOINT",
+    );
+
+    const recordCount = await query(`SELECT count(*)::int AS total FROM records WHERE note = $1`, [note]);
+    const fileLinkCount = await query(`SELECT count(*)::int AS total FROM record_files WHERE file_id = $1`, [fileId]);
+    const revisionCount = await query(
+      `
+        SELECT count(*)::int AS total
+        FROM record_revisions rr
+        JOIN records r ON r.id = rr.record_id
+        WHERE r.note = $1
+      `,
+      [note],
+    );
+
+    assert.equal(recordCount.rows[0].total, 0);
+    assert.equal(fileLinkCount.rows[0].total, 0);
+    assert.equal(revisionCount.rows[0].total, 0);
   });
 }
