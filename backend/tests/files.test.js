@@ -16,6 +16,24 @@ let baseUrl;
 let query;
 let closePool;
 
+function assertAuditEventShape(row, expected = {}) {
+  assert.ok(row, "audit event should exist");
+  assert.equal(typeof row.organization_id, "string");
+  assert.equal(typeof row.user_id, "string");
+  assert.equal(typeof row.event_type, "string");
+  assert.equal(typeof row.entity_type, "string");
+  assert.equal(typeof row.entity_id, "string");
+  assert.equal(typeof row.ip_address, "string");
+  assert.equal(typeof row.user_agent, "string");
+  assert.equal(typeof row.details, "object");
+
+  if (expected.eventType) assert.equal(row.event_type, expected.eventType);
+  if (expected.entityType) assert.equal(row.entity_type, expected.entityType);
+  if (expected.entityId) assert.equal(row.entity_id, expected.entityId);
+  if (expected.userId) assert.equal(row.user_id, expected.userId);
+  if (expected.organizationId) assert.equal(row.organization_id, expected.organizationId);
+}
+
 async function request(pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, options);
   const contentType = response.headers.get("content-type") || "";
@@ -311,6 +329,28 @@ if (!hasDb) {
     assert.equal(db.rows[0].storage_url.endsWith(`/files/${body.file.id}`), true);
     assert.equal(typeof db.rows[0].checksum_sha256, "string");
     assert.equal(Boolean(db.rows[0].metadata?.diskPath), true);
+
+    const audit = await query(
+      `
+        SELECT organization_id, user_id, event_type, entity_type, entity_id, ip_address, user_agent, details
+        FROM audit_events
+        WHERE event_type = 'files.upload'
+          AND entity_id = $1
+      `,
+      [body.file.id],
+    );
+    assert.equal(audit.rowCount, 1);
+    assertAuditEventShape(audit.rows[0], {
+      eventType: "files.upload",
+      entityType: "file",
+      entityId: body.file.id,
+      userId: context.ana_user_id,
+      organizationId: context.organization_id,
+    });
+    assert.equal(audit.rows[0].details.kind, "report");
+    assert.equal(audit.rows[0].details.fileName, "test-files-upload.pdf");
+    assert.equal(audit.rows[0].details.mimeType, "application/pdf");
+    assert.equal(audit.rows[0].details.sizeBytes > 0, true);
   });
 
   test("POST /files rechaza MIME invalido", async () => {
@@ -417,6 +457,27 @@ if (!hasDb) {
     assert.ok(Array.isArray(revisions.rows[0].snapshot.evidenceFiles));
     assert.equal(revisions.rows[0].snapshot.evidenceFiles.length, 1);
     assert.equal(revisions.rows[0].snapshot.evidenceFiles[0].id, upload.body.file.id);
+
+    const audit = await query(
+      `
+        SELECT organization_id, user_id, event_type, entity_type, entity_id, ip_address, user_agent, details
+        FROM audit_events
+        WHERE event_type = 'records.files_attached'
+          AND entity_id = $1
+      `,
+      [recordId],
+    );
+    assert.equal(audit.rowCount, 1);
+    assertAuditEventShape(audit.rows[0], {
+      eventType: "records.files_attached",
+      entityType: "record",
+      entityId: recordId,
+      userId: context.ana_user_id,
+      organizationId: context.organization_id,
+    });
+    assert.ok(Array.isArray(audit.rows[0].details.fileIds));
+    assert.equal(audit.rows[0].details.fileIds[0], upload.body.file.id);
+    assert.equal(audit.rows[0].details.attachedCount, 1);
   });
 
   test("POST /records/:id/files incrementa revision_no si el record ya tenia revision previa", async () => {

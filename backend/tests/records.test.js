@@ -16,6 +16,24 @@ let closePool;
 let createRecord;
 let getUserAuthorizationContext;
 
+function assertAuditEventShape(row, expected = {}) {
+  assert.ok(row, "audit event should exist");
+  assert.equal(typeof row.organization_id, "string");
+  assert.equal(typeof row.user_id, "string");
+  assert.equal(typeof row.event_type, "string");
+  assert.equal(typeof row.entity_type, "string");
+  assert.equal(typeof row.entity_id, "string");
+  assert.equal(typeof row.ip_address, "string");
+  assert.equal(typeof row.user_agent, "string");
+  assert.equal(typeof row.details, "object");
+
+  if (expected.eventType) assert.equal(row.event_type, expected.eventType);
+  if (expected.entityType) assert.equal(row.entity_type, expected.entityType);
+  if (expected.entityId) assert.equal(row.entity_id, expected.entityId);
+  if (expected.userId) assert.equal(row.user_id, expected.userId);
+  if (expected.organizationId) assert.equal(row.organization_id, expected.organizationId);
+}
+
 async function request(pathname, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, options);
   const body = await response.json().catch(() => null);
@@ -619,7 +637,7 @@ if (!hasDb) {
 
     const audit = await query(
       `
-        SELECT event_type, entity_type, entity_id
+        SELECT organization_id, user_id, event_type, entity_type, entity_id, ip_address, user_agent, details
         FROM audit_events
         WHERE event_type = 'records.create'
           AND entity_id = $1
@@ -627,7 +645,21 @@ if (!hasDb) {
       [body.item.id],
     );
     assert.equal(audit.rowCount, 1);
-    assert.equal(audit.rows[0].entity_type, "record");
+    assertAuditEventShape(audit.rows[0], {
+      eventType: "records.create",
+      entityType: "record",
+      entityId: body.item.id,
+      userId: context.ana_user_id,
+      organizationId: context.organization_id,
+    });
+    assert.equal(audit.rows[0].details.campusCode, "CAMPUS-CT");
+    assert.equal(audit.rows[0].details.areaCode, "LAB");
+    assert.equal(audit.rows[0].details.scope, "scope2");
+    assert.equal(audit.rows[0].details.category, "electricidad");
+    assert.equal(audit.rows[0].details.metric, "electricity_consumption");
+    assert.equal(audit.rows[0].details.unit, "kwh");
+    assert.equal(audit.rows[0].details.source, "metered");
+    assert.equal(audit.rows[0].details.attachedFileCount, 0);
   });
 
   test("POST /records sin permiso responde 403", async () => {
