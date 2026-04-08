@@ -399,6 +399,72 @@ if (!hasDb) {
     );
     assert.equal(link.rowCount, 1);
     assert.equal(link.rows[0].is_primary, true);
+
+    const revisions = await query(
+      `
+        SELECT revision_no, change_reason, changed_by, snapshot
+        FROM record_revisions
+        WHERE record_id = $1
+        ORDER BY revision_no ASC
+      `,
+      [recordId],
+    );
+    assert.equal(revisions.rowCount, 1);
+    assert.equal(revisions.rows[0].revision_no, 1);
+    assert.equal(revisions.rows[0].change_reason, "attach_files");
+    assert.equal(revisions.rows[0].changed_by, context.ana_user_id);
+    assert.equal(revisions.rows[0].snapshot.id, recordId);
+    assert.ok(Array.isArray(revisions.rows[0].snapshot.evidenceFiles));
+    assert.equal(revisions.rows[0].snapshot.evidenceFiles.length, 1);
+    assert.equal(revisions.rows[0].snapshot.evidenceFiles[0].id, upload.body.file.id);
+  });
+
+  test("POST /records/:id/files incrementa revision_no si el record ya tenia revision previa", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const recordId = await createRecordFixture(context);
+    await query(
+      `
+        INSERT INTO record_revisions (record_id, revision_no, changed_by, change_reason, snapshot)
+        VALUES ($1, 1, $2, 'create', '{"id":"seed","evidenceFiles":[]}'::jsonb)
+      `,
+      [recordId, context.ana_user_id],
+    );
+
+    const auth = await login();
+    const upload = await uploadFile(auth.body.token, {
+      filename: "test-files-attach-revision.pdf",
+      mimeType: "application/pdf",
+      content: "%PDF-1.4 attach revision",
+      kind: "report",
+    });
+
+    const { response } = await request(`/records/${recordId}/files`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ fileIds: [upload.body.file.id] }),
+    });
+
+    assert.equal(response.status, 200);
+
+    const revisions = await query(
+      `
+        SELECT revision_no, change_reason
+        FROM record_revisions
+        WHERE record_id = $1
+        ORDER BY revision_no ASC
+      `,
+      [recordId],
+    );
+
+    assert.equal(revisions.rowCount, 2);
+    assert.equal(revisions.rows[0].revision_no, 1);
+    assert.equal(revisions.rows[0].change_reason, "create");
+    assert.equal(revisions.rows[1].revision_no, 2);
+    assert.equal(revisions.rows[1].change_reason, "attach_files");
   });
 
   test("POST /records/:id/files falla con record inexistente", async () => {

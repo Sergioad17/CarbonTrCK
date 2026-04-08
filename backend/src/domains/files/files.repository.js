@@ -6,7 +6,7 @@ import { AppError } from "../../shared/errors/app-error.js";
 import { env } from "../../shared/config/env.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
-import { getRecordByIdForActor } from "../records/records.repository.js";
+import { getRecordByIdForActor, insertRecordRevision } from "../records/records.repository.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -318,6 +318,14 @@ export async function attachFilesToRecord(actor, recordId, fileIds, auditContext
       shouldSetPrimary = false;
     }
 
+    const updatedRecord = await getRecordByIdForActor(actor, recordId, client);
+    await insertRecordRevision(client, {
+      recordId: cleanString(recordId),
+      changedBy: actor.id,
+      changeReason: "attach_files",
+      snapshot: updatedRecord,
+    });
+
     await insertAuditEvent(client, {
       organizationId: actor.organizationId,
       userId: actor.id,
@@ -332,6 +340,6 @@ export async function attachFilesToRecord(actor, recordId, fileIds, auditContext
       },
     });
 
-    return getRecordByIdForActor(actor, recordId, client);
+    return updatedRecord;
   });
 }

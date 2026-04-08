@@ -708,7 +708,21 @@ async function validateFilesForRecord(actor, fileIds, client) {
   return normalizedFileIds;
 }
 
-async function insertRecordRevision(client, { recordId, changedBy, changeReason, snapshot }) {
+export async function getNextRecordRevisionNumber(recordId, client = { query }) {
+  const result = await client.query(
+    `
+      SELECT COALESCE(MAX(revision_no), 0) + 1 AS next_revision_no
+      FROM record_revisions
+      WHERE record_id = $1
+    `,
+    [recordId],
+  );
+
+  return Number(result.rows[0]?.next_revision_no || 1);
+}
+
+export async function insertRecordRevision(client, { recordId, changedBy, changeReason, snapshot, revisionNo }) {
+  const nextRevisionNo = revisionNo || (await getNextRecordRevisionNumber(recordId, client));
   await client.query(
     `
       INSERT INTO record_revisions (
@@ -718,9 +732,9 @@ async function insertRecordRevision(client, { recordId, changedBy, changeReason,
         change_reason,
         snapshot
       )
-      VALUES ($1, 1, $2, $3, $4::jsonb)
+      VALUES ($1, $2, $3, $4, $5::jsonb)
     `,
-    [recordId, changedBy, changeReason, JSON.stringify(snapshot)],
+    [recordId, nextRevisionNo, changedBy, changeReason, JSON.stringify(snapshot)],
   );
 }
 
@@ -922,6 +936,7 @@ export async function createRecord(actor, payload, auditContext, options = {}) {
       changedBy: actor.id,
       changeReason: "create",
       snapshot: createdRecord,
+      revisionNo: 1,
     });
     triggerTransactionalFailpoint(options, "before_audit_insert");
 

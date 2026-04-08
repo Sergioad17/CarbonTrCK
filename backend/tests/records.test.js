@@ -604,12 +604,18 @@ if (!hasDb) {
     assert.equal(Number(recordDb.rows[0].co2e_kg), 546);
 
     const revision = await query(
-      `SELECT revision_no, change_reason FROM record_revisions WHERE record_id = $1`,
+      `SELECT revision_no, change_reason, changed_by, snapshot FROM record_revisions WHERE record_id = $1`,
       [body.item.id],
     );
     assert.equal(revision.rowCount, 1);
     assert.equal(revision.rows[0].revision_no, 1);
     assert.equal(revision.rows[0].change_reason, "create");
+    assert.equal(revision.rows[0].changed_by, context.ana_user_id);
+    assert.equal(revision.rows[0].snapshot.id, body.item.id);
+    assert.equal(revision.rows[0].snapshot.areaCode, "LAB");
+    assert.equal(revision.rows[0].snapshot.metric, "electricity_consumption");
+    assert.equal(revision.rows[0].snapshot.source, "Medicion");
+    assert.ok(Array.isArray(revision.rows[0].snapshot.evidenceFiles));
 
     const audit = await query(
       `
