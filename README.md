@@ -1,74 +1,225 @@
 # CarbonTrCK
 
-Aplicacion web para monitoreo y trazabilidad de huella de carbono orientada a instituciones educativas. El repositorio esta organizado para separar frontend, backend y base de datos desde el inicio.
+Plataforma web para monitoreo, trazabilidad y gestión de huella de carbono orientada a instituciones educativas. El repositorio ya incluye frontend, backend HTTP con autenticación y administración de usuarios, base de datos PostgreSQL, semillas demo y flujo con Docker Compose.
+
+## Estado actual
+
+- `frontend` funcional en React + Vite con landing pública, login, dashboard y módulos operativos.
+- `backend` funcional en Express + PostgreSQL para autenticación, sesión, perfil y usuarios.
+- `docker-compose.yml` listo para levantar `frontend`, `backend`, `postgres` y `pgadmin` opcional.
+- Semillas iniciales disponibles para catálogos, autenticación y usuarios demo.
+- Modo local aislado aún disponible para demos técnicas y desarrollo sin backend completo.
+
+## Stack y versiones actuales
+
+### Frontend
+
+- React `18.3.1`
+- React DOM `18.3.1`
+- React Router DOM `6.28.0`
+- Vite `5.4.11`
+- `@vitejs/plugin-react` `4.3.4`
+- Recharts `2.13.3`
+- Three.js `0.161.0`
+- `@react-three/fiber` `8.18.0`
+- `@react-three/drei` `9.122.0`
+- Lucide React `0.263.1`
+
+### Backend
+
+- Node.js sobre imagen Docker `20-alpine`
+- Express `4.21.2`
+- PostgreSQL cliente `pg` `8.13.1`
+- JSON Web Token `9.0.2`
+- bcryptjs `2.4.3`
+- dotenv `16.4.5`
+- pino `9.5.0`
+- cors `2.8.5`
+
+### Infraestructura local
+
+- PostgreSQL `16-alpine`
+- pgAdmin `8`
+- Docker Compose con volumen persistente para base de datos
 
 ## Estructura del repositorio
 
 ```text
-/frontend
-/backend
-/backend/database
-/backend/src
+frontend/
+backend/
+backend/database/
 docker-compose.yml
+.env.example
 README.md
 ```
 
-## Modos de operacion
+## Qué hace hoy el proyecto
 
-El frontend puede trabajar en dos modos:
+### Frontend
 
-- `VITE_LOCAL_MODE=true`: modo local aislado para desarrollo y demo tecnica.
-- `VITE_LOCAL_MODE=false` con `VITE_API_URL` definido: modo backend estricto.
+La aplicación incluye estas áreas funcionales:
 
-Comportamiento real:
+- Landing pública con propuesta de valor, casos de uso y contenido visual.
+- Login con sesión local o remota.
+- Dashboard con KPIs, tendencias, distribución por scope, emisiones por área y actividad reciente.
+- Emisiones.
+- Scope 2: electricidad.
+- Scope 1: combustible.
+- Áreas.
+- Metas.
+- Reportes.
+- Catálogos de factores.
+- Catálogos de equipos.
+- Usuarios.
+- Configuración.
+- Perfil.
 
-- En modo local, la aplicacion usa `localStorage` para sesion, registros y varios modulos.
-- En modo backend, `frontend/src/api` deja de caer a `localStorage`. Si falta un endpoint o no responde, la vista afectada queda vacia o muestra error.
-- `VITE_LOCAL_MODE=false` no garantiza datos por si solo. Solo muestra informacion si el backend implementa los contratos esperados y devuelve datos.
+### Backend implementado
 
-## Que se necesita para arrancar
+El backend actual expone:
 
-- Node.js 18 o superior
-- npm 9 o superior
-- Un navegador moderno como Chrome, Edge o Firefox
+- `GET /health`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/refresh`
+- `POST /auth/forgot-password`
+- `GET /users`
+- `GET /users/roles`
+- `POST /users`
+- `PATCH /users/:id`
+- `PATCH /users/:id/status`
+- `POST /users/:id/password-reset`
+- `PATCH /profile/password`
 
-Recomendado:
+Además ya incluye:
 
-- Node.js 20 LTS
+- JWT de acceso y refresh.
+- Rotación de refresh tokens.
+- RBAC por roles y permisos.
+- Auditoría en base de datos.
+- Revocación de sesiones al cambiar o resetear contraseña.
+- Semillas de usuarios y catálogos base.
+- Pruebas de integración para auth y users en `backend/tests/auth-users.test.js`.
 
-## Tecnologias principales
+## Modos de operación
 
-- React 18
-- Vite 5
-- React Router DOM
-- Recharts
-- Three.js
-- React Three Fiber / Drei
+El frontend trabaja con estas variables:
 
-## Instalacion
+- `VITE_LOCAL_MODE=true`: modo local aislado.
+- `VITE_LOCAL_MODE=false` y `VITE_API_URL` definido: modo backend estricto.
 
-Desde la carpeta del frontend:
+Regla real de ejecución:
+
+```text
+BACKEND_MODE = Boolean(VITE_API_URL) && !VITE_LOCAL_MODE
+```
+
+### Modo local
+
+Cuando `VITE_LOCAL_MODE=true`:
+
+- la app usa `localStorage` para sesión y varios módulos,
+- algunas pantallas tienen semillas locales,
+- otras dependen de datos que el usuario capture durante la sesión.
+
+Pantallas con experiencia local útil desde instalación limpia:
+
+- `Dashboard`
+- `Emisiones`
+- `Scope Electricidad`
+- `Configuración`
+- `Perfil`
+
+Pantallas que dependen más de datos guardados localmente:
+
+- `Scope Combustible`
+- `Áreas`
+- `Reportes`
+- `Metas`
+- `Factores`
+- `Equipos`
+- `Usuarios`
+- `Notificaciones`
+- Solicitudes de cambio de perfil
+
+### Modo backend
+
+Cuando `VITE_LOCAL_MODE=false` y `VITE_API_URL` está definido:
+
+- el frontend usa backend como fuente de verdad,
+- no hace fallback silencioso a `localStorage`,
+- si un endpoint no existe o no devuelve datos, la vista afectada puede quedar vacía o fallar.
+
+Hoy el backend real cubre autenticación, perfil y usuarios. Otros módulos del frontend siguen requiriendo contratos backend adicionales si se quiere operación remota completa. El detalle de esos contratos está documentado en `backend/BACKEND_READINESS.md`.
+
+## Requisitos
+
+- Node.js `20` recomendado
+- npm `9` o superior
+- Docker Desktop opcional para flujo con contenedores
+- Navegador moderno como Chrome, Edge o Firefox
+
+## Variables de entorno
+
+El proyecto usa un `.env` raíz. Existe un ejemplo en `.env.example`.
+
+Variables incluidas actualmente:
+
+```env
+VITE_API_URL=http://localhost:3001
+VITE_LOCAL_MODE=false
+
+PORT=3001
+NODE_ENV=development
+DATABASE_URL=postgresql://carbontrack_app:change_this_password@postgres:5432/carbontrack
+JWT_ACCESS_SECRET=replace_with_a_long_random_secret
+JWT_REFRESH_SECRET=replace_with_another_long_random_secret
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=30d
+APP_BASE_URL=http://localhost:3001
+BCRYPT_ROUNDS=10
+FORGOT_PASSWORD_TOKEN_TTL=30m
+
+POSTGRES_DB=carbontrack
+POSTGRES_USER=carbontrack_app
+POSTGRES_PASSWORD=change_this_password
+
+PGADMIN_DEFAULT_EMAIL=admin@carbontrack.local
+PGADMIN_DEFAULT_PASSWORD=cambia_la_contraseña_tiene_que_ser_igual_a_la_que_hay_en_POSTGRES_PASSWORD
+```
+
+Notas:
+
+- `backend` soporta cargar `/.env` y también `backend/.env.local` si decides correrlo fuera de Docker.
+- Si corres backend local sin contenedor, normalmente `DATABASE_URL` debe apuntar a `localhost:5432` y no a `postgres`.
+- El backend falla explícitamente si faltan variables críticas.
+
+## Instalación rápida
+
+Instala dependencias por separado:
 
 ```bash
 cd frontend
 npm install
+
+cd ../backend
+npm install
 ```
 
-Para Docker, crea el archivo raiz desde el ejemplo:
+Después crea el `.env` raíz:
 
 ```bash
 copy .env.example .env
 ```
 
-## Trabajo con Docker
+## Ejecutar con Docker
 
-El repo ya incluye una base para levantar frontend y PostgreSQL con Docker Compose.
+Servicios disponibles:
 
-Servicios incluidos:
-
-- `frontend`: Vite en `http://localhost:3000`
-- `postgres`: PostgreSQL 16 en `localhost:5432`
-- `pgadmin`: opcional, disponible con el perfil `tools` en `http://localhost:5050`
+- `frontend`: `http://localhost:3000`
+- `backend`: `http://localhost:3001`
+- `postgres`: `localhost:5432`
+- `pgadmin` con perfil `tools`: `http://localhost:5050`
 
 Primer arranque:
 
@@ -77,20 +228,24 @@ copy .env.example .env
 docker compose up --build
 ```
 
-Si quieres abrir pgAdmin tambien:
+Con pgAdmin:
 
 ```bash
 docker compose --profile tools up --build
 ```
 
-Notas importantes:
+Detalles importantes:
 
-- La base se inicializa automaticamente con `backend/database/database.sql` y `backend/database/seed_catalogs.sql`.
-- La inicializacion solo corre la primera vez que se crea el volumen `postgres_data`.
-- Si necesitas reinicializar la BD desde cero, elimina el volumen manualmente antes de volver a levantar el stack.
-- En equipo, cada integrante trabaja en su rama y usa su propio `.env`.
+- La base se inicializa con:
+  - `backend/database/database.sql`
+  - `backend/database/seed_catalogs.sql`
+  - `backend/database/seed_auth.sql`
+- Esa inicialización corre al crear el volumen por primera vez.
+- Si necesitas reinicializar desde cero, elimina el volumen `postgres_data`.
 
-## Como arrancar en desarrollo
+## Ejecutar sin Docker
+
+### Frontend
 
 ```bash
 copy .env.example .env
@@ -98,79 +253,23 @@ cd frontend
 npm run dev
 ```
 
-La aplicacion se levanta en:
+### Backend
 
-```text
-http://localhost:3000
+Con PostgreSQL disponible y variables correctas:
+
+```bash
+cd backend
+npm run dev
 ```
 
-Notas de arranque:
+Puertos por defecto:
 
-- Vite esta configurado para abrir el navegador automaticamente.
-- Puedes ejecutar el proyecto sin backend usando `VITE_LOCAL_MODE=true`.
-- Si vas a integrar backend, define `VITE_API_URL` y usa `VITE_LOCAL_MODE=false`.
-- En modo local, la sesion y parte de la informacion se almacenan en `localStorage`.
-- Si vas a correr el backend fuera de Docker, usa tambien `backend/.env.local` basado en `backend/.env.local.example`.
-
-Ejemplo de `.env` para modo local:
-
-```env
-VITE_LOCAL_MODE=true
-VITE_API_URL=http://localhost:3001
-```
-
-Ejemplo de `.env` para modo backend:
-
-```env
-VITE_LOCAL_MODE=false
-VITE_API_URL=http://localhost:3001
-```
-
-## Disponibilidad de datos en modo local
-
-Cuando `VITE_LOCAL_MODE=true`, las pantallas no se comportan todas igual.
-
-Pantallas con datos visibles desde una instalacion limpia:
-
-- `Emisiones`: usa registros semilla (`SEED_RECORDS`).
-- `Scope Electricidad`: usa registros semilla (`SEED_RECORDS`).
-- `Dashboard`: muestra actividad base local. Sus KPIs y graficas principales dependen de registros locales; si no hay registros guardados, puede verse parcial.
-- `Configuracion`: muestra valores por defecto aunque no existan datos previos.
-- `Perfil`: puede mostrar sesion local y configuracion basica.
-
-Pantallas que solo muestran datos si ya existen datos guardados en `localStorage`:
-
-- `Dashboard` completo
-- `Scope Combustible`
-- `Areas`
-- `Reportes`
-- `Metas`
-- `Factores`
-- `Equipos`
-- `Usuarios`
-- `Notificaciones`
-- `Solicitudes de cambio de perfil`
-
-Importante:
-
-- En modo local no todos los modulos traen semillas precargadas.
-- Si limpias el `localStorage`, varias pantallas volveran a quedar vacias hasta que captures o guardes informacion nuevamente.
-
-## Disponibilidad de datos en modo backend
-
-Cuando `VITE_LOCAL_MODE=false` y `VITE_API_URL` esta definido:
-
-- `Dashboard` necesita `GET /records` y `GET /dashboard/activity`.
-- `Emisiones`, `Scope Electricidad`, `Scope Combustible`, `Areas` y `Reportes` dependen de `GET /records`.
-- `Metas` depende de `GET /targets`, `GET /actions` y `GET /records`.
-- `Factores` depende de `GET /factors` y endpoints relacionados.
-- `Equipos` depende de `GET /equipment` y normalmente `GET /factors/default`.
-- `Usuarios` depende de `GET /users` y `GET /users/roles`.
-- `Configuracion` depende de `GET /settings`.
-
-Si esos endpoints no existen o no entregan datos, la vista correspondiente no tomara respaldo automatico desde `localStorage`.
+- frontend: `3000`
+- backend: `3001`
 
 ## Scripts disponibles
+
+### Frontend
 
 ```bash
 npm run dev
@@ -178,68 +277,87 @@ npm run build
 npm run preview
 ```
 
-- `npm run dev`: inicia el servidor de desarrollo
-- `npm run build`: genera la version de produccion en `frontend/dist/`
-- `npm run preview`: sirve localmente la build generada
-
-## Como probar el acceso
-
-Con `VITE_LOCAL_MODE=true`, la pantalla de login incluye cuentas de demostracion. Puedes usar cualquiera de estas:
-
-- `admin@itsmante.edu.mx` / `admin123`
-- `ana@itsmante.edu.mx` / `captura1`
-- `director@itsmante.edu.mx` / `consulta`
-
-Con `VITE_LOCAL_MODE=false`, el acceso depende de `POST /auth/login` del backend.
-
-## Estructura general
-
-- `frontend/src/App.jsx`: enrutamiento principal
-- `frontend/src/pages/Landing/`: landing publica
-- `frontend/src/pages/LoginPage.jsx`: acceso al sistema
-- `frontend/src/pages/DashboardPage.jsx`: dashboard principal
-- `frontend/src/components/`: componentes reutilizables
-- `frontend/src/lib/`: almacenamiento local, sesion y utilidades
-- `frontend/src/api/`: capa unica de integracion remota
-- `backend/database/`: esquema, semillas y migraciones iniciales de PostgreSQL
-- `backend/src/`: espacio reservado para el backend real
-- `docker-compose.yml`: stack local compartido para frontend y base de datos
-- `frontend/Dockerfile`: imagen de desarrollo del frontend
-- `frontend/public/`: assets estaticos
-
-## Rutas principales
-
-- `/`: landing publica o dashboard si ya existe sesion local
-- `/login`: inicio de sesion
-- `/perfil`: acceso al dashboard con sesion activa
-- `/*`: rutas protegidas renderizadas desde el dashboard
-
-## Build de produccion
+### Backend
 
 ```bash
-cd frontend
-npm run build
-npm run preview
+npm run dev
+npm run start
+npm run test
 ```
 
-## Consideraciones del proyecto
+## Usuarios demo actuales
 
-- Este repositorio sigue siendo util como frontend local y demo, pero tambien puede operar en integracion real con backend.
-- Parte del comportamiento local esta orientado a demostracion y prototipo.
-- El comportamiento exacto de integracion backend esta documentado en `backend/BACKEND_READINESS.md`.
-- Si necesitas limpiar el estado local para volver a empezar, borra el `localStorage` del navegador.
+Los usuarios semilla en base de datos son:
 
-## Solucion de problemas
+- `admin@itsmante.edu.mx / admin123A`
+- `ana@itsmante.edu.mx / captura1A`
+- `director@itsmante.edu.mx / consulta1A`
 
-Si el proyecto no arranca:
+Importante:
 
-1. Verifica la version de Node.js con `node -v`.
-2. Verifica la version de npm con `npm -v`.
-3. Reinstala dependencias con `npm install`.
-4. Si persiste el problema, elimina `node_modules` y vuelve a ejecutar `npm install`.
+- estas credenciales corresponden al backend y a `seed_auth.sql`,
+- son distintas a algunas contraseñas antiguas que todavía aparecen en documentación vieja.
 
-Si trabajas con Docker y el frontend no refleja cambios:
+## Base de datos
 
-1. Verifica que el contenedor `frontend` siga corriendo.
-2. Reinicia con `docker compose up --build`.
-3. Si el problema viene de la BD inicial, recuerda que los scripts solo corren al crear el volumen por primera vez.
+La carpeta `backend/database/` contiene:
+
+- esquema consolidado,
+- migraciones SQL,
+- semillas,
+- documentación del modelo y operación.
+
+Archivos clave:
+
+- `backend/database/database.sql`
+- `backend/database/seed_catalogs.sql`
+- `backend/database/seed_auth.sql`
+- `backend/database/migrations/001_init_postgresql.sql`
+- `backend/database/migrations/002_auth_sessions_and_password_reset_tokens.sql`
+
+## Documentación relacionada
+
+- `backend/README.md`: detalles del backend, auth, RBAC y errores.
+- `backend/BACKEND_READINESS.md`: contratos pendientes para integrar todos los módulos del frontend con backend.
+- `backend/database/README.md`: detalles del esquema y operación de la BD.
+- `DOCKER_WORKFLOW.md`: flujo complementario de trabajo con Docker.
+
+## Estructura funcional principal
+
+- `frontend/src/App.jsx`: enrutamiento principal.
+- `frontend/src/pages/`: vistas principales del producto.
+- `frontend/src/pages/Landing/`: landing pública.
+- `frontend/src/api/`: capa de integración con backend y modo local.
+- `frontend/src/lib/`: stores locales y utilidades.
+- `backend/src/app.js`: configuración de Express.
+- `backend/src/routes/index.js`: registro de rutas.
+- `backend/src/domains/`: dominios de auth, profile y users.
+- `backend/src/shared/`: configuración, middleware, utilidades, errores y acceso a BD.
+
+## Estado de integración
+
+El proyecto ya no es solo un prototipo visual:
+
+- tiene frontend operativo,
+- tiene backend real para autenticación y administración de usuarios,
+- tiene base de datos y semillas funcionales,
+- pero todavía hay módulos del frontend que requieren endpoints backend adicionales para una operación remota completa.
+
+Si quieres saber exactamente qué falta para cerrar toda la integración, revisa `backend/BACKEND_READINESS.md`.
+
+## Solución de problemas
+
+Si algo no arranca:
+
+1. Verifica Node con `node -v`.
+2. Verifica npm con `npm -v`.
+3. Confirma que `.env` exista en la raíz.
+4. Reinstala dependencias con `npm install` en `frontend` y `backend`.
+5. Si usas Docker, reconstruye con `docker compose up --build`.
+6. Si la base ya tenía datos viejos y necesitas reinicio limpio, elimina el volumen `postgres_data`.
+
+Si el frontend abre pero algunas pantallas no muestran datos:
+
+1. revisa si estás en `VITE_LOCAL_MODE=true` o en modo backend,
+2. confirma que `VITE_API_URL` apunte al backend correcto,
+3. recuerda que no todos los módulos tienen fallback local cuando el frontend está en modo backend estricto.

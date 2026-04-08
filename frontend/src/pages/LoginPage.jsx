@@ -516,8 +516,8 @@ export default function LoginPage({ onLogin }) {
                   lineHeight: 1.55
                 }}>
                   {usingBackend
-                    ? "El inicio de sesión depende del endpoint `/auth/login` y del perfil remoto."
-                    : "Sin backend configurado, el acceso local usa el correo capturado para crear una sesión técnica mínima en este navegador."}
+                    ? "Te encuentras ahora mismo en modo demo trabajando Backend local + Postgres en Docker"
+                    : "No hay backend, todo es local para pruebas de interfaz y otros."}
                 </p>
               </div>
             </div>
