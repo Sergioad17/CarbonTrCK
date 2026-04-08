@@ -301,8 +301,19 @@ export async function attachFilesToRecord(actor, recordId, fileIds, auditContext
       [cleanString(recordId)],
     );
     let shouldSetPrimary = primaryResult.rowCount < 1;
+    const existingLinksResult = await client.query(
+      `
+        SELECT file_id
+        FROM record_files
+        WHERE record_id = $1
+          AND file_id = ANY($2::uuid[])
+      `,
+      [cleanString(recordId), normalizedFileIds],
+    );
+    const existingFileIds = new Set(existingLinksResult.rows.map((row) => cleanString(row.file_id)));
+    const newFileIds = normalizedFileIds.filter((fileId) => !existingFileIds.has(fileId));
 
-    for (const fileId of normalizedFileIds) {
+    for (const fileId of newFileIds) {
       await client.query(
         `
           INSERT INTO record_files (
@@ -319,26 +330,29 @@ export async function attachFilesToRecord(actor, recordId, fileIds, auditContext
     }
 
     const updatedRecord = await getRecordByIdForActor(actor, recordId, client);
-    await insertRecordRevision(client, {
-      recordId: cleanString(recordId),
-      changedBy: actor.id,
-      changeReason: "attach_files",
-      snapshot: updatedRecord,
-    });
+    if (newFileIds.length > 0) {
+      await insertRecordRevision(client, {
+        recordId: cleanString(recordId),
+        changedBy: actor.id,
+        changeReason: "attach_files",
+        snapshot: updatedRecord,
+      });
 
-    await insertAuditEvent(client, {
-      organizationId: actor.organizationId,
-      userId: actor.id,
-      eventType: "records.files_attached",
-      entityType: "record",
-      entityId: cleanString(recordId),
-      ipAddress: auditContext.ipAddress,
-      userAgent: auditContext.userAgent,
-      details: {
-        fileIds: normalizedFileIds,
-        attachedCount: normalizedFileIds.length,
-      },
-    });
+      await insertAuditEvent(client, {
+        organizationId: actor.organizationId,
+        userId: actor.id,
+        eventType: "records.files_attached",
+        entityType: "record",
+        entityId: cleanString(recordId),
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        details: {
+          fileIds: newFileIds,
+          attachedCount: newFileIds.length,
+          skippedFileIds: normalizedFileIds.filter((fileId) => existingFileIds.has(fileId)),
+        },
+      });
+    }
 
     return updatedRecord;
   });
