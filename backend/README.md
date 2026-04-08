@@ -219,6 +219,26 @@ Response:
 
 Actualiza datos base, rol, campus, notas y acceso a areas.
 
+### `GET /records`
+
+- Requiere token valido.
+- Devuelve `items` con shape normalizado compatible con frontend.
+- Soporta filtros opcionales: `from`, `to`, `category`, `scope`, `areaCode`, `campusCode`, `status`, `source`.
+- Aplica filtro por organizacion y respeta `campusCode` y `areaAccess` del usuario autenticado.
+
+### `POST /records`
+
+- Requiere permiso `records:create`.
+- Crea fila real en `records`.
+- Inserta revision `1` en `record_revisions`.
+- Inserta auditoria `records.create`.
+- Acepta `fileIds` y los asocia en la misma transaccion.
+
+### `PATCH /records/:id`
+
+- Pospuesto formalmente en esta fase.
+- No se expone todavia hasta cerrar lectura, captura transaccional y auditoria de creacion.
+
 ### `PATCH /users/:id/status`
 
 ```json
