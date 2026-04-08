@@ -259,6 +259,14 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Valida record existente, misma organizacion y acceso por campus/area.
 - Devuelve el record actualizado con `evidenceFiles`.
 
+### `GET /areas`
+
+- Requiere token valido.
+- Devuelve el catalogo oficial de areas de la organizacion.
+- Por defecto solo incluye areas activas.
+- Respeta `campusCode` y `areaAccess` del usuario autenticado.
+- `includeInactive=true` solo se expone para perfiles con acceso administrativo.
+
 ### `PATCH /users/:id/status`
 
 ```json

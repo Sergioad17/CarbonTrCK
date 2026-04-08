@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { registerAreasRoutes } from "../domains/areas/areas.routes.js";
 import { registerAuthRoutes } from "../domains/auth/auth.routes.js";
 import { registerFilesRoutes } from "../domains/files/files.routes.js";
 import { registerProfileRoutes } from "../domains/profile/profile.routes.js";
@@ -22,6 +23,7 @@ export function registerRoutes(app, { env }) {
   registerProfileRoutes(router);
   registerRecordsRoutes(router);
   registerFilesRoutes(router);
+  registerAreasRoutes(router);
 
   app.use("/", router);
 }
