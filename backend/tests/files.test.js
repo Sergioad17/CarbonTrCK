@@ -481,6 +481,23 @@ if (!hasDb) {
     assert.equal(body.code, "VALIDATION_ERROR");
   });
 
+  test("POST /files rechaza archivo demasiado grande", async () => {
+    const auth = await login();
+    const oversizedContent = "a".repeat(10 * 1024 * 1024 + 1);
+
+    const { response, body } = await uploadFile(auth.body.token, {
+      filename: "test-files-too-large.pdf",
+      mimeType: "application/pdf",
+      content: oversizedContent,
+      kind: "report",
+    });
+
+    assert.equal(response.status, 422);
+    assert.equal(body.code, "VALIDATION_ERROR");
+    assert.equal(body.details.field, "file");
+    assert.equal(body.details.maxBytes, 10 * 1024 * 1024);
+  });
+
   test("GET /files/:id devuelve archivo con auth y headers correctos", async () => {
     const auth = await login();
     const upload = await uploadFile(auth.body.token, {

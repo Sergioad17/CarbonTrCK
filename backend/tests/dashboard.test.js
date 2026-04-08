@@ -77,6 +77,16 @@ if (!hasDb) {
     assert.equal(response.status, 401);
   });
 
+  test("PUT /dashboard/activity sin auth responde 401", async () => {
+    const { response } = await request("/dashboard/activity", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [] }),
+    });
+
+    assert.equal(response.status, 401);
+  });
+
   test("GET /dashboard/activity devuelve arreglo vacio cuando no hay feed", async () => {
     const auth = await login("ana@itsmante.edu.mx", "captura1A");
 
