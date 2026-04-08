@@ -345,6 +345,107 @@ async function createCustomAreaUser(context) {
   return { email, password, userId };
 }
 
+async function createScopedOperativeUser({
+  organizationId,
+  campusId,
+  roleId,
+  campusCode,
+  areaAccessMode = "all",
+  areaId = null,
+  createdBy,
+}) {
+  const email = `records.scope.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@itsmante.edu.mx`;
+  const password = "captura1A";
+
+  const userResult = await query(
+    `
+      INSERT INTO users (
+        organization_id,
+        campus_id,
+        area_access_mode,
+        numeric_id,
+        first_name,
+        paternal_last_name,
+        maternal_last_name,
+        email,
+        password_hash,
+        full_name,
+        notes,
+        is_active
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        'Scoped',
+        'Operative',
+        'User',
+        $5::citext,
+        crypt($6, gen_salt('bf', 10)),
+        $7,
+        'TEST_RECORDS',
+        true
+      )
+      RETURNING id
+    `,
+    [organizationId, campusId, areaAccessMode, `REC-${Date.now()}`, email, password, `Scoped User ${campusCode}`],
+  );
+
+  const userId = userResult.rows[0].id;
+
+  await query(
+    `
+      INSERT INTO user_roles (organization_id, user_id, role_id, campus_id)
+      VALUES ($1, $2, $3, $4)
+    `,
+    [organizationId, userId, roleId, campusId],
+  );
+
+  if (areaAccessMode === "custom" && areaId) {
+    await query(
+      `
+        INSERT INTO user_area_access (organization_id, user_id, campus_id, area_id, created_by)
+        VALUES ($1, $2, $3, $4, $5)
+      `,
+      [organizationId, userId, campusId, areaId, createdBy],
+    );
+  }
+
+  return { email, password, userId };
+}
+
+async function createTestCampusWithArea(organizationId) {
+  const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const campusCode = `TEST-${suffix}`.slice(0, 20);
+  const areaCode = `TA${suffix}`.slice(0, 12);
+
+  const campusResult = await query(
+    `
+      INSERT INTO campuses (organization_id, name, code, city, state, country_code, is_active)
+      VALUES ($1, $2, $3, 'Ciudad Mante', 'Tamaulipas', 'MX', true)
+      RETURNING id, code
+    `,
+    [organizationId, `Test Campus ${suffix}`, campusCode],
+  );
+
+  const areaResult = await query(
+    `
+      INSERT INTO areas (campus_id, code, name, is_active)
+      VALUES ($1, $2, $3, true)
+      RETURNING id, code
+    `,
+    [campusResult.rows[0].id, areaCode, `Test Area ${suffix}`],
+  );
+
+  return {
+    campusId: campusResult.rows[0].id,
+    campusCode: campusResult.rows[0].code,
+    areaId: areaResult.rows[0].id,
+    areaCode: areaResult.rows[0].code,
+  };
+}
+
 async function createStandaloneFileFixture({ organizationId, uploadedBy, fileName = `test-records-tx-${Date.now()}.pdf` }) {
   const result = await query(
     `
@@ -409,6 +510,16 @@ if (!hasDb) {
         )
       `,
     );
+    await query(
+      `
+        DELETE FROM audit_events
+        WHERE user_id IN (
+          SELECT id
+          FROM users
+          WHERE email::text LIKE 'records.scope.%@itsmante.edu.mx'
+        )
+      `,
+    );
     await query(`DELETE FROM record_files WHERE record_id IN (SELECT id FROM records WHERE note = 'TEST_RECORDS')`);
     await query(`DELETE FROM record_revisions WHERE record_id IN (SELECT id FROM records WHERE note = 'TEST_RECORDS')`);
     await query(`DELETE FROM files WHERE file_name LIKE 'test-records-%'`);
@@ -416,8 +527,11 @@ if (!hasDb) {
     await query(`DELETE FROM user_area_access WHERE user_id IN (SELECT id FROM users WHERE email::text LIKE 'records.custom.%@itsmante.edu.mx')`);
     await query(`DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE email::text LIKE 'records.custom.%@itsmante.edu.mx')`);
     await query(`DELETE FROM users WHERE email::text LIKE 'records.custom.%@itsmante.edu.mx'`);
-    await query(`DELETE FROM areas WHERE code = 'TST-AREA'`);
-    await query(`DELETE FROM campuses WHERE code = 'TEST-OTHER'`);
+    await query(`DELETE FROM user_area_access WHERE user_id IN (SELECT id FROM users WHERE email::text LIKE 'records.scope.%@itsmante.edu.mx')`);
+    await query(`DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE email::text LIKE 'records.scope.%@itsmante.edu.mx')`);
+    await query(`DELETE FROM users WHERE email::text LIKE 'records.scope.%@itsmante.edu.mx'`);
+    await query(`DELETE FROM areas WHERE code LIKE 'TA%' AND name LIKE 'Test Area %'`);
+    await query(`DELETE FROM campuses WHERE code LIKE 'TEST-%' AND name LIKE 'Test Campus %'`);
   });
 
   test("GET /records sin auth responde 401", async () => {
@@ -551,6 +665,64 @@ if (!hasDb) {
     assert.ok(Array.isArray(body.items));
     assert.equal(body.items.length, 1);
     assert.equal(body.items[0].areaCode, "ADM");
+  });
+
+  test("GET /records respeta campus asignado del usuario", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const scopedCampus = await createTestCampusWithArea(context.organization_id);
+
+    await ensureCategory("scope2", "electricidad", "Electricidad", "electricity_consumption", "kwh");
+
+    await createRecordFixture({
+      organizationId: context.organization_id,
+      campusId: context.campus_id,
+      areaId: context.area_lab_id,
+      scopeCode: "scope2",
+      categoryCode: "electricidad",
+      metricCode: "electricity_consumption",
+      unitCode: "kwh",
+      sourceCode: "metered",
+      createdBy: context.ana_user_id,
+      activityText: "Main Campus Record",
+      value: 100,
+      factorValue: 0.455,
+    });
+
+    await createRecordFixture({
+      organizationId: context.organization_id,
+      campusId: scopedCampus.campusId,
+      areaId: scopedCampus.areaId,
+      scopeCode: "scope2",
+      categoryCode: "electricidad",
+      metricCode: "electricity_consumption",
+      unitCode: "kwh",
+      sourceCode: "metered",
+      createdBy: context.ana_user_id,
+      activityText: "Other Campus Record",
+      value: 100,
+      factorValue: 0.455,
+    });
+
+    const scopedUser = await createScopedOperativeUser({
+      organizationId: context.organization_id,
+      campusId: scopedCampus.campusId,
+      roleId: context.operativo_role_id,
+      campusCode: scopedCampus.campusCode,
+      createdBy: context.admin_user_id,
+    });
+
+    const auth = await login(scopedUser.email, scopedUser.password);
+    const { response, body } = await request("/records", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(body.items));
+    assert.equal(body.items.length, 1);
+    assert.equal(body.items[0].campusCode, scopedCampus.campusCode);
+    assert.equal(body.items[0].areaCode, scopedCampus.areaCode);
   });
 
   test("POST /records crea record real, revision y auditoria", async () => {
@@ -690,27 +862,87 @@ if (!hasDb) {
     assert.equal(response.status, 403);
   });
 
+  test("POST /records deniega creacion fuera del area permitida cuando areaAccess es custom", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const customUser = await createScopedOperativeUser({
+      organizationId: context.organization_id,
+      campusId: context.campus_id,
+      roleId: context.operativo_role_id,
+      campusCode: "CAMPUS-CT",
+      areaAccessMode: "custom",
+      areaId: context.area_adm_id,
+      createdBy: context.admin_user_id,
+    });
+
+    const auth = await login(customUser.email, customUser.password);
+    const { response } = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-08",
+        scope: "scope2",
+        metric: "electricity_consumption",
+        areaCode: "LAB",
+        campusCode: "CAMPUS-CT",
+        category: "electricidad",
+        activityText: "Forbidden Area Create",
+        value: 50,
+        unit: "kWh",
+        factor: 0.455,
+        source: "Medicion",
+      }),
+    });
+
+    assert.equal(response.status, 403);
+  });
+
+  test("POST /records deniega creacion fuera del campus asignado", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const scopedCampus = await createTestCampusWithArea(context.organization_id);
+
+    const scopedUser = await createScopedOperativeUser({
+      organizationId: context.organization_id,
+      campusId: scopedCampus.campusId,
+      roleId: context.operativo_role_id,
+      campusCode: scopedCampus.campusCode,
+      createdBy: context.admin_user_id,
+    });
+
+    const auth = await login(scopedUser.email, scopedUser.password);
+    const { response } = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-08",
+        scope: "scope2",
+        metric: "electricity_consumption",
+        areaCode: "LAB",
+        campusCode: "CAMPUS-CT",
+        category: "electricidad",
+        activityText: "Forbidden Campus Create",
+        value: 50,
+        unit: "kWh",
+        factor: 0.455,
+        source: "Medicion",
+      }),
+    });
+
+    assert.equal(response.status, 403);
+  });
+
   test("POST /records falla con area fuera del campus", async () => {
     const context = await getSeedContext();
     await ensureRecordCatalogFixtures();
     const auth = await login();
-
-    const campusResult = await query(
-      `
-        INSERT INTO campuses (organization_id, name, code, city, state, country_code, is_active)
-        VALUES ($1, 'Test Other Campus', 'TEST-OTHER', 'Ciudad Mante', 'Tamaulipas', 'MX', true)
-        RETURNING id
-      `,
-      [context.organization_id],
-    );
-
-    await query(
-      `
-        INSERT INTO areas (campus_id, code, name, is_active)
-        VALUES ($1, 'TST-AREA', 'Test Area', true)
-      `,
-      [campusResult.rows[0].id],
-    );
+    const scopedCampus = await createTestCampusWithArea(context.organization_id);
 
     const { response } = await request("/records", {
       method: "POST",
@@ -722,7 +954,7 @@ if (!hasDb) {
         dateISO: "2026-04-08",
         scope: "scope2",
         metric: "electricity_consumption",
-        areaCode: "TST-AREA",
+        areaCode: scopedCampus.areaCode,
         campusCode: "CAMPUS-CT",
         category: "electricidad",
         activityText: "Test Invalid Area",
