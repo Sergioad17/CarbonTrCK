@@ -16,6 +16,36 @@ let closePool;
 let createRecord;
 let getUserAuthorizationContext;
 
+const EXACT_RECORD_SHAPE_KEYS = [
+  "id",
+  "dateISO",
+  "scope",
+  "metric",
+  "area",
+  "areaCode",
+  "campusCode",
+  "category",
+  "activity",
+  "activityText",
+  "value",
+  "unit",
+  "factor",
+  "factorId",
+  "co2e_kg",
+  "co2e_t",
+  "status",
+  "isEstimated",
+  "source",
+  "by",
+  "note",
+  "hasEvidence",
+  "evidence",
+  "evidenceUrl",
+  "evidenceFileId",
+  "evidenceFiles",
+  "createdAt",
+].sort();
+
 function assertAuditEventShape(row, expected = {}) {
   assert.ok(row, "audit event should exist");
   assert.equal(typeof row.organization_id, "string");
@@ -580,37 +610,7 @@ if (!hasDb) {
     const record = body.items.find((item) => item.id === recordId);
     assert.ok(record, "should include created fixture");
 
-    const expectedKeys = [
-      "activity",
-      "activityText",
-      "area",
-      "areaCode",
-      "by",
-      "campusCode",
-      "category",
-      "co2e_kg",
-      "co2e_t",
-      "createdAt",
-      "dateISO",
-      "evidence",
-      "evidenceFileId",
-      "evidenceFiles",
-      "evidenceUrl",
-      "factor",
-      "factorId",
-      "hasEvidence",
-      "id",
-      "isEstimated",
-      "metric",
-      "note",
-      "scope",
-      "source",
-      "status",
-      "unit",
-      "value",
-    ];
-
-    assert.deepEqual(Object.keys(record).sort(), expectedKeys.sort());
+    assert.deepEqual(Object.keys(record).sort(), EXACT_RECORD_SHAPE_KEYS);
     assert.equal(record.source, "Medicion");
     assert.equal(record.category, "electricidad");
     assert.equal(record.areaCode, "LAB");
@@ -800,6 +800,7 @@ if (!hasDb) {
     });
 
     assert.equal(response.status, 201);
+    assert.deepEqual(Object.keys(body.item).sort(), EXACT_RECORD_SHAPE_KEYS);
     assert.equal(body.item.areaCode, "LAB");
     assert.equal(body.item.campusCode, "CAMPUS-CT");
     assert.equal(body.item.source, "Medicion");

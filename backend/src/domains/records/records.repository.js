@@ -305,7 +305,7 @@ async function getFactorById(factorId, client) {
   return result.rows[0] || null;
 }
 
-function buildNormalizedRecordShape(row) {
+export function buildNormalizedRecordShape(row) {
   const evidenceFiles = Array.isArray(row.evidence_files)
     ? row.evidence_files
     : typeof row.evidence_files === "string"

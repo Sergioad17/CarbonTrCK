@@ -16,6 +16,36 @@ let baseUrl;
 let query;
 let closePool;
 
+const EXACT_RECORD_SHAPE_KEYS = [
+  "id",
+  "dateISO",
+  "scope",
+  "metric",
+  "area",
+  "areaCode",
+  "campusCode",
+  "category",
+  "activity",
+  "activityText",
+  "value",
+  "unit",
+  "factor",
+  "factorId",
+  "co2e_kg",
+  "co2e_t",
+  "status",
+  "isEstimated",
+  "source",
+  "by",
+  "note",
+  "hasEvidence",
+  "evidence",
+  "evidenceUrl",
+  "evidenceFileId",
+  "evidenceFiles",
+  "createdAt",
+].sort();
+
 function assertAuditEventShape(row, expected = {}) {
   assert.ok(row, "audit event should exist");
   assert.equal(typeof row.organization_id, "string");
@@ -509,6 +539,7 @@ if (!hasDb) {
     });
 
     assert.equal(response.status, 200);
+    assert.deepEqual(Object.keys(body.item).sort(), EXACT_RECORD_SHAPE_KEYS);
     assert.equal(body.item.id, recordId);
     assert.ok(Array.isArray(body.item.evidenceFiles));
     assert.equal(body.item.evidenceFiles.length, 1);
