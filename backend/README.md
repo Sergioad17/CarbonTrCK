@@ -234,6 +234,19 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Inserta auditoria `records.create`.
 - Acepta `fileIds` y los asocia en la misma transaccion.
 
+### Reglas funcionales de `records`
+
+- `factorId` es opcional.
+- Se permite factor manual numerico aunque no exista un factor de catalogo.
+- Si llega `factorId` y tambien llega `factor`, ambos deben coincidir.
+- `source="Estimacion"` fuerza `status="est"` aunque el frontend mande otro valor.
+- Se permite crear records sin evidencia.
+- `record_files` es la fuente principal de evidencia asociada.
+- `evidence_text` se mantiene como compatibilidad y puede coexistir con `record_files`.
+- `PATCH /records/:id` sigue pospuesto en esta fase; por eso no se permite todavia editar factor ni archivos desde ese endpoint.
+- Un usuario operativo no puede editar o asociar archivos a cualquier record: solo a records dentro de su organizacion y ademas respetando su `campusCode` y `areaAccess`.
+- `deleted_at` no se usa como funcionalidad expuesta en esta fase; no se implementa delete mientras la UI no lo requiera.
+
 ### `PATCH /records/:id`
 
 - Pospuesto formalmente en esta fase.
