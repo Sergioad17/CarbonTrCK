@@ -276,6 +276,14 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Los archivos huerfanos subidos pero no asociados se permiten temporalmente en desarrollo.
 - La politica actual para huerfanos es limpieza posterior; no se bloquea la subida por no venir asociada a un record en el mismo request.
 
+### Fuera de alcance de Persona 2
+
+- No se resuelven factores avanzados; solo se valida `factorId` existente o `factor` manual compatible con el record.
+- No se reabre ni se modifica la logica base de `auth`, `refresh`, RBAC ni `users`.
+- No se mueve logica de frontend al backend; el backend solo expone contratos HTTP, validacion y persistencia.
+- No se parsea JSON de ESP32 en backend; el frontend ya traduce esa lectura a un record normalizado antes de llamar a la API.
+- El backend no depende de fallback local del frontend para funcionar; los endpoints trabajan contra BD y storage reales.
+
 ### `GET /files/:id`
 
 - Requiere token valido.
