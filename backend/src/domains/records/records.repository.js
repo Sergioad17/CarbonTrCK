@@ -714,7 +714,7 @@ async function insertRecordRevision(client, { recordId, changedBy, changeReason,
   );
 }
 
-async function getRecordByIdForActor(actor, recordId, client = { query }) {
+export async function getRecordByIdForActor(actor, recordId, client = { query }) {
   const conditions = ["v.id = $1", "v.organization_id = $2", "r.deleted_at IS NULL"];
   const values = [recordId, actor.organizationId];
 

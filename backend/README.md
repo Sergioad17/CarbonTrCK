@@ -239,6 +239,26 @@ Actualiza datos base, rol, campus, notas y acceso a areas.
 - Pospuesto formalmente en esta fase.
 - No se expone todavia hasta cerrar lectura, captura transaccional y auditoria de creacion.
 
+### `POST /files`
+
+- Requiere token valido.
+- Acepta `multipart/form-data` con un solo campo `file`.
+- Acepta `kind`.
+- Guarda metadata en `files` y persiste el binario en storage local de desarrollo.
+
+### `GET /files/:id`
+
+- Requiere token valido.
+- Solo permite leer archivos de la misma organizacion.
+- Devuelve el archivo con `Content-Type`, `Content-Length` y `Content-Disposition`.
+
+### `POST /records/:id/files`
+
+- Requiere permiso `records:update`.
+- Asocia `fileIds` existentes a un `record`.
+- Valida record existente, misma organizacion y acceso por campus/area.
+- Devuelve el record actualizado con `evidenceFiles`.
+
 ### `PATCH /users/:id/status`
 
 ```json
