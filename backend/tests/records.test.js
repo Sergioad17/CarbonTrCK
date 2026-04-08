@@ -140,6 +140,7 @@ async function ensureFactor({ scopeCode, categoryCode, metricCode, unitCode, val
 async function ensureRecordCatalogFixtures() {
   await ensureCategory("scope2", "electricidad", "Electricidad", "electricity_consumption", "kwh");
   await ensureCategory("scope1", "combustible", "Combustible", "fuel_volume", "l");
+  await ensureCategory("scope3", "otros", "Otros", "equipment_count", "unit");
 
   const electricityFactorId = await ensureFactor({
     scopeCode: "scope2",
@@ -713,6 +714,160 @@ if (!hasDb) {
         factor: 0.455,
         factorId: fixtures.fuelFactorId,
         source: "Medicion",
+      }),
+    });
+
+    assert.equal(response.status, 422);
+  });
+
+  test("POST /records resuelve catalogos desde payload frontend a FKs reales", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const auth = await login();
+
+    const { response, body } = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-09",
+        scope: "scope1",
+        category: "combustible",
+        metric: "fuel_volume",
+        unit: "L",
+        source: "Inventario",
+        campusCode: "CAMPUS-CT",
+        area: "Laboratorio",
+        activityText: "Test Catalog Resolution",
+        value: 18,
+        factor: 2.68,
+        status: "real",
+        note: "TEST_RECORDS",
+      }),
+    });
+
+    assert.equal(response.status, 201);
+    assert.equal(body.item.scope, "scope1");
+    assert.equal(body.item.category, "combustible");
+    assert.equal(body.item.metric, "fuel_volume");
+    assert.equal(body.item.unit, "L");
+    assert.equal(body.item.source, "Inventario");
+    assert.equal(body.item.areaCode, "LAB");
+
+    const db = await query(
+      `
+        SELECT
+          es.code::text AS scope_code,
+          ec.code AS category_code,
+          m.code AS metric_code,
+          u.code AS unit_code,
+          ds.code AS source_code,
+          c.code AS campus_code,
+          a.code AS area_code,
+          r.factor_value_used
+        FROM records r
+        JOIN emission_scopes es ON es.id = r.scope_id
+        JOIN emission_categories ec ON ec.id = r.category_id
+        JOIN metrics m ON m.id = r.metric_id
+        JOIN units u ON u.id = r.unit_id
+        JOIN data_sources ds ON ds.id = r.data_source_id
+        JOIN campuses c ON c.id = r.campus_id
+        JOIN areas a ON a.id = r.area_id
+        WHERE r.id = $1
+      `,
+      [body.item.id],
+    );
+
+    assert.equal(db.rowCount, 1);
+    assert.equal(db.rows[0].scope_code, "scope1");
+    assert.equal(db.rows[0].category_code, "combustible");
+    assert.equal(db.rows[0].metric_code, "fuel_volume");
+    assert.equal(db.rows[0].unit_code, "l");
+    assert.equal(db.rows[0].source_code, "inventory");
+    assert.equal(db.rows[0].campus_code, "CAMPUS-CT");
+    assert.equal(db.rows[0].area_code, "LAB");
+    assert.equal(Number(db.rows[0].factor_value_used), 2.68);
+  });
+
+  test("POST /records mantiene status estimado consistente y crea estimation_method_id", async () => {
+    await ensureRecordCatalogFixtures();
+    const auth = await login();
+
+    const { response, body } = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-10",
+        scope: "scope2",
+        category: "electricidad",
+        metric: "electricity_consumption",
+        unit: "kWh",
+        source: "Estimacion",
+        campusCode: "CAMPUS-CT",
+        areaCode: "LAB",
+        activityText: "Test Estimated Consistency",
+        value: 25,
+        factor: 0.455,
+        status: "real",
+        isEstimated: false,
+        note: "TEST_RECORDS",
+      }),
+    });
+
+    assert.equal(response.status, 201);
+    assert.equal(body.item.status, "est");
+    assert.equal(body.item.isEstimated, true);
+
+    const db = await query(
+      `
+        SELECT
+          r.status,
+          r.is_estimated,
+          em.code AS estimation_method_code,
+          ds.code AS source_code
+        FROM records r
+        JOIN data_sources ds ON ds.id = r.data_source_id
+        LEFT JOIN estimation_methods em ON em.id = r.estimation_method_id
+        WHERE r.id = $1
+      `,
+      [body.item.id],
+    );
+
+    assert.equal(db.rowCount, 1);
+    assert.equal(db.rows[0].status, "est");
+    assert.equal(db.rows[0].is_estimated, true);
+    assert.equal(db.rows[0].source_code, "estimation");
+    assert.equal(db.rows[0].estimation_method_code, "manual_rule");
+  });
+
+  test("POST /records falla si category no pertenece al scope", async () => {
+    await ensureRecordCatalogFixtures();
+    const auth = await login();
+
+    const { response } = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-11",
+        scope: "scope2",
+        category: "combustible",
+        metric: "fuel_volume",
+        unit: "L",
+        source: "Inventario",
+        campusCode: "CAMPUS-CT",
+        areaCode: "LAB",
+        activityText: "Test Invalid Scope Category",
+        value: 10,
+        factor: 2.68,
+        note: "TEST_RECORDS",
       }),
     });
 

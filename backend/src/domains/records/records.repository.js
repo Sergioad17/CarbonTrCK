@@ -208,6 +208,21 @@ async function getMetricByCode(metricCode, client) {
   return result.rows[0] || null;
 }
 
+async function getMetricById(metricId, client) {
+  const result = await client.query(
+    `
+      SELECT id, code, dimension
+      FROM metrics
+      WHERE id = $1
+        AND is_active = true
+      LIMIT 1
+    `,
+    [cleanString(metricId)],
+  );
+
+  return result.rows[0] || null;
+}
+
 async function getUnitByCode(unitCode, client) {
   const result = await client.query(
     `
@@ -217,6 +232,20 @@ async function getUnitByCode(unitCode, client) {
       LIMIT 1
     `,
     [normalizeUnitCode(unitCode)],
+  );
+
+  return result.rows[0] || null;
+}
+
+async function getUnitById(unitId, client) {
+  const result = await client.query(
+    `
+      SELECT id, code, symbol, dimension
+      FROM units
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [cleanString(unitId)],
   );
 
   return result.rows[0] || null;
@@ -528,7 +557,9 @@ async function resolveRecordCreateReferences(actor, payload, client) {
     });
   }
 
-  const metric = await getMetricByCode(metricCode || category.default_metric_id, client);
+  const metric = metricCode
+    ? await getMetricByCode(metricCode, client)
+    : await getMetricById(category.default_metric_id, client);
   if (!metric) {
     throw new AppError({
       statusCode: 422,
@@ -538,7 +569,9 @@ async function resolveRecordCreateReferences(actor, payload, client) {
     });
   }
 
-  const unit = await getUnitByCode(unitCode || category.default_unit_id, client);
+  const unit = unitCode
+    ? await getUnitByCode(unitCode, client)
+    : await getUnitById(category.default_unit_id, client);
   if (!unit) {
     throw new AppError({
       statusCode: 422,
