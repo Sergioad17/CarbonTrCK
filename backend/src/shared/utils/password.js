@@ -24,5 +24,6 @@ export function assertPasswordComplexity(password) {
 }
 
 export function generateTemporaryPassword() {
-  return `CT-${crypto.randomBytes(6).toString("base64url")}A1`;
+  // Guarantees uppercase, lowercase and numeric characters for the default policy.
+  return `Ct-${crypto.randomBytes(6).toString("hex")}A1`;
 }
