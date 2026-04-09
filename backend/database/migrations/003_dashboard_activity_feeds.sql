@@ -1,3 +1,5 @@
+BEGIN;
+
 CREATE TABLE dashboard_activity_feeds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
@@ -15,3 +17,5 @@ CREATE TRIGGER dashboard_activity_feeds_set_updated_at
 BEFORE UPDATE ON dashboard_activity_feeds
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
+
+COMMIT;
