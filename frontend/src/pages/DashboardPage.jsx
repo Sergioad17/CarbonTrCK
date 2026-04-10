@@ -7,6 +7,7 @@ import {
   ClipboardList, BarChart3, Shield,
   Target, Download, Plus,
   Calendar, Monitor, Factory,
+  Cpu,
   TreePine, Wifi, Beaker,
   CheckCircle2, Clock, AlertTriangle,
   AlertCircle, Info, ArrowRight,
@@ -32,6 +33,7 @@ import MetasDetailPage from './MetasDetailPage'
 import ReportsPage from './ReportsPage'
 import FactorsPage from './FactorsPage'
 import EquipmentPage from './EquipmentPage'
+import DevicePage from './DevicePage'
 import UsersPage from './UsersPage'
 import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
@@ -229,6 +231,11 @@ const navItems = [{
     id: "equipment",
     label: "Equipos",
     icon: Monitor
+  },
+  {
+    id: "devices",
+    label: "Dispositivos",
+    icon: Cpu
   }]
 },
 {
@@ -255,6 +262,7 @@ const NAV_TO_PATH = {
   reports: "/reportes",
   factors: "/catalogos/factores",
   equipment: "/catalogos/equipos",
+  devices: "/catalogos/dispositivos",
   users: "/admin/usuarios",
   settings: "/configuracion",
 }
@@ -314,6 +322,7 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/reportes")) return "reports";
   if (pathname?.startsWith("/catalogos/factores")) return "factors";
   if (pathname?.startsWith("/catalogos/equipos")) return "equipment";
+  if (pathname?.startsWith("/catalogos/dispositivos")) return "devices";
   if (pathname?.startsWith("/admin/usuarios")) return "users";
   if (pathname?.startsWith("/configuracion")) return "settings";
   return "dashboard";
@@ -429,9 +438,10 @@ function DonutTooltip({ active, payload }) {
     </div>)
 }
 
-function SidebarNav({ collapsed, onToggle, activeId, onNav }) {
+function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
   const [expanded, setExpanded] = useState(["scopes", "catalog"]);
   const toggle = id => setExpanded(p => p.includes(id) ? p.filter(g => g !== id) : [...p, id]);
+  const visibleItems = navItems.filter(it => !it.tag || (it.tag === "ADM" && isAdmin));
   const isActive = it => it.id === activeId || it.children?.some(c => c.id === activeId)
   const renderItem = (it, depth = 0) => {
     if (it.type === "div")
@@ -628,7 +638,7 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav }) {
       overflowX: "hidden",
       padding: "8px 0"
     }}>
-      {navItems.map(it => renderItem(it))}
+      {visibleItems.map(it => renderItem(it))}
     </nav>
     <button
       onClick={onToggle}
@@ -1557,6 +1567,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
   const initials =
     (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
+  const isAdmin = (String(user?.roleKey || user?.role || "").trim().toLowerCase() === "admin" || String(user?.roleKey || user?.role || "").trim().toLowerCase() === "administrador");
   const visibleActivity = activity.slice(0, 6);
 
   const openActivityDetail = (item) => {
@@ -1732,6 +1743,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
         onToggle={() => setCollapsed(!collapsed)}
         activeId={activeNav}
         onNav={handleNav}
+        isAdmin={isAdmin}
       />
 
       {mobileOpen && (
@@ -1749,6 +1761,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 setMobileOpen(false);
               }}
               onToggle={() => {}}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
@@ -1830,6 +1843,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                   ? <><Beaker size={13} /> Catálogos / Factores</>
                   : activeNav === "equipment"
                   ? <><Monitor size={13} /> Catálogos / Equipos</>
+                  : activeNav === "devices"
+                  ? <><Cpu size={13} /> Catálogos / Dispositivos</>
                   : activeNav === "users"
                   ? <><Users size={13} /> Administración / Usuarios</>
                   : activeNav === "reports"
@@ -2006,7 +2021,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -2038,6 +2053,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             <FactorsPage />
           ) : activeNav === "equipment" ? (
             <EquipmentPage />
+          ) : activeNav === "devices" ? (
+            <DevicePage user={user} />
           ) : activeNav === "users" ? (
             <UsersPage />
           ) : activeNav === "settings" ? (

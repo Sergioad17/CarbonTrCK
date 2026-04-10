@@ -374,7 +374,7 @@ export default function LoginPage({ onLogin }) {
               }}>
                 {usingBackend
                   ? "Accede con tus credenciales del backend configurado."
-                  : "Acceso técnico local para desarrollo mientras el backend de autenticación no esté disponible."}
+                  : "Acceso técnico local para desarrollo para probar la interfaz sin necesidad de backend."}
               </p>
 
               {loginError && (
