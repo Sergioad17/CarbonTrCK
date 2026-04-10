@@ -1,9 +1,10 @@
-import { apiRequest } from "./httpClient";
+﻿import { apiRequest } from "./httpClient";
 import { isBackendConfigured, isLocalMode } from "./config";
 import { fetchSession } from "./session";
 
 const STORAGE_KEY = "carbontrack.devices.v1";
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const SAFE_BACKEND_URL = "https://api.example.edu";
+const SAFE_BROKER_URL = "mqtts://broker.example.edu";
 
 export const DEVICE_API_CONTRACT = {
   list: "/devices",
@@ -25,7 +26,7 @@ const DEFAULT_FORM = {
   intervalSeconds: "60",
   metric: "electricity_consumption",
   unit: "kWh",
-  backendUrl: "https://api.institucion.edu.mx",
+  backendUrl: SAFE_BACKEND_URL,
   endpointPath: "/iot/readings",
   wifiProfile: "Campus-IoT",
   deviceType: "ESP32",
@@ -49,12 +50,12 @@ const DEMO_DEVICES = [
     intervalSeconds: "60",
     metric: "electricity_consumption",
     unit: "kWh",
-    backendUrl: "https://api.institucion.edu.mx",
+    backendUrl: SAFE_BACKEND_URL,
     endpointPath: "/iot/readings",
     wifiProfile: "Campus-IoT",
     deviceType: "ESP32",
-    notes: "Equipo piloto del tablero eléctrico principal.",
-    token: "Q7P4X2K-L9W6M3R-T8H5J2N-C4V7B9D-F3G8K2P-R6S4T9Y-W2Z8X5C-N7M3Q6L-P5R2T8V",
+    notes: "Equipo piloto del tablero electrico principal.",
+    token: "",
     tlsRequired: true,
     verifyServerCert: true,
     offlineBuffer: true,
@@ -66,7 +67,7 @@ const DEMO_DEVICES = [
   },
   {
     id: "dev-02",
-    name: "Medidor Centro de Cómputo",
+    name: "Medidor Centro de Computo",
     code: "ESP32-CC-02",
     campusCode: "CAMPUS-CT",
     areaCode: "CC",
@@ -75,12 +76,12 @@ const DEMO_DEVICES = [
     intervalSeconds: "30",
     metric: "electricity_consumption",
     unit: "kWh",
-    backendUrl: "mqtts://broker.institucion.edu.mx",
+    backendUrl: SAFE_BROKER_URL,
     endpointPath: "/telemetry/carbontrack/cc",
     wifiProfile: "Campus-IoT",
     deviceType: "ESP32",
-    notes: "Preparado para migración a broker seguro en fase 2.",
-    token: "L8R3T6V-Q2M7X4K-P9H5J2N-T6W3Y8C-F4G7K2P-R5S8T3Y-W9Z2X6C-N4M7Q5L-P3R8T2V",
+    notes: "Preparado para migracion a broker seguro en fase 2.",
+    token: "",
     tlsRequired: true,
     verifyServerCert: true,
     offlineBuffer: true,
@@ -97,43 +98,11 @@ function authHeaders() {
   return session?.token ? { Authorization: `Bearer ${session.token}` } : {};
 }
 
-function randomIndex(max) {
-  const values = new Uint32Array(1);
-  window.crypto.getRandomValues(values);
-  return values[0] % max;
-}
-
-function generateCredential() {
-  const parts = [];
-  for (let block = 0; block < 9; block += 1) {
-    let segment = "";
-    for (let charIndex = 0; charIndex < 7; charIndex += 1) {
-      segment += ALPHABET[randomIndex(ALPHABET.length)];
-    }
-    parts.push(segment);
-  }
-  return parts.join("-");
-}
-
 function createDeviceId() {
-  return `device-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function loadLocalDevices() {
-  if (typeof window === "undefined") return DEMO_DEVICES;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEMO_DEVICES;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : DEMO_DEVICES;
-  } catch {
-    return DEMO_DEVICES;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `device-${crypto.randomUUID()}`;
   }
-}
-
-function saveLocalDevices(items) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  return `device-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function normalizeDevice(input = {}) {
@@ -165,6 +134,34 @@ function normalizeDevice(input = {}) {
     firmwareVersion: String(input.firmwareVersion || ""),
     readingsToday: Number.isFinite(Number(input.readingsToday)) ? Number(input.readingsToday) : 0,
   };
+}
+
+function stripSensitiveDeviceFields(input = {}) {
+  const normalized = normalizeDevice(input);
+  return {
+    ...normalized,
+    token: "",
+  };
+}
+
+function loadLocalDevices() {
+  const fallbackDevices = DEMO_DEVICES.map(stripSensitiveDeviceFields);
+
+  if (typeof window === "undefined") return fallbackDevices;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return fallbackDevices;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || !parsed.length) return fallbackDevices;
+    return parsed.map(stripSensitiveDeviceFields);
+  } catch {
+    return fallbackDevices;
+  }
+}
+
+function saveLocalDevices(items) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map(stripSensitiveDeviceFields)));
 }
 
 function normalizeDeviceList(payload) {
@@ -207,10 +204,9 @@ export async function createDevice(payload) {
   }
 
   const items = loadLocalDevices();
-  const nextDevice = normalizeDevice({
+  const nextDevice = stripSensitiveDeviceFields({
     ...payload,
     id: createDeviceId(),
-    token: generateCredential(),
     status: payload?.enabled === false ? "offline" : "provisioning",
     firmwareVersion: "1.0.0",
     readingsToday: 0,
@@ -237,10 +233,11 @@ export async function updateDevice(payload) {
   }
 
   const items = loadLocalDevices();
-  const nextDevice = normalizeDevice(payload);
-  const nextItems = items.map((item) => (item.id === payload.id ? { ...nextDevice, token: item.token || nextDevice.token } : item));
+  const nextItems = items.map((item) =>
+    item.id === payload.id ? stripSensitiveDeviceFields({ ...item, ...payload }) : item
+  );
   saveLocalDevices(nextItems);
-  return nextItems.find((item) => item.id === payload.id) || nextDevice;
+  return nextItems.find((item) => item.id === payload.id) || stripSensitiveDeviceFields(payload);
 }
 
 export async function updateDeviceStatus(deviceId, enabled) {
@@ -261,9 +258,7 @@ export async function updateDeviceStatus(deviceId, enabled) {
 
   const items = loadLocalDevices();
   const nextItems = items.map((item) =>
-    item.id === deviceId
-      ? { ...item, enabled, status: enabled ? "provisioning" : "offline" }
-      : item
+    item.id === deviceId ? { ...item, enabled, status: enabled ? "provisioning" : "offline" } : item
   );
   saveLocalDevices(nextItems);
   return nextItems.find((item) => item.id === deviceId) || null;
@@ -287,12 +282,12 @@ export async function duplicateDevice(deviceId) {
   const items = loadLocalDevices();
   const source = items.find((item) => item.id === deviceId);
   if (!source) throw new Error("device_not_found");
-  const duplicate = normalizeDevice({
+
+  const duplicate = stripSensitiveDeviceFields({
     ...source,
     id: createDeviceId(),
     code: `${source.code}-COPIA`,
     name: `${source.name} copia`,
-    token: generateCredential(),
     status: "provisioning",
     lastSeenAt: null,
     readingsToday: 0,
@@ -320,4 +315,3 @@ export async function removeDevice(deviceId) {
   saveLocalDevices(items);
   return { ok: true };
 }
-

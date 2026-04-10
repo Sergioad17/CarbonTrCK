@@ -144,9 +144,9 @@ const subtleText = {
 };
 
 const AREA_OPTIONS = [
-  { value: "ADM", label: "Administración" },
+  { value: "ADM", label: "Administracion" },
   { value: "LAB", label: "Laboratorio" },
-  { value: "CC", label: "Centro de cómputo" },
+  { value: "CC", label: "Centro de computo" },
   { value: "IND", label: "Taller industrial" },
   { value: "AUL", label: "Aulas" },
 ];
@@ -163,22 +163,22 @@ const PROTOCOL_OPTIONS = [
 ];
 
 const STREAM_OPTIONS = [
-  { value: "scheduled", label: "Periódico" },
+  { value: "scheduled", label: "Periodico" },
   { value: "realtime", label: "Tiempo real" },
 ];
 
 const STATUS_META = {
   provisioning: { label: "Provisionando", tone: { bg: "rgba(245,158,11,0.12)", color: "#B45309", border: "rgba(245,158,11,0.25)" }, icon: TimerReset },
-  online: { label: "En línea", tone: { bg: "rgba(34,197,94,0.12)", color: "#15803D", border: "rgba(34,197,94,0.25)" }, icon: Wifi },
-  offline: { label: "Sin conexión", tone: { bg: "rgba(148,163,184,0.16)", color: "#475569", border: "rgba(148,163,184,0.28)" }, icon: WifiOff },
+  online: { label: "En linea", tone: { bg: "rgba(34,197,94,0.12)", color: "#15803D", border: "rgba(34,197,94,0.25)" }, icon: Wifi },
+  offline: { label: "Sin conexion", tone: { bg: "rgba(148,163,184,0.16)", color: "#475569", border: "rgba(148,163,184,0.28)" }, icon: WifiOff },
   alert: { label: "Revisar", tone: { bg: "rgba(239,68,68,0.12)", color: "#B91C1C", border: "rgba(239,68,68,0.24)" }, icon: Shield },
 };
 
 const FLOW_STEPS = [
-  { title: "Alta administrativa", body: "Define identidad, campus, área y modo de lectura antes de tocar el firmware.", icon: Package },
-  { title: "Provisionamiento seguro", body: "Genera la credencial única con patrón legible, define endpoint y políticas de conexión.", icon: KeyRound },
-  { title: "Entrega técnica", body: "Encargate de darle las credenciales correctamente al tecnico para que las vincule al dispositivo.", icon: PlugZap },
-  { title: "Validación operativa", body: "Confirma última lectura, heartbeat, área vinculada y postura de seguridad antes de liberar.", icon: ShieldCheck },
+  { title: "Alta administrativa", body: "Define identidad, campus, area y modo de lectura antes de tocar el firmware.", icon: Package },
+  { title: "Provisionamiento seguro", body: "Recibe la credencial unica emitida por backend y confirma endpoint, resguardo y politicas de conexion.", icon: KeyRound },
+  { title: "Entrega tecnica", body: "Encargate de entregar la credencial correctamente al tecnico para que la vincule al dispositivo.", icon: PlugZap },
+  { title: "Validacion operativa", body: "Confirma ultima lectura, heartbeat, area vinculada y postura de seguridad antes de liberar.", icon: ShieldCheck },
 ];
 
 const DEFAULT_FORM = {
@@ -192,7 +192,7 @@ const DEFAULT_FORM = {
   intervalSeconds: "60",
   metric: "electricity_consumption",
   unit: "kWh",
-  backendUrl: "https://api.institucion.edu.mx",
+  backendUrl: "https://api.example.edu",
   endpointPath: "/iot/readings",
   wifiProfile: "Campus-IoT",
   deviceType: "ESP32",
@@ -204,62 +204,7 @@ const DEFAULT_FORM = {
   enabled: true,
 };
 
-const DEMO_DEVICES = [
-  {
-    id: "dev-01",
-    name: "Medidor Laboratorio 01",
-    code: "ESP32-LAB-01",
-    campusCode: "CAMPUS-CT",
-    areaCode: "LAB",
-    protocol: "https",
-    streamMode: "scheduled",
-    intervalSeconds: "60",
-    metric: "electricity_consumption",
-    unit: "kWh",
-    backendUrl: "https://api.institucion.edu.mx",
-    endpointPath: "/iot/readings",
-    wifiProfile: "Campus-IoT",
-    deviceType: "ESP32",
-    notes: "Equipo piloto del tablero eléctrico principal.",
-    token: "Q7P4X2K-L9W6M3R-T8H5J2N-C4V7B9D-F3G8K2P-R6S4T9Y-W2Z8X5C-N7M3Q6L-P5R2T8V",
-    tlsRequired: true,
-    verifyServerCert: true,
-    offlineBuffer: true,
-      enabled: true,
-    status: "online",
-    lastSeenAt: "2026-04-09T10:24:00",
-    firmwareVersion: "1.2.1",
-    readingsToday: 1440,
-  },
-  {
-    id: "dev-02",
-    name: "Medidor Centro de Cómputo",
-    code: "ESP32-CC-02",
-    campusCode: "CAMPUS-CT",
-    areaCode: "CC",
-    protocol: "mqtt",
-    streamMode: "realtime",
-    intervalSeconds: "30",
-    metric: "electricity_consumption",
-    unit: "kWh",
-    backendUrl: "mqtts://broker.institucion.edu.mx",
-    endpointPath: "/telemetry/carbontrack/cc",
-    wifiProfile: "Campus-IoT",
-    deviceType: "ESP32",
-    notes: "Preparado para migración a broker seguro en fase 2.",
-    token: "L8R3T6V-Q2M7X4K-P9H5J2N-T6W3Y8C-F4G7K2P-R5S8T3Y-W9Z2X6C-N4M7Q5L-P3R8T2V",
-    tlsRequired: true,
-    verifyServerCert: true,
-    offlineBuffer: true,
-      enabled: true,
-    status: "provisioning",
-    lastSeenAt: "2026-04-09T08:02:00",
-    firmwareVersion: "1.0.0-rc2",
-    readingsToday: 320,
-  },
-];
-
-/* ─── Helpers ─── */
+/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Helpers aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 function createFormFromDevice(device) {
   return { ...DEFAULT_FORM, ...device };
@@ -272,7 +217,7 @@ function normalizeRole(value) {
 }
 
 function maskCredential(token) {
-  if (!token) return "Sin generar";
+  if (!token) return "Pendiente de emision backend";
   const parts = token.split("-");
   return parts.map((part, index) => (index >= parts.length - 2 ? part : `${part.slice(0, 2)}\u2022\u2022\u2022\u2022\u2022`)).join("-");
 }
@@ -294,7 +239,7 @@ function statusMeta(status) {
   return STATUS_META[status] || STATUS_META.provisioning;
 }
 
-/* ─── Skeleton loader ─── */
+/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Skeleton loader aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 function DevicePageSkeleton() {
   const shimmer = {
@@ -394,7 +339,7 @@ function DevicePageSkeleton() {
   );
 }
 
-/* ─── Sub-components ─── */
+/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Sub-components aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 function SectionLabel({ icon: Icon, title, description, action, accentColor }) {
   return (
@@ -482,7 +427,7 @@ function MetricCard({ icon: Icon, label, value, detail, accent, delay = 0 }) {
         </div>
       </div>
       {/* Decorative accent bar */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${accent}40, transparent)`, opacity: hovered ? 1 : 0, transition: "opacity 200ms ease" }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, transparent, ${accent}40, transparent)`,opacity: hovered ? 1 : 0, transition: "opacity 200ms ease" }} />
     </div>
   );
 }
@@ -698,9 +643,9 @@ function AdminLockedState() {
           <Lock size={24} />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong)" }}>Dispositivos solo para administración</h1>
+          <h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong)" }}>Dispositivos solo para administracion</h1>
           <p style={{ ...subtleText, marginTop: 8, fontSize: 13 }}>
-            Esta vista concentra provisionamiento, seguridad y vinculación técnica del hardware con el sistema. Solo se habilita para perfiles administradores.
+            Esta vista concentra provisionamiento, seguridad y vinculacion tecnica del hardware con el sistema. Solo se habilita para perfiles administradores.
           </p>
         </div>
       </section>
@@ -722,6 +667,7 @@ function MetaRow({ icon: Icon, label, value }) {
 
 function CodeBlock({ label, value, onCopy, copied, multiline = false }) {
   const [hovered, setHovered] = useState(false);
+  const canCopy = typeof onCopy === "function";
   return (
     <div
       onMouseEnter={() => setHovered(true)}
@@ -735,9 +681,23 @@ function CodeBlock({ label, value, onCopy, copied, multiline = false }) {
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 12px", background: "var(--eco-gray-100)", borderBottom: "1px solid var(--eco-border)" }}>
         <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-gray-600)", textTransform: "uppercase", letterSpacing: ".04em" }}>{label}</span>
-        <button type="button" onClick={onCopy} style={{ ...secondaryButtonStyle, height: 28, padding: "0 10px", fontSize: 11, border: "1px solid var(--eco-border)" }}>
-          {copied ? <Check size={12} style={{ animation: "ctCheckPop .3s ease both" }} /> : <Copy size={12} />}
-          {copied ? "Listo" : "Copiar"}
+        <button
+          type="button"
+          onClick={onCopy}
+          disabled={!canCopy}
+          aria-disabled={!canCopy}
+          style={{
+            ...secondaryButtonStyle,
+            height: 28,
+            padding: "0 10px",
+            fontSize: 11,
+            border: "1px solid var(--eco-border)",
+            opacity: canCopy ? 1 : 0.6,
+            cursor: canCopy ? "pointer" : "not-allowed",
+          }}
+        >
+          {canCopy ? (copied ? <Check size={12} style={{ animation: "ctCheckPop .3s ease both" }} /> : <Copy size={12} />) : <Lock size={12} />}
+          {canCopy ? (copied ? "Listo" : "Copiar") : "Protegido"}
         </button>
       </div>
       <pre style={{ margin: 0, padding: "12px 14px", fontFamily: fm, fontSize: 11.5, lineHeight: multiline ? 1.7 : 1.5, color: "var(--eco-text-strong)", background: "rgba(15,23,42,.02)", whiteSpace: multiline ? "pre-wrap" : "nowrap", overflowX: "auto" }}>{value}</pre>
@@ -840,7 +800,7 @@ function ApiPill({ label, accent }) {
   );
 }
 
-/* ─── Main component ─── */
+/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main component aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 export default function DevicePage({ user }) {
   const isAdmin = normalizeRole(user?.roleKey || user?.role) === "admin";
@@ -909,12 +869,6 @@ export default function DevicePage({ user }) {
         (statusMeta(d.status).label || "").toLowerCase().includes(q)
     );
   }, [devices, searchQuery]);
-
-  const contractPreview = useMemo(() => {
-    const baseUrl = String(form.backendUrl || "").replace(/\/$/, "");
-    return `${baseUrl}${form.endpointPath || "/iot/readings"}`;
-  }, [form.backendUrl, form.endpointPath]);
-
   const payloadPreview = useMemo(
     () =>
       JSON.stringify(
@@ -967,13 +921,13 @@ export default function DevicePage({ user }) {
 
   const handleCopy = async (value, key) => {
     if (!value) {
-      setToast({ title: "Sin credencial emitida", message: "La credencial aparecerá cuando el backend confirme el alta del dispositivo." });
+      setToast({ title: "Sin credencial emitida", message: "La credencial aparecera cuando el backend confirme el alta del dispositivo." });
       return;
     }
     try {
       await navigator.clipboard.writeText(value);
       setCopied(key);
-      setToast({ title: "Copiado al portapapeles", message: "La información está lista para pegar donde la necesites." });
+      setToast({ title: "Copiado al portapapeles", message: "La informacion esta lista para pegar donde la necesites." });
     } catch {
       setToast({ title: "No se pudo copiar", message: "Intenta seleccionar el texto manualmente." });
     }
@@ -982,7 +936,7 @@ export default function DevicePage({ user }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.name.trim() || !form.code.trim() || !form.backendUrl.trim()) {
-      setToast({ title: "Campos obligatorios", message: "Completa nombre, código y backend URL antes de guardar." });
+      setToast({ title: "Campos obligatorios", message: "Completa nombre, codigo y backend URL antes de guardar." });
       return;
     }
     try {
@@ -993,8 +947,8 @@ export default function DevicePage({ user }) {
       setToast({
         title: selectedId ? "Dispositivo actualizado" : "Dispositivo registrado",
         message: selectedId
-          ? `${nextDevice.name} quedó alineado al contrato de backend.`
-          : `${nextDevice.name} quedó registrado y recibió su credencial única desde la capa de dispositivos.`,
+          ? `${nextDevice.name} quedo alineado al contrato de backend.`
+          : `${nextDevice.name} quedo registrado y listo para recibir su credencial desde backend.`,
       });
     } catch {
       setToast({ title: "No se pudo guardar", message: "Revisa el contrato de la API de dispositivos y vuelve a intentar." });
@@ -1013,9 +967,9 @@ export default function DevicePage({ user }) {
       setDevices((current) => [duplicate, ...current]);
       setSelectedId(duplicate.id);
       setForm(createFormFromDevice(duplicate));
-      setToast({ title: "Duplicado listo", message: "Se creó un nuevo dispositivo con su propia credencial emitida." });
+      setToast({ title: "Duplicado listo", message: "Se creo un nuevo dispositivo con su propia credencial emitida." });
     } catch {
-      setToast({ title: "No se pudo duplicar", message: "La API de duplicado no devolvió un dispositivo válido." });
+      setToast({ title: "No se pudo duplicar", message: "La API de duplicado no devolvio un dispositivo valido." });
     }
   };
 
@@ -1028,7 +982,7 @@ export default function DevicePage({ user }) {
         setForm(createFormFromDevice(updated));
       }
     } catch {
-      setToast({ title: "No se pudo actualizar", message: "La API de estado del dispositivo rechazó el cambio." });
+      setToast({ title: "No se pudo actualizar", message: "La API de estado del dispositivo rechazo el cambio." });
     }
   };
 
@@ -1050,23 +1004,23 @@ export default function DevicePage({ user }) {
       setDeleteInput("");
       setToast({ title: "Dispositivo eliminado", message: `${deletedName} fue removido del inventario permanentemente.` });
     } catch {
-      setToast({ title: "No se pudo eliminar", message: "La API de dispositivos no confirmó la eliminación." });
+      setToast({ title: "No se pudo eliminar", message: "La API de dispositivos no confirmo la eliminacion." });
     }
   };
 
   const CHECKLIST_ITEMS = [
-    { text: "El deviceCode del firmware coincide con el código registrado.", critical: true },
+    { text: "El deviceCode del firmware coincide con el codigo registrado.", critical: true },
     { text: "La red autorizada permite salida al backend privado o broker seguro.", critical: true },
-    { text: "La credencial única se copió y resguardó al momento del registro.", critical: true },
-    { text: "El área y campus quedan correctos para clasificar las lecturas.", critical: false },
-    { text: "Se probó al menos un envío con timestamp, token y payload válidos.", critical: false },
+    { text: "La credencial unica se copio y resguardo al momento del registro.", critical: true },
+    { text: "El area y campus quedan correctos para clasificar las lecturas.", critical: false },
+    { text: "Se probo al menos un envio con timestamp, token y payload validos.", critical: false },
   ];
 
   return (
     <div style={{ padding: "var(--page-pad-y) var(--page-pad-x)", maxWidth: "var(--content-max)", margin: "0 auto" }}>
       <style>{PAGE_STYLES}</style>
 
-      {/* ─── Hero ─── */}
+      {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Hero aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
       <section className="ct-device-hero" style={{ display: "grid", gridTemplateColumns: "1.25fr .95fr", gap: 18, marginBottom: 20, animation: "eco-fadeInUp .45s ease both" }}>
         <div
           style={{
@@ -1082,7 +1036,7 @@ export default function DevicePage({ user }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, position: "relative" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: "var(--eco-radius-full)", background: "rgba(15,118,110,.12)", color: "#0f766e", fontFamily: fb, fontSize: 11, fontWeight: 700, letterSpacing: ".02em" }}>
               <ShieldCheck size={13} />
-              Administración de hardware
+              Administracion de hardware
             </span>
             <span style={{ fontFamily: fm, fontSize: 10, color: "var(--eco-text-soft)", padding: "4px 8px", borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-100)" }}>Solo admin</span>
           </div>
@@ -1090,22 +1044,17 @@ export default function DevicePage({ user }) {
             Dispositivos
           </h1>
           <p style={{ margin: "12px 0 0", fontFamily: fb, fontSize: 13, lineHeight: 1.65, color: "var(--eco-text-soft)", maxWidth: 660, position: "relative" }}>
-            Registra cada equipo con su identidad, llave única, política de seguridad, área vinculada y contrato de conexión. La credencial se genera una sola vez al dar de alta el dispositivo.
+            Registra cada equipo con su identidad, llave unica, politica de seguridad, area vinculada y contrato de conexion. La credencial se genera una sola vez al dar de alta el dispositivo.
           </p>
-          <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
-            
-          </div>
           <div className="ct-device-actions" style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18, position: "relative" }}>
             <button
               type="button"
-              style={primaryButtonStyle}
-              onClick={() => handleCopy(form.token, "hero-token")}
-              disabled={!form.token}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16,185,129,.3)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16,185,129,.22)"; }}
+              style={{ ...primaryButtonStyle, opacity: 0.82, cursor: "default", boxShadow: "0 4px 14px rgba(16,185,129,.18)" }}
+              disabled
+              aria-disabled="true"
             >
-              {copied === "hero-token" ? <Check size={15} style={{ animation: "ctCheckPop .3s ease both" }} /> : <Copy size={15} />}
-              {form.token ? "Copiar credencial" : "Disponible al registrar"}
+              <Shield size={15} />
+              {form.token ? "Visible solo al registrar" : "Disponible al registrar"}
             </button>
           </div>
         </div>
@@ -1134,22 +1083,22 @@ export default function DevicePage({ user }) {
         </div>
       </section>
 
-      {/* ─── KPIs ─── */}
+      {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ KPIs aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
       <section className="ct-device-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 14, marginBottom: 20 }}>
         <MetricCard icon={Cpu} label="Registrados" value={stats.total} detail="Inventario disponible para vincular." accent="#16A34A" delay={0} />
-        <MetricCard icon={Wifi} label="En línea" value={stats.online} detail="Reportando heartbeat o lecturas." accent="#0284C7" delay={60} />
+        <MetricCard icon={Wifi} label="En linea" value={stats.online} detail="Reportando heartbeat o lecturas." accent="#0284C7" delay={60} />
         <MetricCard icon={TimerReset} label="Provisionando" value={stats.provisioning} detail="Listos para validar en sitio." accent="#D97706" delay={120} />
-        <MetricCard icon={ShieldCheck} label="Cobertura segura" value={`${stats.securedPct}%`} detail="TLS + verificación de certificado activas." accent="#0F766E" delay={180} />
+        <MetricCard icon={ShieldCheck} label="Cobertura segura" value={`${stats.securedPct}%`} detail="TLS + verificacion de certificado activas." accent="#0F766E" delay={180} />
       </section>
 
-      {/* ─── Main content ─── */}
+      {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main content aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
       <section className="ct-device-main" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.45fr) minmax(330px, .92fr)", gap: 18, alignItems: "start", marginBottom: 20 }}>
         <div style={{ display: "grid", gap: 18 }}>
           {/* Form section */}
           <section style={{ ...cardBase, padding: 22, animation: "eco-fadeInUp .5s ease both" }}>
             <SectionLabel
               icon={Link2}
-              title="Alta y vinculación"
+              title="Alta y vinculacion"
               description="Configura el dispositivo completo antes de provisionarlo en sitio."
               action={
                 selectedId ? (
@@ -1178,7 +1127,7 @@ export default function DevicePage({ user }) {
 
             <form onSubmit={handleSubmit} style={{ display: "grid", gap: 16 }}>
               <div className="ct-device-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-                <Field label="Nombre operativo" hint="Cómo lo verá administración dentro del sistema." required>
+                <Field label="Nombre operativo" hint="Como lo vera administracion dentro del sistema." required>
                   <input
                     value={form.name}
                     onChange={(event) => updateForm("name", event.target.value)}
@@ -1188,7 +1137,7 @@ export default function DevicePage({ user }) {
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />
                 </Field>
-                <Field label="Código de dispositivo" hint="Único por equipo. Ideal para etiqueta y firmware." required>
+                <Field label="Codigo de dispositivo" hint="Unico por equipo. Ideal para etiqueta y firmware." required>
                   <input
                     value={form.code}
                     onChange={(event) => updateForm("code", event.target.value.toUpperCase())}
@@ -1203,52 +1152,46 @@ export default function DevicePage({ user }) {
                     {CAMPUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Área vinculada">
+                <Field label="Area vinculada">
                   <select value={form.areaCode} onChange={(event) => updateForm("areaCode", event.target.value)} style={inputBase}>
                     {AREA_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Protocolo de conexión">
+                <Field label="Protocolo de conexion">
                   <select value={form.protocol} onChange={(event) => updateForm("protocol", event.target.value)} style={inputBase}>
                     {PROTOCOL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Modo de envío">
+                <Field label="Modo de envio">
                   <select value={form.streamMode} onChange={(event) => updateForm("streamMode", event.target.value)} style={inputBase}>
                     {STREAM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Intervalo de lectura (seg)" hint="Recomendado: 30, 60 o 300 según consumo esperado.">
+                <Field label="Intervalo de lectura (seg)" hint="Recomendado: 30, 60 o 300 segun consumo esperado.">
                   <input value={form.intervalSeconds} onChange={(event) => updateForm("intervalSeconds", event.target.value.replace(/[^\d]/g, ""))} placeholder="60" style={inputBase}
                     onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />
                 </Field>
-                <Field label="Perfil WiFi" hint="Informativo para la entrega técnica.">
+                <Field label="Perfil WiFi" hint="Informativo para la entrega tecnica.">
                   <input value={form.wifiProfile} onChange={(event) => updateForm("wifiProfile", event.target.value)} placeholder="Campus-IoT" style={inputBase}
                     onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />
                 </Field>
                 <Field label="Backend URL" hint="Privada, segura y accesible desde la red autorizada." required>
-                  <input value={form.backendUrl} onChange={(event) => updateForm("backendUrl", event.target.value)} placeholder="https://api.institucion.edu.mx" style={inputBase}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
-                  />
-                </Field>
-                <Field label="Endpoint de ingestión" hint="Ruta que usará el firmware para reportar.">
-                  <input value={form.endpointPath} onChange={(event) => updateForm("endpointPath", event.target.value)} placeholder="/iot/readings" style={{ ...inputBase, fontFamily: fm }}
+                  <input value={form.backendUrl} onChange={(event) => updateForm("backendUrl", event.target.value)} placeholder="https://api.example.edu" style={inputBase}
                     onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />
                 </Field>
               </div>
 
-              <Field label="Notas de implementación" hint="Contexto operativo: instalación, energía o acceso físico.">
+              <Field label="Notas de implementacion" hint="Contexto operativo: instalacion, energia o acceso fisico.">
                 <textarea
                   value={form.notes}
                   onChange={(event) => updateForm("notes", event.target.value)}
-                  placeholder="Ej: instalar junto al tablero norte, validar señal WiFi en horario de clases."
+                  placeholder="Ej: instalar junto al tablero norte, validar senal WiFi en horario de clases."
                   style={textAreaBase}
                   onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
@@ -1299,32 +1242,30 @@ export default function DevicePage({ user }) {
 
           {/* Flow steps */}
           <section style={{ display: "grid", gap: 14 }}>
-            <SectionLabel icon={Orbit} title="Ruta de implementación" description="El mismo flujo funciona para un solo dispositivo o un conjunto distribuido." />
+            <SectionLabel icon={Orbit} title="Ruta de implementacion" description="El mismo flujo funciona para un solo dispositivo o un conjunto distribuido." />
             <div className="ct-device-inventory" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
               {FLOW_STEPS.map((step, index) => <FlowStep key={step.title} step={step} index={index} />)}
             </div>
           </section>
         </div>
 
-        {/* ─── Sidebar ─── */}
+        {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Sidebar aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
         <div className="ct-device-sticky" style={{ display: "grid", gap: 16, position: "sticky", top: "calc(var(--header-h) + 18px)" }}>
           {/* Credential */}
           <section style={{ ...cardBase, padding: 20, animation: "eco-fadeInUp .58s ease both" }}>
             <SectionLabel
               icon={KeyRound}
-              title="Credencial única"
-              description="La emite backend al registrar el dispositivo. No se puede cambiar después y solo se muestra para su resguardo."
+              title="Credencial unica"
+              description="La emite backend al registrar el dispositivo. No se puede cambiar despues y solo se muestra para su resguardo."
               action={
                 <button
                   type="button"
-                  style={{ ...secondaryButtonStyle, height: 34, fontSize: 12 }}
-                  onClick={() => handleCopy(form.token, "token")}
-                  disabled={!form.token}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--eco-border)"; }}
+                  style={{ ...secondaryButtonStyle, height: 34, fontSize: 12, opacity: 0.72, cursor: "default" }}
+                  disabled
+                  aria-disabled="true"
                 >
-                  {copied === "token" ? <Check size={13} style={{ animation: "ctCheckPop .3s ease both" }} /> : <Copy size={13} />}
-                  {form.token ? (copied === "token" ? "Listo" : "Copiar") : "Pendiente"}
+                  <Lock size={13} />
+                  Solo backend
                 </button>
               }
             />
@@ -1340,7 +1281,7 @@ export default function DevicePage({ user }) {
               }}
             >
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, var(--eco-primary-300), transparent)" }} />
-              <p style={{ margin: 0, fontFamily: fm, fontSize: 11.5, lineHeight: 1.85, color: "var(--eco-text-strong)", wordBreak: "break-word", letterSpacing: ".05em" }}>{form.token || "Se emitirá al registrar el dispositivo en backend."}</p>
+              <p style={{ margin: 0, fontFamily: fm, fontSize: 11.5, lineHeight: 1.85, color: "var(--eco-text-strong)", wordBreak: "break-word", letterSpacing: ".05em" }}>{form.token ? maskCredential(form.token) : "Se emitira al registrar el dispositivo en backend."}</p>
             </div>
             {/* Immutable credential notice */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--eco-radius-md)", background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.18)", marginBottom: 14 }}>
@@ -1352,19 +1293,18 @@ export default function DevicePage({ user }) {
               </p>
             </div>
             <div style={{ display: "grid", gap: 10 }}>
-              <MetaRow icon={Cpu} label="Código esperado en firmware" value={form.code || "Sin definir"} />
+              <MetaRow icon={Cpu} label="Codigo esperado en firmware" value={form.code || "Sin definir"} />
               <MetaRow icon={MapPin} label="Binding operativo" value={`${form.campusCode} \u00B7 ${form.areaCode}`} />
               <MetaRow icon={Server} label="Backend create" value={`POST ${DEVICE_API_CONTRACT.create}`} />
-              <MetaRow icon={ShieldCheck} label="Política de credencial" value="Llave única por dispositivo" />
+              <MetaRow icon={ShieldCheck} label="Politica de credencial" value="Llave unica por dispositivo" />
             </div>
           </section>
 
           {/* Connection contract */}
           <section style={{ ...cardBase, padding: 20, animation: "eco-fadeInUp .64s ease both" }}>
-            <SectionLabel icon={Server} title="Contrato de conexión" description="Vista lista para firmware, QA y handoff con backend." />
+            <SectionLabel icon={Server} title="Contrato de conexion" description="Vista lista para firmware, QA y handoff con backend." />
             <div className="ct-device-contract-grid" style={{ display: "grid", gap: 10 }}>
-              <CodeBlock label="Endpoint" value={contractPreview} onCopy={() => handleCopy(contractPreview, "endpoint")} copied={copied === "endpoint"} />
-              <CodeBlock label="Authorization" value={authorizationPreview} onCopy={() => handleCopy(`Bearer ${form.token}`, "authorization")} copied={copied === "authorization"} />
+                            <CodeBlock label="Authorization" value={authorizationPreview} copied={false} />
               <CodeBlock label="Payload base" value={payloadPreview} onCopy={() => handleCopy(payloadPreview, "payload")} copied={copied === "payload"} multiline />
               <CodeBlock label="Admin API handoff" value={adminApiPreview} onCopy={() => handleCopy(adminApiPreview, "admin-api")} copied={copied === "admin-api"} multiline />
             </div>
@@ -1399,7 +1339,7 @@ export default function DevicePage({ user }) {
         </div>
       </section>
 
-      {/* ─── Inventory ─── */}
+      {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Inventory aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
       <section style={{ ...cardBase, padding: 22, animation: "eco-fadeInUp .76s ease both" }}>
         <SectionLabel
           icon={Router}
@@ -1421,7 +1361,7 @@ export default function DevicePage({ user }) {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por nombre, código, campus o estado"
+              placeholder="Buscar por nombre, codigo, campus o estado"
               style={{ ...inputBase, paddingLeft: 36, height: 40, fontSize: 12 }}
               onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
               onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
@@ -1443,7 +1383,7 @@ export default function DevicePage({ user }) {
             <div style={{ padding: "32px 20px", textAlign: "center", animation: "eco-fadeInUp .3s ease both" }}>
               <Search size={32} style={{ color: "var(--eco-gray-300)", marginBottom: 10 }} />
               <p style={{ margin: 0, fontFamily: fb, fontSize: 14, fontWeight: 700, color: "var(--eco-text-soft)" }}>Sin resultados</p>
-              <p style={{ ...subtleText, marginTop: 4 }}>Prueba con otro término de búsqueda.</p>
+              <p style={{ ...subtleText, marginTop: 4 }}>Prueba con otro termino de busqueda.</p>
             </div>
           ) : null}
           {filteredDevices.map((device, i) => (
@@ -1477,9 +1417,9 @@ export default function DevicePage({ user }) {
                     <MetaChip icon={Activity} value={`${device.readingsToday || 0} lecturas hoy`} />
                   </div>
                   <p style={{ ...subtleText, maxWidth: 720, fontSize: 11.5 }}>
-                    Última actividad: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{formatDateTime(device.lastSeenAt)}</strong>
+                    Asltima actividad: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{formatDateTime(device.lastSeenAt)}</strong>
                     {" \u00B7 "}
-                    Firmware: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{device.firmwareVersion || "Sin versión"}</strong>
+                    Firmware: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{device.firmwareVersion || "Sin version"}</strong>
                   </p>
                 </div>
 
@@ -1523,7 +1463,7 @@ export default function DevicePage({ user }) {
         </div>
       </section>
 
-      {/* ─── Delete confirmation modal ─── */}
+      {/* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Delete confirmation modal aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */}
       {deleteConfirm ? (
         <div
           style={{
@@ -1573,14 +1513,14 @@ export default function DevicePage({ user }) {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontFamily: fd, fontSize: 18, fontWeight: 800, color: "var(--eco-text-strong)" }}>Eliminar dispositivo</h3>
-                <p style={{ ...subtleText, marginTop: 3 }}>Esta acción no se puede deshacer.</p>
+                <p style={{ ...subtleText, marginTop: 3 }}>Esta accion no se puede deshacer.</p>
               </div>
             </div>
 
             {/* Warning */}
             <div style={{ padding: "12px 14px", borderRadius: "var(--eco-radius-md)", background: "rgba(239,68,68,.06)", border: "1px solid rgba(239,68,68,.15)", marginBottom: 18 }}>
               <p style={{ margin: 0, fontFamily: fb, fontSize: 13, color: "var(--eco-text)", lineHeight: 1.55 }}>
-                Se eliminará <strong>{deleteConfirm.name}</strong> ({deleteConfirm.code}) y toda su configuración, credencial y vinculación del inventario.
+                Se eliminara <strong>{deleteConfirm.name}</strong> ({deleteConfirm.code}) y toda su configuracion, credencial y vinculacion del inventario.
               </p>
             </div>
 
@@ -1641,3 +1581,6 @@ export default function DevicePage({ user }) {
     </div>
   );
 }
+
+
+
