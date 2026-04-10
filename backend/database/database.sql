@@ -684,6 +684,8 @@ CREATE TABLE iot_devices (
   device_type varchar(60) NOT NULL DEFAULT 'esp32',
   is_active boolean NOT NULL DEFAULT true,
   metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  credential_hash varchar(128),
+  credential_issued_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT iot_devices_id_organization_uq UNIQUE (id,organization_id),
@@ -931,8 +933,10 @@ CREATE INDEX idx_profile_change_requests_user_id ON profile_change_requests(user
 CREATE INDEX idx_profile_change_requests_status ON profile_change_requests(status,created_at DESC);
 CREATE INDEX idx_profile_change_request_events_request_id ON profile_change_request_events(request_id,created_at DESC);
 CREATE INDEX idx_iot_devices_campus_id ON iot_devices(campus_id);
+CREATE UNIQUE INDEX idx_iot_devices_credential_hash_uq ON iot_devices(credential_hash) WHERE credential_hash IS NOT NULL;
 CREATE INDEX idx_device_bindings_area_id ON device_bindings(area_id);
 CREATE INDEX idx_device_readings_device_recorded_at ON device_readings(device_id,recorded_at DESC);
+CREATE UNIQUE INDEX idx_device_readings_device_recorded_at_uq ON device_readings(device_id,recorded_at);
 CREATE INDEX idx_device_readings_created_record_id ON device_readings(created_record_id);
 CREATE INDEX idx_ml_predictions_model_target_date ON ml_predictions(model_id,target_date DESC);
 CREATE INDEX idx_anomaly_detections_model_detected_at ON anomaly_detections(model_id,detected_at DESC);

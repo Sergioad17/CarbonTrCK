@@ -800,6 +800,100 @@ function ApiPill({ label, accent }) {
   );
 }
 
+function IssuedCredentialModal({ credential, copied, onCopy, onClose }) {
+  if (!credential?.token) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 110,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        animation: "eco-fadeIn .2s ease both",
+      }}
+    >
+      <div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.52)", backdropFilter: "blur(4px)" }} />
+      <div
+        style={{
+          ...cardBase,
+          position: "relative",
+          width: "100%",
+          maxWidth: 620,
+          padding: "28px 24px 24px",
+          boxShadow: "0 24px 70px rgba(0,0,0,.25)",
+          animation: "ctToastIn .25s ease both",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 16,
+                background: "linear-gradient(135deg, rgba(34,197,94,.16), rgba(15,118,110,.12))",
+                color: "var(--eco-primary-700)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <KeyRound size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontFamily: fd, fontSize: 19, fontWeight: 800, color: "var(--eco-text-strong)" }}>Credencial emitida</h3>
+              <p style={{ ...subtleText, marginTop: 4 }}>
+                {credential.mode === "duplicate"
+                  ? `Se emitió una nueva credencial para ${credential.name}.`
+                  : `La credencial de ${credential.name} ya está lista para provisionar el dispositivo.`}
+              </p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: "none", border: "none", color: "var(--eco-text-soft)", cursor: "pointer", padding: 2, display: "flex" }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            borderRadius: "var(--eco-radius-md)",
+            border: "1.5px dashed var(--eco-primary-300)",
+            background: "linear-gradient(180deg, rgba(34,197,94,.05), rgba(15,118,110,.06))",
+            padding: "16px 18px",
+            marginBottom: 14,
+          }}
+        >
+          <p style={{ margin: 0, fontFamily: fm, fontSize: 13, lineHeight: 1.9, color: "var(--eco-text-strong)", wordBreak: "break-word", letterSpacing: ".06em" }}>
+            {credential.token}
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: "var(--eco-radius-md)", background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.18)", marginBottom: 18 }}>
+          <Shield size={13} style={{ color: "#B45309", flexShrink: 0 }} />
+          <p style={{ margin: 0, fontFamily: fb, fontSize: 11.5, color: "#92400E", lineHeight: 1.5, fontWeight: 600 }}>
+            Cópiala y resguárdala ahora. Después de cerrar esta ventana, la interfaz solo la mostrará enmascarada y el sistema no podrá recuperarla desde base de datos.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => onCopy(credential.token, "issued-credential")} style={primaryButtonStyle}>
+            {copied ? <Check size={15} /> : <Copy size={15} />}
+            {copied ? "Copiada" : "Copiar credencial"}
+          </button>
+          <button type="button" onClick={onClose} style={secondaryButtonStyle}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main component aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 export default function DevicePage({ user }) {
@@ -810,6 +904,7 @@ export default function DevicePage({ user }) {
   const [selectedId, setSelectedId] = useState("");
   const [copied, setCopied] = useState("");
   const [toast, setToast] = useState(null);
+  const [issuedCredential, setIssuedCredential] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteInput, setDeleteInput] = useState("");
@@ -944,11 +1039,18 @@ export default function DevicePage({ user }) {
       setDevices((current) => (selectedId ? current.map((item) => (item.id === selectedId ? nextDevice : item)) : [nextDevice, ...current]));
       setSelectedId(nextDevice.id);
       setForm(createFormFromDevice(nextDevice));
+      if (!selectedId && nextDevice.token) {
+        setIssuedCredential({
+          mode: "create",
+          name: nextDevice.name,
+          token: nextDevice.token,
+        });
+      }
       setToast({
         title: selectedId ? "Dispositivo actualizado" : "Dispositivo registrado",
         message: selectedId
           ? `${nextDevice.name} quedo alineado al contrato de backend.`
-          : `${nextDevice.name} quedo registrado y listo para recibir su credencial desde backend.`,
+          : `${nextDevice.name} quedo registrado y su credencial ya esta lista para copiarse.`,
       });
     } catch {
       setToast({ title: "No se pudo guardar", message: "Revisa el contrato de la API de dispositivos y vuelve a intentar." });
@@ -967,7 +1069,14 @@ export default function DevicePage({ user }) {
       setDevices((current) => [duplicate, ...current]);
       setSelectedId(duplicate.id);
       setForm(createFormFromDevice(duplicate));
-      setToast({ title: "Duplicado listo", message: "Se creo un nuevo dispositivo con su propia credencial emitida." });
+      if (duplicate.token) {
+        setIssuedCredential({
+          mode: "duplicate",
+          name: duplicate.name,
+          token: duplicate.token,
+        });
+      }
+      setToast({ title: "Duplicado listo", message: "Se creo un nuevo dispositivo con su propia credencial lista para copiarse." });
     } catch {
       setToast({ title: "No se pudo duplicar", message: "La API de duplicado no devolvio un dispositivo valido." });
     }
@@ -1255,8 +1364,8 @@ export default function DevicePage({ user }) {
           <section style={{ ...cardBase, padding: 20, animation: "eco-fadeInUp .58s ease both" }}>
             <SectionLabel
               icon={KeyRound}
-              title="Credencial unica"
-              description="La emite backend al registrar el dispositivo. No se puede cambiar despues y solo se muestra para su resguardo."
+              title="Credencial única"
+              description="La llave aparecera cuando se de de alta el dispositivo y el puerta trasera confirme su registro. Copiala y resguarda para la entrega tecnica."
               action={
                 <button
                   type="button"
@@ -1265,7 +1374,7 @@ export default function DevicePage({ user }) {
                   aria-disabled="true"
                 >
                   <Lock size={13} />
-                  Solo backend
+                  Irrecuperable
                 </button>
               }
             />
@@ -1281,7 +1390,7 @@ export default function DevicePage({ user }) {
               }}
             >
               <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, var(--eco-primary-300), transparent)" }} />
-              <p style={{ margin: 0, fontFamily: fm, fontSize: 11.5, lineHeight: 1.85, color: "var(--eco-text-strong)", wordBreak: "break-word", letterSpacing: ".05em" }}>{form.token ? maskCredential(form.token) : "Se emitira al registrar el dispositivo en backend."}</p>
+              <p style={{ margin: 0, fontFamily: fm, fontSize: 11.5, lineHeight: 1.85, color: "var(--eco-text-strong)", wordBreak: "break-word", letterSpacing: ".05em" }}>{form.token ? maskCredential(form.token) : "Se emitira al registrar un dispositivo nuevo."}</p>
             </div>
             {/* Immutable credential notice */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--eco-radius-md)", background: "rgba(245,158,11,.08)", border: "1px solid rgba(245,158,11,.18)", marginBottom: 14 }}>
@@ -1296,7 +1405,7 @@ export default function DevicePage({ user }) {
               <MetaRow icon={Cpu} label="Codigo esperado en firmware" value={form.code || "Sin definir"} />
               <MetaRow icon={MapPin} label="Binding operativo" value={`${form.campusCode} \u00B7 ${form.areaCode}`} />
               <MetaRow icon={Server} label="Backend create" value={`POST ${DEVICE_API_CONTRACT.create}`} />
-              <MetaRow icon={ShieldCheck} label="Politica de credencial" value="Llave unica por dispositivo" />
+              <MetaRow icon={ShieldCheck} label="Politica de credencial" value="Llave única por dispositivo" />
             </div>
           </section>
 
@@ -1417,7 +1526,7 @@ export default function DevicePage({ user }) {
                     <MetaChip icon={Activity} value={`${device.readingsToday || 0} lecturas hoy`} />
                   </div>
                   <p style={{ ...subtleText, maxWidth: 720, fontSize: 11.5 }}>
-                    Asltima actividad: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{formatDateTime(device.lastSeenAt)}</strong>
+                    Última actividad: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{formatDateTime(device.lastSeenAt)}</strong>
                     {" \u00B7 "}
                     Firmware: <strong style={{ color: "var(--eco-text)", fontWeight: 600 }}>{device.firmwareVersion || "Sin version"}</strong>
                   </p>
@@ -1577,6 +1686,12 @@ export default function DevicePage({ user }) {
         </div>
       ) : null}
 
+      <IssuedCredentialModal
+        credential={issuedCredential}
+        copied={copied === "issued-credential"}
+        onCopy={handleCopy}
+        onClose={() => setIssuedCredential(null)}
+      />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
