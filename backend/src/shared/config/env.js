@@ -18,7 +18,7 @@ for (const envFile of envFiles) {
   if (fs.existsSync(envFile)) {
     dotenv.config({
       path: envFile,
-      override: true,
+      override: false,
     });
   }
 }
