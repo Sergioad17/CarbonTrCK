@@ -1,11 +1,41 @@
-import { query } from "../../shared/db/pool.js";
+import { query, withTransaction } from "../../shared/db/pool.js";
 import { AppError } from "../../shared/errors/app-error.js";
+import { insertAuditEvent } from "../audit/audit.repository.js";
 
-const ALLOWED_THEMES = new Set(["light", "dark", "system"]);
-const ALLOWED_DATE_FORMATS = new Set(["DD/MM/YYYY", "YYYY-MM-DD"]);
-const ALLOWED_CO2_UNITS = new Set(["kg", "t"]);
-const ALLOWED_INTERVALS = new Set([60, 300, 900, 3600]);
+const SETTINGS_ENUMS = Object.freeze({
+  themes: Object.freeze(["light", "dark", "system"]),
+  dateFormats: Object.freeze(["DD/MM/YYYY", "YYYY-MM-DD"]),
+  co2eUnits: Object.freeze(["kg", "t"]),
+  defaultIntervalSeconds: Object.freeze([60, 300, 900, 3600]),
+});
 
+const ALLOWED_THEMES = new Set(SETTINGS_ENUMS.themes);
+const ALLOWED_DATE_FORMATS = new Set(SETTINGS_ENUMS.dateFormats);
+const ALLOWED_CO2_UNITS = new Set(SETTINGS_ENUMS.co2eUnits);
+const ALLOWED_INTERVALS = new Set(SETTINGS_ENUMS.defaultIntervalSeconds);
+
+/**
+ * Shared backend/frontend settings contract.
+ *
+ * Keep this aligned with `frontend/src/BackgroundSettings/settingsStore.js`.
+ * The frontend consumes this exact top-level shape plus `updatedAt`.
+ *
+ * Expected sections:
+ * - `theme`: enum from SETTINGS_ENUMS.themes
+ * - `ui`: reducedMotion, denseMode, showTooltips
+ * - `locale`: language, timezone, dateFormat enum
+ * - `units`: co2e enum, electricity, fuel
+ * - `rounding`: co2eDecimals, activityDecimals
+ * - `defaults`: assumedVoltageVrms, assumedPowerFactor, defaultIntervalSeconds enum,
+ *   defaultElectricityEF, defaultFuelEF
+ * - `storage`: autoBackupEnabled, autoBackupMax
+ *
+ * Normalization rules:
+ * - missing sections are hydrated from `DEFAULT_SETTINGS`
+ * - invalid enums reject writes with 422, but persisted reads fall back safely
+ * - nullable emission factors stay `null` when absent/blank/invalid
+ * - `updatedAt` is response-only and preserved for the frontend contract
+ */
 const DEFAULT_SETTINGS = Object.freeze({
   theme: "light",
   ui: { reducedMotion: false, denseMode: false, showTooltips: true },
@@ -43,6 +73,16 @@ function ensurePlainObject(value, field) {
     throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: `${field} must be a valid object.`, details: { field } });
   }
   return value;
+}
+
+function buildAuditPayload(actor, auditContext, details = {}) {
+  return {
+    organizationId: actor.organizationId,
+    userId: actor.id,
+    ipAddress: auditContext?.ipAddress || null,
+    userAgent: auditContext?.userAgent || null,
+    details,
+  };
 }
 
 function normalizeSettingsInput(input = {}) {
@@ -161,8 +201,8 @@ function buildSettingsShape(row) {
   };
 }
 
-async function getSettingsRow(actor) {
-  const result = await query(
+async function getSettingsRow(actor, client = { query }) {
+  const result = await client.query(
     `
       SELECT id, theme, locale, ui, units, defaults, rounding, storage, updated_at
       FROM user_settings
@@ -175,42 +215,65 @@ async function getSettingsRow(actor) {
   return result.rows[0] || null;
 }
 
-export async function getSettings(actor) {
-  return buildSettingsShape(await getSettingsRow(actor));
+export async function getSettings(actor, auditContext) {
+  return withTransaction(async (client) => {
+    const settings = buildSettingsShape(await getSettingsRow(actor, client));
+    await insertAuditEvent(client, {
+      ...buildAuditPayload(actor, auditContext, { theme: settings.theme, language: settings.locale.language }),
+      eventType: "settings.read",
+      entityType: "user_settings",
+      entityId: actor.id,
+    });
+    return settings;
+  });
 }
 
-export async function upsertSettings(actor, payload) {
-  const normalized = normalizeSettingsInput(payload);
-  const result = await query(
-    `
-      INSERT INTO user_settings (
-        organization_id, user_id, theme, locale, ui, units, defaults, rounding, storage
-      )
-      VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9::jsonb)
-      ON CONFLICT (user_id)
-      DO UPDATE SET
-        organization_id = EXCLUDED.organization_id,
-        theme = EXCLUDED.theme,
-        locale = EXCLUDED.locale,
-        ui = EXCLUDED.ui,
-        units = EXCLUDED.units,
-        defaults = EXCLUDED.defaults,
-        rounding = EXCLUDED.rounding,
-        storage = EXCLUDED.storage
-      RETURNING id, theme, locale, ui, units, defaults, rounding, storage, updated_at
-    `,
-    [
-      actor.organizationId,
-      actor.id,
-      normalized.theme,
-      JSON.stringify(normalized.locale),
-      JSON.stringify(normalized.ui),
-      JSON.stringify(normalized.units),
-      JSON.stringify(normalized.defaults),
-      JSON.stringify(normalized.rounding),
-      JSON.stringify(normalized.storage),
-    ],
-  );
+export async function upsertSettings(actor, payload, auditContext) {
+  return withTransaction(async (client) => {
+    const normalized = normalizeSettingsInput(payload);
+    const result = await client.query(
+      `
+        INSERT INTO user_settings (
+          organization_id, user_id, theme, locale, ui, units, defaults, rounding, storage
+        )
+        VALUES ($1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9::jsonb)
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          organization_id = EXCLUDED.organization_id,
+          theme = EXCLUDED.theme,
+          locale = EXCLUDED.locale,
+          ui = EXCLUDED.ui,
+          units = EXCLUDED.units,
+          defaults = EXCLUDED.defaults,
+          rounding = EXCLUDED.rounding,
+          storage = EXCLUDED.storage
+        RETURNING id, theme, locale, ui, units, defaults, rounding, storage, updated_at
+      `,
+      [
+        actor.organizationId,
+        actor.id,
+        normalized.theme,
+        JSON.stringify(normalized.locale),
+        JSON.stringify(normalized.ui),
+        JSON.stringify(normalized.units),
+        JSON.stringify(normalized.defaults),
+        JSON.stringify(normalized.rounding),
+        JSON.stringify(normalized.storage),
+      ],
+    );
 
-  return buildSettingsShape(result.rows[0]);
+    const settings = buildSettingsShape(result.rows[0]);
+    await insertAuditEvent(client, {
+      ...buildAuditPayload(actor, auditContext, {
+        theme: settings.theme,
+        locale: settings.locale,
+        units: settings.units,
+        defaults: { defaultIntervalSeconds: settings.defaults.defaultIntervalSeconds },
+      }),
+      eventType: "settings.update",
+      entityType: "user_settings",
+      entityId: actor.id,
+    });
+    return settings;
+  });
 }

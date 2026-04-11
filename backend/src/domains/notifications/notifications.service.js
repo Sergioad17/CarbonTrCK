@@ -19,26 +19,26 @@ function assertRequiredString(value, field) {
   }
 }
 
-export async function listNotificationsService(actor) {
-  return listNotifications(actor);
+export async function listNotificationsService(actor, auditContext) {
+  return listNotifications(actor, auditContext);
 }
 
-export async function createNotificationService(actor, payload) {
+export async function createNotificationService(actor, payload, auditContext) {
   ensureObject(payload);
   assertRequiredString(payload.title, "title");
-  return createNotification(actor, payload);
+  return createNotification(actor, payload, auditContext);
 }
 
-export async function updateNotificationStatusService(actor, notificationId, payload) {
+export async function updateNotificationStatusService(actor, notificationId, payload, auditContext) {
   ensureObject(payload);
   assertRequiredString(notificationId, "notificationId");
-  return updateNotificationStatus(actor, notificationId, payload);
+  return updateNotificationStatus(actor, notificationId, payload, auditContext);
 }
 
-export async function markAllNotificationsReadService(actor) {
-  return markAllNotificationsRead(actor);
+export async function markAllNotificationsReadService(actor, auditContext) {
+  return markAllNotificationsRead(actor, auditContext);
 }
 
-export async function clearArchivedNotificationsService(actor) {
-  return clearArchivedNotifications(actor);
+export async function clearArchivedNotificationsService(actor, auditContext) {
+  return clearArchivedNotifications(actor, auditContext);
 }

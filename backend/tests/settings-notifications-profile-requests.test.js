@@ -139,6 +139,19 @@ if (!hasDb) {
     assert.equal(persisted.rowCount, 1);
     assert.equal(persisted.rows[0].theme, "dark");
     assert.equal(persisted.rows[0].locale.timezone, "America/Mexico_City");
+    const settingsAudit = await query(
+      `
+        SELECT event_type, entity_type, entity_id, details
+        FROM audit_events
+        WHERE user_id = $1
+          AND event_type IN ('settings.read', 'settings.update')
+        ORDER BY created_at DESC
+      `,
+      [context.admin_user_id],
+    );
+    assert.ok(settingsAudit.rows.some((row) => row.event_type === "settings.read"));
+    assert.ok(settingsAudit.rows.some((row) => row.event_type === "settings.update"));
+    assert.ok(settingsAudit.rows.some((row) => row.entity_type === "user_settings" && row.entity_id === context.admin_user_id));
 
     const anaSettings = await request("/settings", {
       method: "GET",
@@ -274,6 +287,24 @@ if (!hasDb) {
 
     const db = await query(`SELECT count(*)::int AS total FROM notifications WHERE user_id = $1 AND title LIKE 'P4 Notification %'`, [context.admin_user_id]);
     assert.ok(db.rows[0].total >= 1);
+    const notificationAudit = await query(
+      `
+        SELECT event_type, entity_type, details
+        FROM audit_events
+        WHERE user_id = $1
+          AND event_type LIKE 'notifications.%'
+        ORDER BY created_at DESC
+      `,
+      [context.admin_user_id],
+    );
+    const auditedEvents = new Set(notificationAudit.rows.map((row) => row.event_type));
+    assert.ok(auditedEvents.has("notifications.read"));
+    assert.ok(auditedEvents.has("notifications.create"));
+    assert.ok(auditedEvents.has("notifications.status_change"));
+    assert.ok(auditedEvents.has("notifications.mark_all_read"));
+    assert.ok(auditedEvents.has("notifications.clear_archived"));
+    assert.ok(notificationAudit.rows.some((row) => row.entity_type === "notification"));
+    assert.ok(notificationAudit.rows.some((row) => row.entity_type === "notification_collection"));
 
     const anaList = await request("/notifications", {
       method: "GET",
@@ -281,6 +312,21 @@ if (!hasDb) {
     });
     assert.equal(anaList.response.status, 200);
     assert.ok(anaList.body.notifications.every((item) => item.title !== "P4 Notification Two"));
+  });
+
+  test("notifications rechaza type fuera del catálogo frontend con 422", async () => {
+    const admin = await login();
+    const created = await request("/notifications", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${admin.body.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "unexpected_type",
+        title: "P4 Invalid Notification Type",
+        message: "Should fail",
+      }),
+    });
+    assert.equal(created.response.status, 422);
+    assert.equal(created.body.code, "VALIDATION_ERROR");
   });
 
   test("profile-change-requests respeta alcance usuario/admin, resolución e historial", async () => {

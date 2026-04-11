@@ -7,11 +7,11 @@ function ensureObject(value) {
   }
 }
 
-export async function getSettingsService(actor) {
-  return getSettings(actor);
+export async function getSettingsService(actor, auditContext) {
+  return getSettings(actor, auditContext);
 }
 
-export async function upsertSettingsService(actor, payload) {
+export async function upsertSettingsService(actor, payload, auditContext) {
   ensureObject(payload);
-  return upsertSettings(actor, payload);
+  return upsertSettings(actor, payload, auditContext);
 }
