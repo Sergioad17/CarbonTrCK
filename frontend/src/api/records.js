@@ -16,6 +16,20 @@ function cleanString(value, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
+function normalizeDateISO(value) {
+  const raw = cleanString(value);
+  if (!raw) return new Date().toISOString().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function normalizeCategory(value) {
   const normalized = cleanString(value).toLowerCase();
   if (normalized === "combustible") return "combustible";
@@ -47,7 +61,7 @@ export function normalizeRecord(input = {}, fallbackId) {
 
   return {
     id: cleanString(input.id) || fallbackId || `rec-${Date.now()}`,
-    dateISO: cleanString(input.dateISO) || new Date().toISOString().slice(0, 10),
+    dateISO: normalizeDateISO(input.dateISO),
     scope: cleanString(input.scope, category === "combustible" ? "scope1" : "scope2") || "scope2",
     metric: cleanString(input.metric, category === "combustible" ? "fuel_volume" : "electricity_consumption"),
     area: cleanString(input.area, "Sin area") || "Sin area",
@@ -83,6 +97,10 @@ export function normalizeRecord(input = {}, fallbackId) {
       }))
       .filter((file) => file.fileName),
     createdAt: cleanString(input.createdAt) || new Date().toISOString(),
+    deletedAt: cleanString(input.deletedAt || input.deleted_at) || null,
+    archivedAt: cleanString(input.archivedAt || input.archived_at || input.deletedAt || input.deleted_at) || null,
+    archiveReason: cleanString(input.archiveReason || input.archive_reason || input.deleteReason || input.delete_reason),
+    archiveRequestedBy: input.archiveRequestedBy || input.archive_requested_by || input.deletedBy || input.deleted_by || null,
     persisted: Boolean(input.persisted),
   };
 }
@@ -94,6 +112,11 @@ function sortRecords(records) {
 function emitRecord(record) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("carbontrack:newrecord", { detail: record }));
+}
+
+function emitRecordArchived(recordId) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("carbontrack:record-archived", { detail: { recordId } }));
 }
 
 async function uploadEvidenceFile(file, kind = "other") {
@@ -222,4 +245,25 @@ export async function createEmissionRecord(input) {
   }
   emitRecord(record);
   return { ok: true, record: { ...record, persisted: true } };
+}
+
+export async function archiveEmissionRecord(recordId, input = {}) {
+  assertBackendConfigured();
+  const response = await apiRequest(`/records/${recordId}/archive`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({
+      reason: cleanString(input.reason),
+      requestedAt: cleanString(input.requestedAt) || new Date().toISOString(),
+      requestedBy: input.requestedBy || null,
+      permission: cleanString(input.permission, "records:archive") || "records:archive",
+    }),
+  });
+
+  const record = normalizeRecord(
+    response?.record || response?.item || response?.data?.record || response?.data?.item || response?.data || response,
+    recordId
+  );
+  emitRecordArchived(recordId);
+  return { ok: true, record };
 }

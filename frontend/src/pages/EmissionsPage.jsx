@@ -28,6 +28,7 @@ import {
   Info,
   ArrowRight,
   ExternalLink,
+  Trash2,
   X,
   Eye,
   Filter,
@@ -63,7 +64,9 @@ import {
   Tooltip as RTooltip,
   ResponsiveContainer,
 } from "recharts";
-import { fetchEmissionRecords } from "../api/records";
+import { archiveEmissionRecord, fetchEmissionRecords } from "../api/records";
+import RecordArchiveDialog from "../components/RecordArchiveDialog";
+import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
 
 const fd = "var(--eco-font-display)",
   fb = "var(--eco-font-body)",
@@ -778,7 +781,11 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [archiveDialog, setArchiveDialog] = useState(null);
+  const [archivingId, setArchivingId] = useState("");
+  const [removingIds, setRemovingIds] = useState([]);
   const PER_PAGE = 8;
+  const archivePermission = useMemo(() => canArchiveRecord(user), [user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -808,9 +815,11 @@ export default function EmissionsPage({ user, onOpenRecord }) {
       setRecords(nextRecords);
     };
     window.addEventListener("carbontrack:newrecord", h);
+    window.addEventListener("carbontrack:record-archived", h);
     window.addEventListener("storage", h);
     return () => {
       window.removeEventListener("carbontrack:newrecord", h);
+      window.removeEventListener("carbontrack:record-archived", h);
       window.removeEventListener("storage", h);
     };
   }, []);
@@ -824,6 +833,51 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     setFSource("");
     setFSearch("");
     setPage(0);
+  };
+
+  const openArchiveDialog = record => {
+    if (!archivePermission.allowed) {
+      setToast({ title: "Accion restringida", message: archivePermission.message });
+      return;
+    }
+    setArchiveDialog(record);
+  };
+
+  const handleArchiveConfirm = async ({ reason }) => {
+    if (!archiveDialog?.id || !archivePermission.allowed) return;
+    const recordToArchive = archiveDialog;
+    setArchivingId(recordToArchive.id);
+    try {
+      await archiveEmissionRecord(recordToArchive.id, buildArchiveAuditPayload(archivePermission.actor, reason));
+      setRemovingIds(prev => (prev.includes(recordToArchive.id) ? prev : [...prev, recordToArchive.id]));
+      window.setTimeout(() => {
+        setRecords(prev => prev.filter(record => record.id !== recordToArchive.id));
+        setRemovingIds(prev => prev.filter(id => id !== recordToArchive.id));
+        setDrill(prev => (prev?.id === recordToArchive.id ? null : prev));
+        setArchiveDialog(null);
+        setArchivingId("");
+        setToast({
+          title: "Registro dado de baja",
+          message: "Se oculto del flujo operativo y se preservo su trazabilidad.",
+        });
+      }, 280);
+      createNotification({
+        type: "record_archived",
+        title: "Registro dado de baja",
+        message: `Se dio de baja el registro "${recordToArchive.activity}" con trazabilidad conservada.`,
+        link: "/emisiones",
+        meta: { recordId: recordToArchive.id, category: recordToArchive.category },
+      });
+    } catch (error) {
+      setArchivingId("");
+      setToast({
+        title: "No se pudo dar de baja",
+        message:
+          error?.status === 404
+            ? "El backend aun no expone la baja logica para registros."
+            : "La baja no se completo. Intenta nuevamente en unos segundos.",
+      });
+    }
   };
 
   /* ─── Filtered + sorted ─── */
@@ -854,6 +908,11 @@ export default function EmissionsPage({ user, onOpenRecord }) {
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+
+  useEffect(() => {
+    if (page === 0) return;
+    if (page > Math.max(totalPages - 1, 0)) setPage(Math.max(totalPages - 1, 0));
+  }, [page, totalPages]);
 
   /* ─── Derived stats ─── */
   const stats = useMemo(() => {
@@ -1529,7 +1588,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       { key: "co2e_t", label: "CO₂e", w: 90 },
                       { key: "status", label: "Estado", w: 80 },
                       { key: "source", label: "Fuente", w: 90 },
-                      { key: null, label: "", w: 50 },
+                      { key: null, label: "", w: 86 },
                     ].map((col, ci) => (
                       <th
                         key={ci}
@@ -1566,8 +1625,12 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       key={r.id || ri}
                       style={{
                         borderBottom: ri < paged.length - 1 ? "1px solid var(--eco-gray-100)" : "none",
-                        transition: "background 150ms ease",
+                        transition: "background 150ms ease, opacity 220ms ease, transform 220ms ease, filter 220ms ease",
                         cursor: "pointer",
+                        opacity: removingIds.includes(r.id) ? 0 : 1,
+                        transform: removingIds.includes(r.id) ? "translateX(18px) scale(0.985)" : "translateX(0) scale(1)",
+                        filter: removingIds.includes(r.id) ? "blur(2px)" : "none",
+                        pointerEvents: removingIds.includes(r.id) ? "none" : "auto",
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = "var(--eco-gray-50)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "white")}
@@ -1624,6 +1687,45 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                       <td style={{ padding: "10px 12px", fontSize: 12, color: "var(--eco-gray-500)" }}>{r.source}</td>
 
                       <td style={{ padding: "10px 12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              openArchiveDialog(r);
+                            }}
+                            aria-label={archivePermission.allowed ? `Dar de baja ${r.activity}` : archivePermission.message}
+                            title={archivePermission.allowed ? "Dar de baja logica" : archivePermission.message}
+                            disabled={!archivePermission.allowed || archivingId === r.id}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "var(--eco-radius-sm)",
+                              border: `1px solid ${archivePermission.allowed ? "rgba(239,68,68,.15)" : "var(--eco-border)"}`,
+                              background: archivePermission.allowed ? "rgba(239,68,68,.06)" : "var(--eco-card, white)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              cursor: archivePermission.allowed ? "pointer" : "not-allowed",
+                              color: archivePermission.allowed ? "var(--eco-danger)" : "var(--eco-gray-300)",
+                              transition: "all .2s cubic-bezier(.4,0,.2,1)",
+                              opacity: archivingId === r.id ? 0.5 : 1,
+                            }}
+                            onMouseEnter={e => {
+                              if (!archivePermission.allowed) return;
+                              e.currentTarget.style.transform = "translateY(-1px) scale(1.08)";
+                              e.currentTarget.style.background = "rgba(239,68,68,.12)";
+                              e.currentTarget.style.borderColor = "rgba(239,68,68,.3)";
+                              e.currentTarget.style.boxShadow = "0 6px 16px -6px rgba(239,68,68,.4)";
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.transform = "translateY(0) scale(1)";
+                              e.currentTarget.style.background = "rgba(239,68,68,.06)";
+                              e.currentTarget.style.borderColor = "rgba(239,68,68,.15)";
+                              e.currentTarget.style.boxShadow = "none";
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         <button
                           onClick={e => {
                             e.stopPropagation();
@@ -1653,6 +1755,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                         >
                           <ExternalLink size={13} />
                         </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1819,6 +1922,17 @@ export default function EmissionsPage({ user, onOpenRecord }) {
       )}
 
       {/* ═══ DRILL-DOWN ═══ */}
+      <RecordArchiveDialog
+        open={Boolean(archiveDialog)}
+        record={archiveDialog}
+        permission={archivePermission}
+        submitting={Boolean(archivingId)}
+        onClose={() => {
+          if (!archivingId) setArchiveDialog(null);
+        }}
+        onConfirm={handleArchiveConfirm}
+      />
+
       {drill && (
         <DrillPanel title="Trazabilidad del registro" onClose={() => setDrill(null)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1891,6 +2005,125 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                   </span>
                 </div>
               ))}
+            </div>
+
+            <div
+              style={{
+                background: "white",
+                border: "1px solid var(--eco-border)",
+                borderRadius: "var(--eco-radius-md)",
+                padding: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)" }}>
+                Detalle capturado
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "var(--eco-radius-sm)",
+                    background: "var(--eco-gray-50)",
+                    border: "1px solid var(--eco-gray-100)",
+                  }}
+                >
+                  <p style={{ margin: "0 0 4px", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)" }}>
+                    Actividad / descripción
+                  </p>
+                  <p style={{ margin: 0, fontFamily: fb, fontSize: 12.5, color: "var(--eco-gray-700)", lineHeight: 1.6 }}>
+                    {drill.activity || "Sin actividad registrada."}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "var(--eco-radius-sm)",
+                    background: "var(--eco-gray-50)",
+                    border: "1px solid var(--eco-gray-100)",
+                  }}
+                >
+                  <p style={{ margin: "0 0 4px", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)" }}>
+                    Nota (opcional)
+                  </p>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: fb,
+                      fontSize: 12.5,
+                      color: drill.note ? "var(--eco-gray-700)" : "var(--eco-gray-400)",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {drill.note || "Sin nota adicional."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: archivePermission.allowed ? "rgba(239,68,68,.04)" : "var(--eco-surface, var(--eco-gray-50))",
+                border: `1px solid ${archivePermission.allowed ? "rgba(239,68,68,.12)" : "var(--eco-border)"}`,
+                borderRadius: "var(--eco-radius-lg)",
+                padding: "14px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 14,
+                flexWrap: "wrap",
+                transition: "all .2s ease",
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <p style={{ margin: "0 0 3px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text, var(--eco-gray-800))" }}>
+                  Baja logica con trazabilidad
+                </p>
+                <p style={{ margin: 0, fontFamily: fb, fontSize: 11.5, color: "var(--eco-gray-500)", lineHeight: 1.5 }}>
+                  Oculta el registro del flujo operativo. Conserva archivos, revisiones y auditoria.
+                </p>
+              </div>
+
+              <button
+                onClick={() => openArchiveDialog(drill)}
+                disabled={!archivePermission.allowed || archivingId === drill.id}
+                style={{
+                  height: 36,
+                  padding: "0 14px",
+                  borderRadius: "var(--eco-radius-md)",
+                  border: "none",
+                  background: archivePermission.allowed ? "linear-gradient(135deg, #EF4444, #DC2626)" : "var(--eco-gray-200)",
+                  color: archivePermission.allowed ? "#fff" : "var(--eco-gray-400)",
+                  fontFamily: fb,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  cursor: archivePermission.allowed ? "pointer" : "not-allowed",
+                  boxShadow: archivePermission.allowed ? "0 6px 16px -6px rgba(220,38,38,.45)" : "none",
+                  transition: "all .2s cubic-bezier(.4,0,.2,1)",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => {
+                  if (!archivePermission.allowed) return;
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                  e.currentTarget.style.boxShadow = "0 8px 20px -6px rgba(220,38,38,.55)";
+                  e.currentTarget.style.filter = "brightness(1.06)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = archivePermission.allowed ? "0 6px 16px -6px rgba(220,38,38,.45)" : "none";
+                  e.currentTarget.style.filter = "brightness(1)";
+                }}
+              >
+                <Trash2 size={13} />
+                Dar de baja
+              </button>
             </div>
 
             {/* Related records */}

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { Flame, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, X, CheckCircle2, TrendingUp, TrendingDown, Minus, Droplets, Fuel, ChevronRight, ChevronDown, ChevronUp, ChevronLeft, Filter, AlertTriangle, Leaf, ArrowRight, Paperclip, } from "lucide-react";
+import { Flame, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, Trash2, X, CheckCircle2, TrendingUp, TrendingDown, Minus, Droplets, Fuel, ChevronRight, ChevronDown, ChevronUp, ChevronLeft, Filter, AlertTriangle, Leaf, ArrowRight, Paperclip, } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart as RPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, Area, AreaChart, } from "recharts";
 import { fetchScopeCombustibleRecords } from "../api/scopeCombustible";
+import { archiveEmissionRecord } from "../api/records";
+import RecordArchiveDialog from "../components/RecordArchiveDialog";
+import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -215,11 +218,13 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const[fromDate,setFromDate]=useState("");const[toDate,setToDate]=useState("");
   const[fArea,setFArea]=useState("");const[fStatus,setFStatus]=useState("");const[fSource,setFSource]=useState("");const[fFuel,setFFuel]=useState("");const[fEquipment,setFEquipment]=useState("");
   const[filtersOpen,setFiltersOpen]=useState(true);const[drill,setDrill]=useState(null);const[toast,setToast]=useState(null);const[hovRow,setHovRow]=useState(null);
+  const[archiveDialog,setArchiveDialog]=useState(null);const[archivingId,setArchivingId]=useState("");const[removingIds,setRemovingIds]=useState([]);
   const[sortCol,setSortCol]=useState("dateISO");const[sortAsc,setSortAsc]=useState(false);const[page,setPage]=useState(0);const PER_PAGE=8;
+  const archivePermission=useMemo(()=>canArchiveRecord(),[]);
 
   const loadAll=useCallback(async()=>{setLoading(true);const data=await fetchScopeCombustibleRecords();setRecords(data.records.sort((a,b)=>b.dateISO.localeCompare(a.dateISO)));setStorageError(data.storageError);setLoading(false);},[]);
   useEffect(()=>{loadAll();},[loadAll]);
-  useEffect(()=>{const h=()=>loadAll();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[loadAll]);
+  useEffect(()=>{const h=()=>loadAll();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("carbontrack:record-archived",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("carbontrack:record-archived",h);window.removeEventListener("storage",h);};},[loadAll]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
 
   const areas=useMemo(()=>[...new Set(records.map(r=>r.area))].sort(),[records]);
@@ -234,6 +239,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   },[pFiltered,fArea,fStatus,fSource,fFuel,fEquipment,sortCol,sortAsc]);
 
   const totalPages=Math.ceil(filtered.length/PER_PAGE);const paged=filtered.slice(page*PER_PAGE,(page+1)*PER_PAGE);
+  useEffect(()=>{if(page===0)return;if(page>Math.max(totalPages-1,0))setPage(Math.max(totalPages-1,0));},[page,totalPages]);
   const activeFC=useMemo(()=>[fArea,fStatus,fSource,fFuel,fEquipment].filter(Boolean).length,[fArea,fStatus,fSource,fFuel,fEquipment]);
 
   const summaryFilters=useMemo(()=>{const v=[];v.push(periodMode==="mes"?`${MONTHS_ES[month-1]} ${year}`:periodMode==="rango"?`${fromDate||"-"} a ${toDate||"-"}`:"Todo el periodo");if(fArea)v.push(`Área: ${fArea}`);if(fStatus)v.push(fStatus==="est"?"Estimado":"Real");if(fSource)v.push(fSource);if(fFuel)v.push(fFuel);if(fEquipment)v.push(fEquipment);return v;},[periodMode,month,year,fromDate,toDate,fArea,fStatus,fSource,fFuel,fEquipment]);
@@ -261,6 +267,8 @@ export default function ScopeCombustiblePage({onOpenRecord}){
   const clearFilters=()=>{setPeriodMode("todos");setMonth(today.getMonth()+1);setYear(today.getFullYear());setFromDate("");setToDate("");setFArea("");setFStatus("");setFSource("");setFFuel("");setFEquipment("");setPage(0);setToast({title:"Filtros reiniciados",message:"Se restauraron los filtros."});};
   const exportCsv=()=>{const csv=buildCsv(filtered);const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`scope1-combustible-${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);setToast({title:"Exportación lista",message:`${filtered.length} registros exportados.`});};
   const openTrace=row=>{if(row){setDrill(row);return;}if(filtered.length){setDrill(filtered[0]);return;}setToast({title:"Sin registros",message:"No hay registros."});};
+  const openArchiveDialog=row=>{if(!archivePermission.allowed){setToast({title:"Accion restringida",message:archivePermission.message});return;}setArchiveDialog(row);};
+  const handleArchiveConfirm=async({reason})=>{if(!archiveDialog?.id||!archivePermission.allowed)return;const recordToArchive=archiveDialog;setArchivingId(recordToArchive.id);try{await archiveEmissionRecord(recordToArchive.id,buildArchiveAuditPayload(archivePermission.actor,reason));setRemovingIds(prev=>prev.includes(recordToArchive.id)?prev:[...prev,recordToArchive.id]);window.setTimeout(()=>{setRecords(prev=>prev.filter(record=>record.id!==recordToArchive.id));setRemovingIds(prev=>prev.filter(id=>id!==recordToArchive.id));setDrill(prev=>prev?.id===recordToArchive.id?null:prev);setArchiveDialog(null);setArchivingId("");setToast({title:"Registro dado de baja",message:"Salio del flujo operativo y mantuvo su trazabilidad."});},280);}catch(error){setArchivingId("");setToast({title:"No se pudo dar de baja",message:error?.status===404?"El backend aun no expone esta baja logica.":"La baja no se completo. Intenta nuevamente."});}};
   const related=useMemo(()=>{if(!drill)return[];return filtered.filter(r=>r.id!==drill.id).filter(r=>r.area===drill.area||r.fuelType===drill.fuelType).slice(0,5);},[drill,filtered]);
   const toggleSort=(col)=>{if(sortCol===col)setSortAsc(!sortAsc);else{setSortCol(col);setSortAsc(true);}setPage(0);};
 
@@ -405,7 +413,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
                 {[{k:"dateISO",l:"Fecha"},{k:"area",l:"Área"},{k:"activity",l:"Actividad"},{k:"fuelType",l:"Combustible"},{k:"value",l:"Litros"},{k:"factor",l:"Factor"},{k:"co2e_kg",l:"CO₂e (kg)"},{k:"co2e_t",l:"CO₂e (t)"},{k:"status",l:"Estado"},{k:"source",l:"Fuente"},{k:null,l:"Evidencia"},{k:null,l:""}].map((col,ci)=><th key={ci} onClick={col.k?()=>toggleSort(col.k):undefined} style={{padding:"10px 12px",textAlign:"left",fontFamily:fb,fontSize:11,fontWeight:600,color:"var(--eco-gray-500)",textTransform:"uppercase",letterSpacing:"0.04em",whiteSpace:"nowrap",cursor:col.k?"pointer":"default",userSelect:"none"}}><span style={{display:"inline-flex",alignItems:"center",gap:3}}>{col.l}{sortCol===col.k&&(sortAsc?<ChevronUp size={12}/>:<ChevronDown size={12}/>)}</span></th>)}
               </tr></thead>
               <tbody>{paged.map((r,i)=>
-                <tr key={r.id} style={{borderBottom:i<paged.length-1?"1px solid var(--eco-gray-100)":"none",background:hovRow===r.id?"var(--eco-gray-50)":"white",transition:"background 100ms",cursor:"pointer",animation:`ctRowIn .3s ease-out ${Math.min(i*30,300)}ms both`}}
+                <tr key={r.id} style={{borderBottom:i<paged.length-1?"1px solid var(--eco-gray-100)":"none",background:hovRow===r.id?"var(--eco-gray-50)":"white",transition:"background 100ms, opacity 220ms ease, transform 220ms ease, filter 220ms ease",cursor:"pointer",animation:`ctRowIn .3s ease-out ${Math.min(i*30,300)}ms both`,opacity:removingIds.includes(r.id)?0:1,transform:removingIds.includes(r.id)?"translateX(18px) scale(0.985)":"translateX(0) scale(1)",filter:removingIds.includes(r.id)?"blur(2px)":"none",pointerEvents:removingIds.includes(r.id)?"none":"auto"}}
                   onMouseEnter={()=>setHovRow(r.id)} onMouseLeave={()=>setHovRow(null)} onClick={()=>openTrace(r)}>
                   <td style={{padding:"10px 12px",fontFamily:fm,fontSize:12,color:"var(--eco-gray-600)",whiteSpace:"nowrap"}}>{fDate(r.dateISO)}</td>
                   <td style={{padding:"10px 12px",color:"var(--eco-gray-700)",fontWeight:600}}>{r.area}</td>
@@ -418,7 +426,7 @@ export default function ScopeCombustiblePage({onOpenRecord}){
                   <td style={{padding:"10px 12px"}}><Badge status={r.status}/></td>
                   <td style={{padding:"10px 12px",color:"var(--eco-gray-500)",fontSize:12}}>{r.source}</td>
                   <td style={{padding:"10px 12px",color:"var(--eco-gray-500)",fontSize:12}}>{r.evidence?<span style={{display:"inline-flex",alignItems:"center",gap:3}}><Paperclip size={11}/>{r.evidence.length>16?r.evidence.slice(0,14)+"…":r.evidence}</span>:"-"}</td>
-                  <td style={{padding:"10px 12px"}}><button onClick={e=>{e.stopPropagation();openTrace(r);}} aria-label={`Ver ${r.activity}`} style={{height:28,width:28,borderRadius:"var(--eco-radius-sm)",border:"1px solid var(--eco-border)",background:"white",color:"var(--eco-gray-400)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all 150ms"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.color="var(--eco-primary-600)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--eco-border)";e.currentTarget.style.color="var(--eco-gray-400)";}}><ExternalLink size={13}/></button></td>
+                  <td style={{padding:"10px 12px"}}><div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"flex-end"}}><button onClick={e=>{e.stopPropagation();openArchiveDialog(r);}} aria-label={archivePermission.allowed?`Dar de baja ${r.activity}`:archivePermission.message} title={archivePermission.allowed?"Dar de baja logica":archivePermission.message} disabled={!archivePermission.allowed||archivingId===r.id} style={{height:28,width:28,borderRadius:"var(--eco-radius-sm)",border:`1px solid ${archivePermission.allowed?"rgba(239,68,68,.15)":"var(--eco-border)"}`,background:archivePermission.allowed?"rgba(239,68,68,.06)":"var(--eco-card, white)",color:archivePermission.allowed?"var(--eco-danger)":"var(--eco-gray-300)",cursor:archivePermission.allowed?"pointer":"not-allowed",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all .2s cubic-bezier(.4,0,.2,1)",opacity:archivingId===r.id?0.5:1}} onMouseEnter={e=>{if(!archivePermission.allowed)return;e.currentTarget.style.transform="translateY(-1px) scale(1.08)";e.currentTarget.style.background="rgba(239,68,68,.12)";e.currentTarget.style.borderColor="rgba(239,68,68,.3)";e.currentTarget.style.boxShadow="0 6px 16px -6px rgba(239,68,68,.4)";}} onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0) scale(1)";e.currentTarget.style.background="rgba(239,68,68,.06)";e.currentTarget.style.borderColor="rgba(239,68,68,.15)";e.currentTarget.style.boxShadow="none";}}><Trash2 size={13}/></button><button onClick={e=>{e.stopPropagation();openTrace(r);}} aria-label={`Ver ${r.activity}`} style={{height:28,width:28,borderRadius:"var(--eco-radius-sm)",border:"1px solid var(--eco-border)",background:"white",color:"var(--eco-gray-400)",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",transition:"all 150ms"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--eco-primary-300)";e.currentTarget.style.color="var(--eco-primary-600)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--eco-border)";e.currentTarget.style.color="var(--eco-gray-400)";}}><ExternalLink size={13}/></button></div></td>
                 </tr>
               )}</tbody>
             </table>
@@ -436,6 +444,17 @@ export default function ScopeCombustiblePage({onOpenRecord}){
     </div>
 
     <Toast toast={toast} onDismiss={()=>setToast(null)}/>
+
+    <RecordArchiveDialog
+      open={Boolean(archiveDialog)}
+      record={archiveDialog}
+      permission={archivePermission}
+      submitting={Boolean(archivingId)}
+      onClose={() => {
+        if (!archivingId) setArchiveDialog(null);
+      }}
+      onConfirm={handleArchiveConfirm}
+    />
 
     {/* ═══ DRILL-DOWN PANEL ═══ */}
     {drill&&<DrillPanel title="Trazabilidad de combustible" breadcrumb="Scope 1 → Combustible → Detalle" onClose={()=>setDrill(null)}>
@@ -463,6 +482,16 @@ export default function ScopeCombustiblePage({onOpenRecord}){
         <div style={{background:"white",border:"1px solid var(--eco-border)",borderRadius:"var(--eco-radius-md)",padding:12}}>
           <p style={{margin:"0 0 8px",fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)",display:"flex",alignItems:"center",gap:6}}><Filter size={12}/>Filtros activos</p>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{summaryFilters.map(item=><span key={item} style={{fontFamily:fb,fontSize:11,fontWeight:500,padding:"3px 8px",borderRadius:"var(--eco-radius-full)",background:"var(--eco-gray-100)",color:"var(--eco-gray-600)"}}>{item}</span>)}</div>
+        </div>
+
+        <div style={{background:archivePermission.allowed?"rgba(239,68,68,.04)":"var(--eco-surface, var(--eco-gray-50))",border:`1px solid ${archivePermission.allowed?"rgba(239,68,68,.12)":"var(--eco-border)"}`,borderRadius:"var(--eco-radius-lg)",padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:14,flexWrap:"wrap",transition:"all .2s ease"}}>
+          <div style={{flex:1,minWidth:180}}>
+            <p style={{margin:"0 0 3px",fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-text, var(--eco-gray-800))"}}>Baja logica con trazabilidad</p>
+            <p style={{margin:0,fontFamily:fb,fontSize:11.5,color:"var(--eco-gray-500)",lineHeight:1.5}}>Oculta el registro de combustible del flujo operativo. Conserva archivos, revisiones y auditoria.</p>
+          </div>
+          <button onClick={()=>openArchiveDialog(drill)} disabled={!archivePermission.allowed||archivingId===drill.id} style={{height:36,padding:"0 14px",borderRadius:"var(--eco-radius-md)",border:"none",background:archivePermission.allowed?"linear-gradient(135deg, #EF4444, #DC2626)":"var(--eco-gray-200)",color:archivePermission.allowed?"#fff":"var(--eco-gray-400)",fontFamily:fb,fontSize:12.5,fontWeight:700,display:"inline-flex",alignItems:"center",gap:7,cursor:archivePermission.allowed?"pointer":"not-allowed",boxShadow:archivePermission.allowed?"0 6px 16px -6px rgba(220,38,38,.45)":"none",transition:"all .2s cubic-bezier(.4,0,.2,1)",flexShrink:0}}
+            onMouseEnter={e=>{if(!archivePermission.allowed)return;e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 8px 20px -6px rgba(220,38,38,.55)";e.currentTarget.style.filter="brightness(1.06)";}}
+            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=archivePermission.allowed?"0 6px 16px -6px rgba(220,38,38,.45)":"none";e.currentTarget.style.filter="brightness(1)";}}><Trash2 size={13}/>Dar de baja</button>
         </div>
 
         <div>

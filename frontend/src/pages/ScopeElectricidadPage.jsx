@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import {
-  Zap, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, X,
+  Zap, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, Trash2, X,
   CheckCircle2, TrendingUp, TrendingDown, Minus, Gauge, Activity, ChevronRight,
   ChevronDown, ChevronUp, ChevronLeft, Filter, AlertTriangle, Building2,
   Search, ArrowRight,
@@ -10,7 +10,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
   Area, AreaChart,
 } from "recharts";
-import { fetchEmissionRecords } from "../api/records";
+import { archiveEmissionRecord, fetchEmissionRecords } from "../api/records";
+import RecordArchiveDialog from "../components/RecordArchiveDialog";
+import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -51,7 +53,7 @@ function normRec(r, fid) {
   const kwh = Number.isFinite(Number(r?.value)) ? Number(r.value) : 0;
   const fac = Number.isFinite(Number(r?.factor)) && Number(r?.factor) > 0 ? Number(r.factor) : 0.435;
   const co2 = Number.isFinite(Number(r?.co2e_kg)) && Number(r?.co2e_kg) > 0 ? Number(r.co2e_kg) : kwh * fac;
-  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-") };
+  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), note: String(r?.note || ""), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-") };
 }
 
 async function loadElec() {
@@ -310,10 +312,14 @@ export default function Scope2Page({ onOpenRecord }) {
   const [drill, setDrill] = useState(null);
   const [toast, setToast] = useState(null);
   const [hovRow, setHovRow] = useState(null);
+  const [archiveDialog, setArchiveDialog] = useState(null);
+  const [archivingId, setArchivingId] = useState("");
+  const [removingIds, setRemovingIds] = useState([]);
   const [sortCol, setSortCol] = useState("dateISO");
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
   const PER_PAGE = 8;
+  const archivePermission = useMemo(() => canArchiveRecord(), []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -323,7 +329,7 @@ export default function Scope2Page({ onOpenRecord }) {
     setLoading(false);
   }, []);
   useEffect(() => { loadAll(); }, [loadAll]);
-  useEffect(() => { const h = () => loadAll(); window.addEventListener("carbontrack:newrecord", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("storage", h); }; }, [loadAll]);
+  useEffect(() => { const h = () => loadAll(); window.addEventListener("carbontrack:newrecord", h); window.addEventListener("carbontrack:record-archived", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("carbontrack:record-archived", h); window.removeEventListener("storage", h); }; }, [loadAll]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);
 
   const areas = useMemo(() => [...new Set(records.map(r => r.area))].sort(), [records]);
@@ -341,6 +347,7 @@ export default function Scope2Page({ onOpenRecord }) {
 
   const totalPages = Math.ceil(filtered.length / PER_PAGE);
   const paged = filtered.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
+  useEffect(() => { if (page === 0) return; if (page > Math.max(totalPages - 1, 0)) setPage(Math.max(totalPages - 1, 0)); }, [page, totalPages]);
   const activeFC = useMemo(() => [fArea, fStatus, fSource].filter(Boolean).length, [fArea, fStatus, fSource]);
 
   const summaryFilters = useMemo(() => {
@@ -380,6 +387,27 @@ export default function Scope2Page({ onOpenRecord }) {
   const clearFilters = () => { setPeriodMode("todos"); setMonth(today.getMonth() + 1); setYear(today.getFullYear()); setFromDate(""); setToDate(""); setFArea(""); setFStatus(""); setFSource(""); setPage(0); setToast({ title: "Filtros reiniciados", message: "Se restauraron los filtros." }); };
   const exportCsv = () => { const csv = buildCsv(filtered); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `scope2-electricidad-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url); setToast({ title: "Exportación lista", message: `${filtered.length} registros exportados.` }); };
   const openTrace = row => { if (row) { setDrill(row); return; } if (filtered.length) { setDrill(filtered[0]); return; } setToast({ title: "Sin registros", message: "No hay registros para mostrar." }); };
+  const openArchiveDialog = row => { if (!archivePermission.allowed) { setToast({ title: "Accion restringida", message: archivePermission.message }); return; } setArchiveDialog(row); };
+  const handleArchiveConfirm = async ({ reason }) => {
+    if (!archiveDialog?.id || !archivePermission.allowed) return;
+    const recordToArchive = archiveDialog;
+    setArchivingId(recordToArchive.id);
+    try {
+      await archiveEmissionRecord(recordToArchive.id, buildArchiveAuditPayload(archivePermission.actor, reason));
+      setRemovingIds(prev => (prev.includes(recordToArchive.id) ? prev : [...prev, recordToArchive.id]));
+      window.setTimeout(() => {
+        setRecords(prev => prev.filter(record => record.id !== recordToArchive.id));
+        setRemovingIds(prev => prev.filter(id => id !== recordToArchive.id));
+        setDrill(prev => (prev?.id === recordToArchive.id ? null : prev));
+        setArchiveDialog(null);
+        setArchivingId("");
+        setToast({ title: "Registro dado de baja", message: "Salio del flujo operativo y mantuvo su trazabilidad." });
+      }, 280);
+    } catch (error) {
+      setArchivingId("");
+      setToast({ title: "No se pudo dar de baja", message: error?.status === 404 ? "El backend aun no expone esta baja logica." : "La baja no se completo. Intenta nuevamente." });
+    }
+  };
   const related = useMemo(() => { if (!drill) return []; return filtered.filter(r => r.id !== drill.id).filter(r => r.area === drill.area).slice(0, 5); }, [drill, filtered]);
   const toggleSort = (col) => { if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(true); } setPage(0); };
 
@@ -534,7 +562,7 @@ export default function Scope2Page({ onOpenRecord }) {
                 {[{ k: "dateISO", l: "Fecha" }, { k: "area", l: "Área" }, { k: "activity", l: "Actividad" }, { k: "value", l: "kWh" }, { k: "factor", l: "Factor" }, { k: "co2e_kg", l: "CO₂e (kg)" }, { k: "co2e_t", l: "CO₂e (t)" }, { k: "status", l: "Estado" }, { k: "source", l: "Fuente" }, { k: null, l: "" }].map((col, ci) => <th key={ci} onClick={col.k ? () => toggleSort(col.k) : undefined} style={{ padding: "10px 12px", textAlign: "left", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)", textTransform: "uppercase", letterSpacing: "0.04em", whiteSpace: "nowrap", cursor: col.k ? "pointer" : "default", userSelect: "none" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>{col.l}{sortCol === col.k && (sortAsc ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}</span></th>)}
               </tr></thead>
               <tbody>{paged.map((r, i) =>
-                <tr key={r.id} style={{ borderBottom: i < paged.length - 1 ? "1px solid var(--eco-gray-100)" : "none", background: hovRow === r.id ? "var(--eco-gray-50)" : "white", transition: "background 100ms", cursor: "pointer", animation: `ctRowIn .3s ease-out ${Math.min(i * 30, 300)}ms both` }}
+                <tr key={r.id} style={{ borderBottom: i < paged.length - 1 ? "1px solid var(--eco-gray-100)" : "none", background: hovRow === r.id ? "var(--eco-gray-50)" : "white", transition: "background 100ms, opacity 220ms ease, transform 220ms ease, filter 220ms ease", cursor: "pointer", animation: `ctRowIn .3s ease-out ${Math.min(i * 30, 300)}ms both`, opacity: removingIds.includes(r.id) ? 0 : 1, transform: removingIds.includes(r.id) ? "translateX(18px) scale(0.985)" : "translateX(0) scale(1)", filter: removingIds.includes(r.id) ? "blur(2px)" : "none", pointerEvents: removingIds.includes(r.id) ? "none" : "auto" }}
                   onMouseEnter={() => setHovRow(r.id)} onMouseLeave={() => setHovRow(null)} onClick={() => openTrace(r)}>
                   <td style={{ padding: "10px 12px", fontFamily: fm, fontSize: 12, color: "var(--eco-gray-600)", whiteSpace: "nowrap" }}>{fDate(r.dateISO)}</td>
                   <td style={{ padding: "10px 12px", color: "var(--eco-gray-700)", fontWeight: 600 }}>{r.area}</td>
@@ -545,9 +573,9 @@ export default function Scope2Page({ onOpenRecord }) {
                   <td style={{ padding: "10px 12px", fontFamily: fm, fontWeight: 700, color: "var(--eco-primary-700)" }}>{fN(r.co2e_t, 3)}</td>
                   <td style={{ padding: "10px 12px" }}><Badge status={r.status} /></td>
                   <td style={{ padding: "10px 12px", color: "var(--eco-gray-500)", fontSize: 12 }}>{r.source}</td>
-                  <td style={{ padding: "10px 12px" }}><button onClick={e => { e.stopPropagation(); openTrace(r); }} aria-label={`Ver ${r.activity}`} style={{ height: 28, width: 28, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", color: "var(--eco-gray-400)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}
+                  <td style={{ padding: "10px 12px" }}><div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}><button onClick={e => { e.stopPropagation(); openArchiveDialog(r); }} aria-label={archivePermission.allowed ? `Dar de baja ${r.activity}` : archivePermission.message} title={archivePermission.allowed ? "Dar de baja logica" : archivePermission.message} disabled={!archivePermission.allowed || archivingId === r.id} style={{ height: 28, width: 28, borderRadius: "var(--eco-radius-sm)", border: `1px solid ${archivePermission.allowed ? "rgba(239,68,68,.15)" : "var(--eco-border)"}`, background: archivePermission.allowed ? "rgba(239,68,68,.06)" : "var(--eco-card, white)", color: archivePermission.allowed ? "var(--eco-danger)" : "var(--eco-gray-300)", cursor: archivePermission.allowed ? "pointer" : "not-allowed", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all .2s cubic-bezier(.4,0,.2,1)", opacity: archivingId === r.id ? 0.5 : 1 }} onMouseEnter={e => { if (!archivePermission.allowed) return; e.currentTarget.style.transform = "translateY(-1px) scale(1.08)"; e.currentTarget.style.background = "rgba(239,68,68,.12)"; e.currentTarget.style.borderColor = "rgba(239,68,68,.3)"; e.currentTarget.style.boxShadow = "0 6px 16px -6px rgba(239,68,68,.4)"; }} onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0) scale(1)"; e.currentTarget.style.background = "rgba(239,68,68,.06)"; e.currentTarget.style.borderColor = "rgba(239,68,68,.15)"; e.currentTarget.style.boxShadow = "none"; }}><Trash2 size={13} /></button><button onClick={e => { e.stopPropagation(); openTrace(r); }} aria-label={`Ver ${r.activity}`} style={{ height: 28, width: 28, borderRadius: "var(--eco-radius-sm)", border: "1px solid var(--eco-border)", background: "white", color: "var(--eco-gray-400)", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; e.currentTarget.style.color = "var(--eco-primary-600)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.color = "var(--eco-gray-400)"; }}><ExternalLink size={13} /></button></td>
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.currentTarget.style.color = "var(--eco-gray-400)"; }}><ExternalLink size={13} /></button></div></td>
                 </tr>
               )}</tbody>
             </table>
@@ -565,6 +593,17 @@ export default function Scope2Page({ onOpenRecord }) {
     </div>
 
     <Toast toast={toast} onDismiss={() => setToast(null)} />
+
+    <RecordArchiveDialog
+      open={Boolean(archiveDialog)}
+      record={archiveDialog}
+      permission={archivePermission}
+      submitting={Boolean(archivingId)}
+      onClose={() => {
+        if (!archivingId) setArchiveDialog(null);
+      }}
+      onConfirm={handleArchiveConfirm}
+    />
 
     {/* ═══ DRILL-DOWN PANEL ═══ */}
     {drill && <DrillPanel title="Trazabilidad de electricidad" breadcrumb="Scope 2 → Electricidad → Detalle" onClose={() => setDrill(null)}>
@@ -592,9 +631,35 @@ export default function Scope2Page({ onOpenRecord }) {
           )}
         </div>
 
+        <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", padding: 14, display: "flex", flexDirection: "column", gap: 12, animation: "ctFadeUp .3s ease-out 120ms both" }}>
+          <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)" }}>Detalle capturado</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ padding: "10px 12px", borderRadius: "var(--eco-radius-sm)", background: "var(--eco-gray-50)", border: "1px solid var(--eco-gray-100)" }}>
+              <p style={{ margin: "0 0 4px", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)" }}>Actividad / descripción</p>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 12.5, color: "var(--eco-gray-700)", lineHeight: 1.6 }}>{drill.activity || "Sin actividad registrada."}</p>
+            </div>
+
+            <div style={{ padding: "10px 12px", borderRadius: "var(--eco-radius-sm)", background: "var(--eco-gray-50)", border: "1px solid var(--eco-gray-100)" }}>
+              <p style={{ margin: "0 0 4px", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)" }}>Nota (opcional)</p>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 12.5, color: drill.note ? "var(--eco-gray-700)" : "var(--eco-gray-400)", lineHeight: 1.6 }}>{drill.note || "Sin nota adicional."}</p>
+            </div>
+          </div>
+        </div>
+
         <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", padding: 12 }}>
           <p style={{ margin: "0 0 8px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)", display: "flex", alignItems: "center", gap: 6 }}><Filter size={12} />Filtros activos</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{summaryFilters.map(item => <span key={item} style={{ fontFamily: fb, fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-100)", color: "var(--eco-gray-600)" }}>{item}</span>)}</div>
+        </div>
+
+        <div style={{ background: archivePermission.allowed ? "rgba(239,68,68,.04)" : "var(--eco-surface, var(--eco-gray-50))", border: `1px solid ${archivePermission.allowed ? "rgba(239,68,68,.12)" : "var(--eco-border)"}`, borderRadius: "var(--eco-radius-lg)", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", transition: "all .2s ease" }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <p style={{ margin: "0 0 3px", fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-text, var(--eco-gray-800))" }}>Baja logica con trazabilidad</p>
+            <p style={{ margin: 0, fontFamily: fb, fontSize: 11.5, color: "var(--eco-gray-500)", lineHeight: 1.5 }}>Oculta el registro de electricidad del flujo operativo. Conserva archivos, revisiones y auditoria.</p>
+          </div>
+          <button onClick={() => openArchiveDialog(drill)} disabled={!archivePermission.allowed || archivingId === drill.id} style={{ height: 36, padding: "0 14px", borderRadius: "var(--eco-radius-md)", border: "none", background: archivePermission.allowed ? "linear-gradient(135deg, #EF4444, #DC2626)" : "var(--eco-gray-200)", color: archivePermission.allowed ? "#fff" : "var(--eco-gray-400)", fontFamily: fb, fontSize: 12.5, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 7, cursor: archivePermission.allowed ? "pointer" : "not-allowed", boxShadow: archivePermission.allowed ? "0 6px 16px -6px rgba(220,38,38,.45)" : "none", transition: "all .2s cubic-bezier(.4,0,.2,1)", flexShrink: 0 }}
+            onMouseEnter={e => { if (!archivePermission.allowed) return; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 20px -6px rgba(220,38,38,.55)"; e.currentTarget.style.filter = "brightness(1.06)"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = archivePermission.allowed ? "0 6px 16px -6px rgba(220,38,38,.45)" : "none"; e.currentTarget.style.filter = "brightness(1)"; }}><Trash2 size={13} />Dar de baja</button>
         </div>
 
         <div>

@@ -57,9 +57,18 @@ const COLORS = [
   "#64748B",
   "#94A3B8"]
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+const normalizeDateISO = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dt = new Date(raw);
+  if (Number.isNaN(dt.getTime())) return raw;
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+}
 const toMonthEs = (iso) => {
-  if (!iso) return "Fecha invalida";
-  const dt = new Date(iso);
+  const normalized = normalizeDateISO(iso);
+  if (!normalized) return "Fecha invalida";
+  const dt = new Date(`${normalized}T12:00:00`);
   if (Number.isNaN(dt.getTime())) return "Fecha invalida";
   return `${MONTHS_ES[dt.getMonth()]} ${dt.getFullYear()}`
 }
@@ -70,7 +79,7 @@ const normalizeActivityItem = (it) => {
     id: it.id ? String(it.id) : undefined,
     status: it.status === "est" ? "est" : "real",
     area: String(it.area || "Sin area"),
-    dateISO: String(it.dateISO || new Date().toISOString().slice(0, 10)),
+    dateISO: normalizeDateISO(it.dateISO || new Date().toISOString().slice(0, 10)),
     co2e_t: Number.isFinite(co2e) ? co2e : 0,
     time: String(it.time || "Justo ahora"),
     by: String(it.by || "Tu"),
@@ -101,7 +110,8 @@ const toNumOrNull = (value) => {
 }
 const formatDateLabel = (value, withTime = false) => {
   if (!value) return "No disponible";
-  const dt = new Date(value);
+  const normalized = withTime ? String(value) : normalizeDateISO(value);
+  const dt = new Date(withTime ? normalized : `${normalized}T12:00:00`);
   if (Number.isNaN(dt.getTime())) return String(value);
   return dt.toLocaleDateString("es-MX", withTime ? {
     day: "numeric",
@@ -1628,7 +1638,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   ), [periodo]);
   const dashboardRecords = useMemo(() => (
     activityRecords.filter((record) => {
-      const raw = String(record?.dateISO || "");
+      const raw = normalizeDateISO(record?.dateISO);
       if (!raw) return false;
       const [yearText, monthText] = raw.split("-");
       const year = Number(yearText);
@@ -1644,7 +1654,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     const previousStartMonth = periodConfig.startMonth === 1 ? 7 : 1;
     const previousEndMonth = periodConfig.startMonth === 1 ? 12 : 6;
     return activityRecords.filter((record) => {
-      const raw = String(record?.dateISO || "");
+      const raw = normalizeDateISO(record?.dateISO);
       if (!raw) return false;
       const [yearText, monthText] = raw.split("-");
       const year = Number(yearText);
@@ -1683,7 +1693,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     const rows = [];
     for (let month = periodConfig.startMonth; month <= periodConfig.endMonth; month += 1) {
       const monthRecords = dashboardRecords.filter((record) => {
-        const raw = String(record?.dateISO || "");
+        const raw = normalizeDateISO(record?.dateISO);
         const parts = raw.split("-");
         return Number(parts[0]) === periodConfig.year && Number(parts[1]) === month;
       });
@@ -1854,7 +1864,26 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <Calendar size={14} style={{ color: "var(--eco-gray-400)" }} />
+            <label
+              htmlFor="dashboard-period-select"
+              style={{
+                position: "absolute",
+                width: 1,
+                height: 1,
+                padding: 0,
+                margin: -1,
+                overflow: "hidden",
+                clip: "rect(0, 0, 0, 0)",
+                whiteSpace: "nowrap",
+                border: 0,
+              }}
+            >
+              Periodo del dashboard
+            </label>
             <select
+              id="dashboard-period-select"
+              name="dashboardPeriod"
+              aria-label="Periodo del dashboard"
               value={periodo}
               onChange={e => setPeriodo(e.target.value)}
               style={{

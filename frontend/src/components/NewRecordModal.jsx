@@ -29,6 +29,7 @@ import {
   setLastTotal,
   upsertDeviceBinding,
 } from "../lib/deviceBinding";
+import { getCurrentUser } from "../lib/sessionStore";
 import { parseDevicePayload } from "../lib/deviceParser";
 import { createNotification } from "../api/notifications";
 import { createEmissionRecord } from "../api/records";
@@ -38,15 +39,13 @@ const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
 
+const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
+const DEFAULT_AREA_CODE = "LAB";
+
 const AREAS = [
-  { value: "CC 1", label: "Centro de Computo 1", icon: "CC" },
-  { value: "CC 2", label: "Centro de Computo 2", icon: "CC" },
-  { value: "Aulas", label: "Aulas", icon: "AU" },
-  { value: "Redes", label: "Taller de Redes", icon: "RD" },
-  { value: "Industrial", label: "Taller Industrial", icon: "IN" },
-  { value: "Agricola", label: "Innovacion Agricola", icon: "AG" },
-  { value: "Admin", label: "Administracion", icon: "AD" },
-  { value: "Otros", label: "Otros", icon: "OT" },
+  { value: "LAB", label: "Laboratorio", icon: "LB" },
+  { value: "ADM", label: "Administracion", icon: "AD" },
+  { value: "PLANTA", label: "Planta piloto", icon: "PP" },
 ];
 
 const SOURCES = [
@@ -79,6 +78,42 @@ function formatNumber(value, digits = 3) {
 
 function buildRecordId(prefix = "u") {
   return `${prefix}${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function cleanString(value, fallback = "") {
+  return String(value ?? fallback).trim();
+}
+
+function getAreaMeta(areaCode) {
+  return AREAS.find((item) => item.value === areaCode) || null;
+}
+
+function getPreferredAreaCode(user) {
+  const allowedAreaCodes = Array.isArray(user?.areaAccess?.areaCodes)
+    ? user.areaAccess.areaCodes.map((code) => cleanString(code)).filter(Boolean)
+    : [];
+
+  return allowedAreaCodes[0] || DEFAULT_AREA_CODE;
+}
+
+function getPreferredCampusCode(user) {
+  return cleanString(user?.campusCode, DEFAULT_CAMPUS_CODE) || DEFAULT_CAMPUS_CODE;
+}
+
+function getRequestErrorMessage(error, fallbackMessage) {
+  const payload = error?.payload;
+  const detailField = cleanString(payload?.details?.field);
+  const backendMessage = cleanString(payload?.message || payload?.error);
+
+  if (backendMessage) {
+    if (detailField === "campusCode") return "El campus configurado no es valido para crear el registro.";
+    if (detailField === "areaCode") return "El area seleccionada no es valida para el campus actual.";
+    if (detailField === "factorId") return "El factor seleccionado ya no coincide con la categoria o unidad del registro.";
+    if (detailField === "unit") return "La unidad seleccionada no es compatible con la metrica del registro.";
+    return backendMessage;
+  }
+
+  return fallbackMessage;
 }
 
 function ModePill({ active, disabled, icon, label, hint, onClick }) {
@@ -635,12 +670,15 @@ function DeviceNotice({ tone = "info", title, body, lines = [] }) {
 export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord, onSave }) {
   const notify = onCreate || onCreateRecord || onSave;
   const fileInputRef = useRef(null);
+  const currentUser = getCurrentUser();
+  const initialAreaCode = getPreferredAreaCode(currentUser);
+  const campusCode = getPreferredCampusCode(currentUser);
 
   const [cat, setCat] = useState("electricidad");
   const [recordMode, setRecordMode] = useState("manual");
   const [isEstimated, setIsEstimated] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [area, setArea] = useState("Aulas");
+  const [area, setArea] = useState(initialAreaCode);
   const [source, setSource] = useState("Medicion");
   const [activity, setActivity] = useState("");
   const [value, setValue] = useState("");
@@ -675,7 +713,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setRecordMode("manual");
     setIsEstimated(false);
     setDate(new Date().toISOString().slice(0, 10));
-    setArea("Aulas");
+    setArea(initialAreaCode);
     setSource("Medicion");
     setActivity("");
     setValue("");
@@ -697,9 +735,13 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setDeviceSummary(null);
     setDevicePreparedItems([]);
     setDeviceCounts({ total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
-    setDeviceBinding(getDefaultBinding(""));
+    setDeviceBinding({
+      ...getDefaultBinding(""),
+      campusCode,
+      areaCode: initialAreaCode,
+    });
     setDeviceToast(null);
-  }, [open, factorDefaults]);
+  }, [open, factorDefaults, initialAreaCode, campusCode]);
 
   useEffect(() => () => {
     if (evidencePreviewUrl) URL.revokeObjectURL(evidencePreviewUrl);
@@ -809,7 +851,8 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     if (existingBinding) return existingBinding;
     return {
       ...getDefaultBinding(payload.deviceId),
-      areaCode: area,
+      campusCode,
+      areaCode: area || initialAreaCode,
       defaults: {
         voltage: Number(payload.electrical?.voltageV_rms_assumed) > 0 ? Number(payload.electrical?.voltageV_rms_assumed) : 127,
         powerFactor:
@@ -975,20 +1018,33 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   }
 
   function buildManualRecord() {
+    const areaMeta = getAreaMeta(area);
+    const scope = cat === "combustible" ? "scope1" : "scope2";
+    const metric = cat === "combustible" ? "fuel_volume" : "electricity_consumption";
+    const normalizedAreaCode = cleanString(area, initialAreaCode) || initialAreaCode;
+    const normalizedAreaLabel = areaMeta?.label || normalizedAreaCode;
+
     return {
+      scope,
+      metric,
       category: cat,
       categoryLabel,
       dateISO: date,
-      area,
+      area: normalizedAreaLabel,
+      areaCode: normalizedAreaCode,
+      campusCode,
       source,
+      status: isEstimated ? "est" : "real",
       isEstimated,
       activity: activity.trim(),
+      activityText: activity.trim(),
       unit,
       value: numericValue,
       factor: factorNum,
       co2e_kg: co2eKg,
       co2e_t: co2eT,
       fuelType: cat === "combustible" ? fuelType : null,
+      by: cleanString(currentUser?.fullName || currentUser?.name, "Tu"),
       note: note.trim(),
       hasEvidence: evidenceEnabled && Boolean(evidenceFile),
       evidence: evidenceEnabled ? evidenceName : "",
@@ -1035,7 +1091,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         dateISO: item.payload.dateISO || date,
         area: savedBinding?.areaCode || baseBinding.areaCode || area,
         areaCode: savedBinding?.areaCode || baseBinding.areaCode || area,
-        campusCode: savedBinding?.campusCode || baseBinding.campusCode || "campus-carbontrack",
+        campusCode: savedBinding?.campusCode || baseBinding.campusCode || campusCode,
         source: "Medicion",
         dataSource: "medicion",
         isEstimated: false,
@@ -1062,9 +1118,11 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         quality: item.payload.quality || {},
       };
 
-      const created = await createEmissionRecord(record).catch(() => null);
+      const created = await createEmissionRecord(record).catch((error) => ({ ok: false, error }));
       if (!created?.ok || !created.record) {
-        skipped.push(`Item #${index + 1}: no se pudo guardar la lectura.`);
+        skipped.push(
+          `Item #${index + 1}: ${getRequestErrorMessage(created?.error, "no se pudo guardar la lectura.")}`,
+        );
         continue;
       }
       setLastTotal(item.payload.deviceId, {
@@ -1083,6 +1141,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
   async function handleSave() {
     setTouched(true);
+    setEvidenceError("");
     if (!canSave) return;
 
     setSaving(true);
@@ -1114,10 +1173,12 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
               : `${formatNumber(result.createdRecords[0]?.value || 0)} kWh importados en ${result.createdRecords[0]?.area || area}.`,
         });
       } else {
-        const created = await createEmissionRecord(buildManualRecord()).catch(() => null);
+        const created = await createEmissionRecord(buildManualRecord()).catch((error) => ({ ok: false, error }));
         if (!created?.ok || !created.record) {
           setSaving(false);
-          setEvidenceError("No se pudo guardar el registro con la evidencia seleccionada.");
+          setEvidenceError(
+            getRequestErrorMessage(created?.error, "No se pudo guardar el registro. Revisa los datos capturados e intentalo otra vez."),
+          );
           return;
         }
         const record = created.record;
@@ -1404,8 +1465,9 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                         onClick={() => {
                           setEvidenceEnabled((prev) => {
                             if (prev) {
-                              setEvidenceDataUrl("");
+                              setEvidencePreviewUrl("");
                               setEvidenceName("");
+                              setEvidenceFile(null);
                               setEvidenceError("");
                             }
                             return !prev;
@@ -1525,8 +1587,9 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                             <button
                               type="button"
                               onClick={() => {
-                                setEvidenceDataUrl("");
+                                setEvidencePreviewUrl("");
                                 setEvidenceName("");
+                                setEvidenceFile(null);
                                 setEvidenceError("");
                               }}
                               style={{

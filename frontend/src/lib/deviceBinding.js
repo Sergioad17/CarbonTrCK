@@ -1,8 +1,8 @@
 import { STORAGE_KEYS, safeReadJson, safeWriteJson } from "./storageKeys";
 
 const DEFAULT_BINDING = {
-  campusCode: "campus-carbontrack",
-  areaCode: "Aulas",
+  campusCode: "CAMPUS-CT",
+  areaCode: "LAB",
   defaults: {
     voltage: 127,
     powerFactor: 0.9,
