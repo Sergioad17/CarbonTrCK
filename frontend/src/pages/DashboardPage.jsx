@@ -38,6 +38,7 @@ import UsersPage from './UsersPage'
 import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
+import AdminPanel from '../admin/AdminPanel'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import { createEmissionRecord } from "../api/records"
 import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
@@ -254,6 +255,15 @@ const navItems = [{
   id: "settings",
   label: "Configuración",
   icon: Settings
+},
+{
+  type: "div"
+},
+{
+  id: "advanced",
+  label: "Avanzado",
+  icon: Shield,
+  tag: "ADM"
 }]
 
 const NAV_TO_PATH = {
@@ -269,6 +279,7 @@ const NAV_TO_PATH = {
   devices: "/catalogos/dispositivos",
   users: "/admin/usuarios",
   settings: "/configuracion",
+  advanced: "/admin/avanzado",
 }
 
 const getModuleMeta = (category) => {
@@ -327,6 +338,7 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/catalogos/factores")) return "factors";
   if (pathname?.startsWith("/catalogos/equipos")) return "equipment";
   if (pathname?.startsWith("/catalogos/dispositivos")) return "devices";
+  if (pathname?.startsWith("/admin/avanzado")) return "advanced";
   if (pathname?.startsWith("/admin/usuarios")) return "users";
   if (pathname?.startsWith("/configuracion")) return "settings";
   return "dashboard";
@@ -2044,7 +2056,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" || activeNav === "advanced" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -2084,6 +2096,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             <SettingsPage />
           ) : activeNav === "profile" ? (
             <ProfilePage user={user} onLogout={handleLogout} onUserChange={onUserChange} />
+          ) : activeNav === "advanced" ? (
+            <AdminPanel />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />
