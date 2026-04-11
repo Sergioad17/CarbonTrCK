@@ -11,13 +11,10 @@ import {
   Area, AreaChart,
 } from "recharts";
 import { fetchEmissionRecords } from "../api/records";
-import { isLocalMode } from "../api/config";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const COLORS = ["#3B82F6","#22C55E","#8B5CF6","#EC4899","#06B6D4","#EAB308","#64748B","#94A3B8"];
-
-/* ═══ INJECTED ANIMATION CSS ═══ */
 const ANIM_CSS = `
 @keyframes ctFadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes ctSlideR{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
@@ -29,25 +26,6 @@ const ANIM_CSS = `
 @media(max-width:1024px){.ct-kpi-g{grid-template-columns:1fr 1fr!important}.ct-ch-main,.ct-ch-donuts{grid-template-columns:1fr!important}}
 @media(max-width:640px){.ct-kpi-g{grid-template-columns:1fr!important}.ct-hdr-acts{flex-direction:column;width:100%}.ct-hdr-acts button{width:100%}}
 `;
-
-/* ═══ SEED DATA ═══ */
-const SEED_RECORDS = [
-  { id:"s1", dateISO:"2026-01-15", area:"CC 1", category:"electricidad", activity:"Equipos de cómputo encendidos", value:1250, unit:"kWh", factor:0.435, co2e_kg:543.75, co2e_t:0.544, status:"real", source:"Recibo", by:"Ana García" },
-  { id:"s2", dateISO:"2026-01-15", area:"CC 2", category:"electricidad", activity:"Servidores y switches activos", value:1100, unit:"kWh", factor:0.435, co2e_kg:478.50, co2e_t:0.479, status:"real", source:"Medición", by:"Ana García" },
-  { id:"s3", dateISO:"2026-01-20", area:"Aulas", category:"electricidad", activity:"Iluminación y proyectores aulas 1-8", value:340, unit:"kWh", factor:0.435, co2e_kg:147.90, co2e_t:0.148, status:"est", source:"Estimación", by:"Carlos López" },
-  { id:"s4", dateISO:"2026-02-10", area:"Industrial", category:"electricidad", activity:"Máquinas taller industrial", value:920, unit:"kWh", factor:0.435, co2e_kg:400.20, co2e_t:0.400, status:"real", source:"Recibo", by:"Ana García" },
-  { id:"s5", dateISO:"2026-02-15", area:"Agrícola", category:"combustible", activity:"Tractor - riego y traslado", value:35, unit:"L", factor:2.68, co2e_kg:93.80, co2e_t:0.094, status:"real", source:"Inventario", by:"Pedro Ruiz" },
-  { id:"s6", dateISO:"2026-03-01", area:"Redes", category:"electricidad", activity:"Switches y routers 24/7", value:780, unit:"kWh", factor:0.435, co2e_kg:339.30, co2e_t:0.339, status:"real", source:"Medición", by:"Ana García" },
-  { id:"s7", dateISO:"2026-03-12", area:"Admin", category:"electricidad", activity:"Oficinas administrativas", value:420, unit:"kWh", factor:0.435, co2e_kg:182.70, co2e_t:0.183, status:"real", source:"Recibo", by:"Carlos López" },
-  { id:"s8", dateISO:"2026-03-20", area:"Agrícola", category:"combustible", activity:"Tractor - preparación de tierra", value:42, unit:"L", factor:2.68, co2e_kg:112.56, co2e_t:0.113, status:"real", source:"Inventario", by:"Pedro Ruiz" },
-  { id:"s9", dateISO:"2026-04-05", area:"Aulas", category:"electricidad", activity:"Aulas 9-16 iluminación + AC", value:1580, unit:"kWh", factor:0.435, co2e_kg:687.30, co2e_t:0.687, status:"real", source:"Recibo", by:"Ana García" },
-  { id:"s10", dateISO:"2026-04-18", area:"CC 1", category:"electricidad", activity:"Laboratorio de redes y servidores", value:1340, unit:"kWh", factor:0.435, co2e_kg:582.90, co2e_t:0.583, status:"real", source:"Medición", by:"Ana García" },
-  { id:"s11", dateISO:"2026-05-02", area:"Aulas", category:"electricidad", activity:"Aulas - periodo de exámenes", value:290, unit:"kWh", factor:0.435, co2e_kg:126.15, co2e_t:0.126, status:"est", source:"Estimación", by:"Carlos López" },
-  { id:"s12", dateISO:"2026-05-15", area:"Agrícola", category:"combustible", activity:"Tractor - cosecha", value:28, unit:"L", factor:2.68, co2e_kg:75.04, co2e_t:0.075, status:"real", source:"Inventario", by:"Pedro Ruiz" },
-  { id:"s13", dateISO:"2026-06-01", area:"CC 2", category:"electricidad", activity:"Upgrade de equipos - mayor consumo", value:1420, unit:"kWh", factor:0.435, co2e_kg:617.70, co2e_t:0.618, status:"real", source:"Medición", by:"Ana García" },
-  { id:"s14", dateISO:"2026-06-10", area:"Redes", category:"electricidad", activity:"Infraestructura de red campus", value:650, unit:"kWh", factor:0.435, co2e_kg:282.75, co2e_t:0.283, status:"real", source:"Recibo", by:"Ana García" },
-  { id:"s15", dateISO:"2026-01-25", area:"Otros", category:"electricidad", activity:"Alumbrado exterior campus", value:180, unit:"kWh", factor:0.435, co2e_kg:78.30, co2e_t:0.078, status:"est", source:"Estimación", by:"Carlos López" },
-];
 
 /* ═══ STYLE CONSTANTS ═══ */
 const ST_C = { real: { bg:"var(--eco-success-bg)", c:"var(--eco-success)", b:"#BBF7D0", l:"Real" }, est: { bg:"var(--eco-warning-bg)", c:"var(--eco-secondary-600)", b:"#FDE68A", l:"Estimado" } };
@@ -78,10 +56,9 @@ function normRec(r, fid) {
 
 async function loadElec() {
   let err = "";
-  const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
-  const all = await fetchEmissionRecords(fallbackRecords).catch(() => {
+  const all = await fetchEmissionRecords().catch(() => {
     err = "No se pudieron cargar los registros.";
-    return fallbackRecords;
+    return [];
   });
   const elec = all.filter(r => { if (!r || typeof r !== "object") return false; return r.category === "electricidad" || String(r.unit || "").toLowerCase() === "kwh"; });
   const byId = new Map(); elec.forEach((row, i) => { const k = String(row?.id || `e-${i}`); if (!byId.has(k)) byId.set(k, normRec(row, k)); });
@@ -638,3 +615,4 @@ export default function Scope2Page({ onOpenRecord }) {
     </DrillPanel>}
   </>);
 }
+

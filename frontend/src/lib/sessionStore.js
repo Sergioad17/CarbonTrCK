@@ -1,12 +1,4 @@
-import { STORAGE_KEYS, safeReadJson, safeWriteJson } from "./storageKeys";
-import { findById, getAll, getRoleLabel, upsert } from "./usersStore";
-
-const SESSION_KEY = STORAGE_KEYS.session;
-const DEFAULT_CAMPUS = "CAMPUS-CT";
-
-function nowIso() {
-  return new Date().toISOString();
-}
+const SESSION_KEY = "carbontrack.session";
 
 function cleanString(value, fallback = "") {
   return String(value ?? fallback).trim();
@@ -33,77 +25,76 @@ function toViewUser(user) {
   const role = normalizeRole(user.role);
   return {
     ...user,
-    name: user.fullName,
+    name: cleanString(user.name || user.fullName || user.email || "Usuario CarbonTrack"),
+    fullName: cleanString(user.fullName || user.name || user.email || "Usuario CarbonTrack"),
     role,
     roleKey: role,
-    roleLabel: getRoleLabel(role),
     areaAccess: normalizeAreaAccess(user.areaAccess),
   };
 }
 
 function normalizeSession(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
-  const userId = cleanString(input.userId);
-  const email = cleanString(input.email).toLowerCase();
+  const userId = cleanString(input.userId || input.user?.id);
+  const email = cleanString(input.email || input.user?.email).toLowerCase();
   if (!userId || !email) return null;
-  const embeddedUser =
+
+  const user =
     input.user && typeof input.user === "object" && !Array.isArray(input.user)
-      ? {
+      ? toViewUser({
           ...input.user,
           id: cleanString(input.user.id || userId),
           userId: cleanString(input.user.userId || input.user.id || userId),
-          email: cleanString(input.user.email || email).toLowerCase(),
-          role: normalizeRole(input.user.role || input.role),
-          roleKey: normalizeRole(input.user.roleKey || input.user.role || input.role),
-          name: cleanString(input.user.name || input.user.fullName),
-          fullName: cleanString(input.user.fullName || input.user.name),
-          areaAccess: normalizeAreaAccess(input.user.areaAccess),
-        }
+          email,
+          role: input.user.role || input.role,
+        })
       : null;
+
   return {
     userId,
     email,
-    role: normalizeRole(input.role),
-    createdAt: cleanString(input.createdAt) || nowIso(),
+    role: normalizeRole(input.role || user?.role),
+    createdAt: cleanString(input.createdAt) || new Date().toISOString(),
     token: cleanString(input.token) || null,
     refreshToken: cleanString(input.refreshToken) || null,
-    user: embeddedUser,
+    user,
   };
+}
+
+function readRawSession() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeRawSession(value) {
+  if (typeof window === "undefined") return false;
+  try {
+    window.sessionStorage.setItem(SESSION_KEY, value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function writeSession(session) {
   const normalized = normalizeSession(session);
   if (!normalized) return null;
-  safeWriteJson(SESSION_KEY, normalized);
+  writeRawSession(JSON.stringify(normalized));
   return normalized;
 }
 
-function ensureUserRecord(userInput = {}) {
-  const email = cleanString(userInput.email).toLowerCase();
-  if (!email) return null;
-  const existing = getAll().find((user) => user.email === email);
-  const payload = {
-    id: existing?.id || cleanString(userInput.id) || undefined,
-    firstName: cleanString(userInput.firstName, existing?.firstName || ""),
-    paternalLastName: cleanString(userInput.paternalLastName, existing?.paternalLastName || ""),
-    maternalLastName: cleanString(userInput.maternalLastName, existing?.maternalLastName || ""),
-    fullName: cleanString(userInput.fullName || userInput.name, existing?.fullName || "Usuario CarbonTrack"),
-    email: email || existing?.email,
-    role: normalizeRole(userInput.role || existing?.role),
-    campusCode: cleanString(userInput.campusCode, existing?.campusCode || DEFAULT_CAMPUS) || DEFAULT_CAMPUS,
-    areaAccess: userInput.areaAccess || existing?.areaAccess || { mode: "all", areaCodes: [] },
-    isActive: typeof userInput.isActive === "boolean" ? userInput.isActive : existing?.isActive ?? true,
-    lastLoginAt: cleanString(userInput.lastLoginAt, nowIso()) || nowIso(),
-    notes: cleanString(userInput.notes, existing?.notes || "Acceso local técnico"),
-  };
-
-  const result = upsert(payload);
-  if (!result.ok) return existing || null;
-  return result.user;
-}
-
 export function getSession() {
-  return normalizeSession(safeReadJson(SESSION_KEY, null));
+  const raw = readRawSession();
+  if (!raw) return null;
+  try {
+    return normalizeSession(JSON.parse(raw));
+  } catch {
+    return null;
+  }
 }
 
 export function setSession(sessionInput) {
@@ -113,76 +104,60 @@ export function setSession(sessionInput) {
 export function clearSession() {
   if (typeof window === "undefined") return false;
   try {
-    window.localStorage.removeItem(SESSION_KEY);
+    window.sessionStorage.removeItem(SESSION_KEY);
     return true;
   } catch {
     return false;
   }
 }
 
-export function createSessionForUser(userInput = {}) {
-  const user = ensureUserRecord({ ...userInput, lastLoginAt: nowIso() });
-  if (!user) return null;
-  writeSession({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    createdAt: nowIso(),
-  });
-  return toViewUser(findById(user.id) || user);
-}
-
-export function getCurrentUser(options = {}) {
+export function getCurrentUser() {
   const session = getSession();
   if (!session) return null;
-  if (session.user && session.user.id) {
+
+  if (session.user) {
     return toViewUser({
       ...session.user,
-      id: session.user.id,
+      id: session.user.id || session.userId,
+      userId: session.user.userId || session.user.id || session.userId,
       email: session.user.email || session.email,
       role: session.user.role || session.role,
     });
   }
-  const user = findById(session.userId);
-  if (user) return toViewUser(user);
-  if (!options.rebuildMissingUser) return null;
-  const rebuiltUser = ensureUserRecord({
+
+  return toViewUser({
     id: session.userId,
+    userId: session.userId,
     email: session.email,
     role: session.role,
-    fullName: "Usuario CarbonTrack",
-    firstName: "Usuario",
-    paternalLastName: "CarbonTrack",
-    maternalLastName: "",
-    campusCode: DEFAULT_CAMPUS,
-    areaAccess: { mode: "all", areaCodes: [] },
-    isActive: true,
   });
-  return toViewUser(rebuiltUser);
 }
 
 export function updateCurrentUser(patch = {}) {
   const session = getSession();
-  if (!session) return { ok: false, reason: "no_session" };
-  const currentUser = findById(session.userId);
-  if (!currentUser) return { ok: false, reason: "not_found" };
-  const result = upsert({
+  const currentUser = getCurrentUser();
+  if (!session || !currentUser) return { ok: false, reason: "no_session" };
+
+  const nextUser = toViewUser({
     ...currentUser,
     ...patch,
     id: currentUser.id,
+    userId: currentUser.userId || currentUser.id,
     email: cleanString(patch.email, currentUser.email).toLowerCase(),
+    role: normalizeRole(patch.role || currentUser.role),
   });
-  if (!result.ok) return result;
+
   writeSession({
     ...session,
-    userId: result.user.id,
-    email: result.user.email,
-    role: result.user.role,
-    user: toViewUser(result.user),
+    userId: nextUser.id,
+    email: nextUser.email,
+    role: nextUser.role,
+    user: nextUser,
   });
+
   return {
     ok: true,
-    user: toViewUser(result.user),
+    user: nextUser,
     session: getSession(),
   };
 }

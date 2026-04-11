@@ -41,7 +41,6 @@ import NotificationsBell from '../components/NotificationsBell'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import { createEmissionRecord } from "../api/records"
 import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
-import { isLocalMode } from "../api/config"
 
 
 const fd = "var(--eco-font-display)",
@@ -58,11 +57,6 @@ const COLORS = [
   "#64748B",
   "#94A3B8"]
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-const BASE_ACTIVITY = [
-  { status: "real", area: "CC1", dateISO: "2026-01-01", co2e_t: 0.544, time: "Hace 2h", by: "Ana Garcia" },
-  { status: "est", area: "Aula 3", dateISO: "2026-01-01", co2e_t: 0.148, time: "Hace 5h", by: "Carlos Lopez" },
-  { status: "real", area: "Taller Industrial", dateISO: "2026-01-01", co2e_t: 0.4, time: "Hace 1d", by: "Ana Garcia" }
-]
 const toMonthEs = (iso) => {
   if (!iso) return "Fecha invalida";
   const dt = new Date(iso);
@@ -1455,7 +1449,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [newRecordOpen, setNewRecordOpen] = useState(false);
   const [toast, setToast] = useState(null);
-  const [activity, setActivity] = useState(() => (isLocalMode() ? BASE_ACTIVITY : []));
+  const [activity, setActivity] = useState([]);
   const [activityRecords, setActivityRecords] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -1501,11 +1495,11 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     setLoading(true);
     setActivityLoading(true);
     Promise.allSettled([
-      fetchDashboardActivity(isLocalMode() ? BASE_ACTIVITY : [], normalizeActivityItem, activityKey),
+      fetchDashboardActivity([], normalizeActivityItem, activityKey),
       fetchDashboardRecords(),
     ]).then(([activityResult, recordsResult]) => {
       if (!mounted) return;
-      setActivity(activityResult.status === "fulfilled" ? activityResult.value : isLocalMode() ? BASE_ACTIVITY : []);
+      setActivity(activityResult.status === "fulfilled" ? activityResult.value : []);
       setActivityRecords(recordsResult.status === "fulfilled" ? recordsResult.value : []);
       setLoading(false);
       setActivityLoading(false);

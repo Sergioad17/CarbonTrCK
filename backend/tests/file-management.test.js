@@ -9,7 +9,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendDir = path.resolve(__dirname, "..");
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-const hasDb = Boolean(process.env.DATABASE_URL);
+function resolveTestDatabaseUrl() {
+  const raw = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw);
+    if (url.hostname === "postgres") {
+      url.hostname = "127.0.0.1";
+      if (!url.port || url.port === "5432") url.port = "5433";
+      return url.toString();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+const resolvedDatabaseUrl = resolveTestDatabaseUrl();
+const hasDb = Boolean(resolvedDatabaseUrl);
+
+if (resolvedDatabaseUrl) {
+  process.env.TEST_DATABASE_URL = resolvedDatabaseUrl;
+  process.env.DATABASE_URL = resolvedDatabaseUrl;
+}
 
 let server;
 let baseUrl;

@@ -1,27 +1,7 @@
 import { apiRequest } from "./httpClient";
-import { isBackendConfigured, isLocalMode } from "./config";
-import {
-  add,
-  archive,
-  clearArchived,
-  countUnread,
-  list,
-  markAllRead,
-  markRead,
-  markUnread,
-  replaceAll,
-  subscribe,
-} from "../lib/notificationsStore";
 
 let notificationsCache = [];
 const listeners = new Set();
-
-function ensureModeAvailable() {
-  if (isBackendConfigured() || isLocalMode()) return;
-  const error = new Error("backend_not_configured");
-  error.code = "backend_not_configured";
-  throw error;
-}
 
 function emitNotifications(items = notificationsCache) {
   listeners.forEach((listener) => listener(items));
@@ -59,12 +39,6 @@ function syncRemoteCache(items) {
 }
 
 async function refreshNotifications() {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return replaceAll(list());
-  }
-
   const payload = await apiRequest("/notifications", {
     method: "GET",
   });
@@ -78,21 +52,14 @@ function updateRemoteCache(updater) {
 }
 
 export function fetchNotifications() {
-  ensureModeAvailable();
-  return isLocalMode() ? list() : notificationsCache;
+  return notificationsCache;
 }
 
 export async function createNotification(notification) {
-  ensureModeAvailable();
-
   const normalizedNotification = normalizeNotification({
     ...notification,
     status: notification?.status || "unread",
   });
-
-  if (isLocalMode()) {
-    return add(normalizedNotification);
-  }
 
   const payload = await apiRequest("/notifications", {
     method: "POST",
@@ -104,19 +71,10 @@ export async function createNotification(notification) {
 }
 
 export function fetchUnreadNotificationsCount() {
-  ensureModeAvailable();
-  return isLocalMode()
-    ? countUnread()
-    : notificationsCache.filter((item) => item.status === "unread").length;
+  return notificationsCache.filter((item) => item.status === "unread").length;
 }
 
 export async function markNotificationRead(id) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return markRead(id);
-  }
-
   await apiRequest(`/notifications/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status: "read" }),
@@ -125,12 +83,6 @@ export async function markNotificationRead(id) {
 }
 
 export async function markNotificationUnread(id) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return markUnread(id);
-  }
-
   await apiRequest(`/notifications/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status: "unread" }),
@@ -139,12 +91,6 @@ export async function markNotificationUnread(id) {
 }
 
 export async function markAllNotificationsRead() {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return markAllRead();
-  }
-
   await apiRequest("/notifications/mark-all-read", {
     method: "POST",
   });
@@ -152,12 +98,6 @@ export async function markAllNotificationsRead() {
 }
 
 export async function archiveNotification(id) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return archive(id);
-  }
-
   await apiRequest(`/notifications/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status: "archived" }),
@@ -166,12 +106,6 @@ export async function archiveNotification(id) {
 }
 
 export async function clearArchivedNotifications() {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return clearArchived();
-  }
-
   await apiRequest("/notifications/archived", {
     method: "DELETE",
   });
@@ -179,12 +113,6 @@ export async function clearArchivedNotifications() {
 }
 
 export function subscribeNotifications(listener) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return subscribe(listener);
-  }
-
   listeners.add(listener);
   listener(notificationsCache);
   refreshNotifications().catch((error) => {

@@ -1,7 +1,6 @@
 import { apiRequest } from "./httpClient";
-import { API_URL, isBackendConfigured, isLocalMode } from "./config";
+import { API_URL, assertBackendConfigured } from "./config";
 import { getSession } from "../lib/sessionStore";
-import { STORAGE_KEYS, safeReadJson, safeWriteJson } from "../lib/storageKeys";
 
 function authHeaders() {
   const session = getSession();
@@ -92,14 +91,6 @@ function sortRecords(records) {
   return [...records].sort((left, right) => String(right.dateISO || "").localeCompare(String(left.dateISO || "")));
 }
 
-function mergeWithFallback(records, fallbackRecords) {
-  const normalizedFallback = Array.isArray(fallbackRecords) ? fallbackRecords.map((item, index) => normalizeRecord(item, `seed-${index + 1}`)) : [];
-  const normalizedRecords = Array.isArray(records) ? records.map((item, index) => normalizeRecord(item, `record-${index + 1}`)) : [];
-  const byId = new Map();
-  [...normalizedFallback, ...normalizedRecords].forEach((item) => byId.set(item.id, item));
-  return sortRecords(Array.from(byId.values()));
-}
-
 function emitRecord(record) {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent("carbontrack:newrecord", { detail: record }));
@@ -111,35 +102,27 @@ async function uploadEvidenceFile(file, kind = "other") {
   formData.append("kind", kind);
 
   const headers = authHeaders();
-  const endpoints = ["/files", "/uploads"];
+  const response = await fetch(buildApiUrl("/files"), {
+    method: "POST",
+    headers,
+    body: formData,
+  });
 
-  let lastError = null;
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(buildApiUrl(endpoint), {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-      let payload = null;
-      try {
-        const contentType = response.headers.get("content-type") || "";
-        payload = contentType.includes("application/json") ? await response.json() : await response.text();
-      } catch {
-        payload = null;
-      }
-      if (!response.ok) {
-        const error = new Error(payload?.message || payload?.error || "file_upload_failed");
-        error.status = response.status;
-        throw error;
-      }
-      return payload?.file || payload?.data?.file || payload?.data || payload;
-    } catch (error) {
-      lastError = error;
-    }
+  let payload = null;
+  try {
+    const contentType = response.headers.get("content-type") || "";
+    payload = contentType.includes("application/json") ? await response.json() : await response.text();
+  } catch {
+    payload = null;
   }
 
-  throw lastError || new Error("file_upload_failed");
+  if (!response.ok) {
+    const error = new Error(payload?.message || payload?.error || "file_upload_failed");
+    error.status = response.status;
+    throw error;
+  }
+
+  return payload?.file || payload?.data?.file || payload?.data || payload;
 }
 
 async function attachEvidenceFileToRecord(recordId, fileId) {
@@ -182,30 +165,21 @@ function buildRecordPayload(record) {
   };
 }
 
-export async function fetchEmissionRecords(fallbackRecords = []) {
-  if (isBackendConfigured()) {
-    const payload = await apiRequest("/records", {
-      method: "GET",
-      headers: authHeaders(),
-    });
-    const rawItems = payload?.records || payload?.items || payload?.data?.records || payload?.data?.items || payload?.data || payload;
-    return sortRecords(Array.isArray(rawItems) ? rawItems.map((item, index) => normalizeRecord(item, `record-${index + 1}`)) : []);
-  }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  const stored = safeReadJson(STORAGE_KEYS.records, []);
-  return mergeWithFallback(stored, fallbackRecords);
+export async function fetchEmissionRecords() {
+  assertBackendConfigured();
+  const payload = await apiRequest("/records", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  const rawItems = payload?.records || payload?.items || payload?.data?.records || payload?.data?.items || payload?.data || payload;
+  return sortRecords(Array.isArray(rawItems) ? rawItems.map((item, index) => normalizeRecord(item, `record-${index + 1}`)) : []);
 }
 
 export async function createEmissionRecord(input) {
+  assertBackendConfigured();
   const evidenceUpload = input?.evidenceUpload || null;
   let uploadedFile = null;
-  if (isBackendConfigured() && evidenceUpload?.file) {
+  if (evidenceUpload?.file) {
     uploadedFile = await uploadEvidenceFile(evidenceUpload.file, evidenceUpload.kind || "other");
   }
 
@@ -227,45 +201,25 @@ export async function createEmissionRecord(input) {
             ]
           : input?.evidenceFiles || [],
       hasEvidence: Boolean(uploadedFile?.id || input?.hasEvidence),
-      evidence:
-        uploadedFile?.file_name ||
-        uploadedFile?.fileName ||
-        input?.evidence ||
-        "",
-      evidenceUrl:
-        uploadedFile?.url ||
-        uploadedFile?.downloadUrl ||
-        input?.evidenceUrl ||
-        input?.evidence ||
-        "",
+      evidence: uploadedFile?.file_name || uploadedFile?.fileName || input?.evidence || "",
+      evidenceUrl: uploadedFile?.url || uploadedFile?.downloadUrl || input?.evidenceUrl || input?.evidence || "",
     },
     input?.id || `rec-${Date.now()}`
   );
 
-  if (isBackendConfigured()) {
-    const recordPayload = buildRecordPayload(payload);
-    const response = await apiRequest("/records", {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify(recordPayload),
-    });
-    const record = normalizeRecord(response?.record || response?.item || response?.data?.record || response?.data?.item || response?.data || response, payload.id);
-    if (uploadedFile?.id) {
-      await attachEvidenceFileToRecord(record.id, uploadedFile.id).catch(() => {});
-    }
-    emitRecord(record);
-    return { ok: true, record: { ...record, persisted: true } };
+  const recordPayload = buildRecordPayload(payload);
+  const response = await apiRequest("/records", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(recordPayload),
+  });
+  const record = normalizeRecord(
+    response?.record || response?.item || response?.data?.record || response?.data?.item || response?.data || response,
+    payload.id
+  );
+  if (uploadedFile?.id) {
+    await attachEvidenceFileToRecord(record.id, uploadedFile.id).catch(() => {});
   }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  const existing = safeReadJson(STORAGE_KEYS.records, []);
-  const next = [payload, ...(Array.isArray(existing) ? existing : [])].slice(0, 200);
-  safeWriteJson(STORAGE_KEYS.records, next);
-  emitRecord(payload);
-  return { ok: true, record: { ...payload, persisted: true } };
+  emitRecord(record);
+  return { ok: true, record: { ...record, persisted: true } };
 }

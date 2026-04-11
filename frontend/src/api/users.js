@@ -1,20 +1,12 @@
 import { apiRequest } from "./httpClient";
-import { isBackendConfigured, isLocalMode } from "./config";
 import { getSession, setSession } from "../lib/sessionStore";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
   USER_ROLE_SUMMARY,
-  activate,
-  deactivate,
   describeAreaAccess,
   filterUsers,
-  getAll,
   getRoleLabel,
-  getRoles,
-  getStoreMeta,
-  resetPasswordMock,
-  upsert,
 } from "../lib/usersStore";
 
 function authHeaders() {
@@ -88,104 +80,60 @@ function syncCurrentSessionUser(users) {
 }
 
 export async function fetchUsersModuleData() {
-  if (isBackendConfigured()) {
-    const [usersPayload, rolesPayload] = await Promise.all([
-      apiRequest("/users", {
-        method: "GET",
-        headers: authHeaders(),
-      }),
-      apiRequest("/users/roles", {
-        method: "GET",
-        headers: authHeaders(),
-      }),
-    ]);
+  const [usersPayload, rolesPayload] = await Promise.all([
+    apiRequest("/users", {
+      method: "GET",
+      headers: authHeaders(),
+    }),
+    apiRequest("/users/roles", {
+      method: "GET",
+      headers: authHeaders(),
+    }),
+  ]);
 
-    const users = normalizeUsersList(usersPayload);
-    const roles = normalizeRolesList(rolesPayload);
-    syncCurrentSessionUser(users);
-    return { users, roles, meta: { initializedEmpty: false } };
-  }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  return {
-    users: getAll(),
-    roles: getRoles(),
-    meta: getStoreMeta(),
-  };
+  const users = normalizeUsersList(usersPayload);
+  const roles = normalizeRolesList(rolesPayload);
+  syncCurrentSessionUser(users);
+  return { users, roles, meta: { initializedEmpty: false } };
 }
 
 export async function saveUser(payload) {
-  if (isBackendConfigured()) {
-    const method = payload?.id ? "PATCH" : "POST";
-    const path = payload?.id ? `/users/${payload.id}` : "/users";
-    const response = await apiRequest(path, {
-      method,
-      headers: authHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const user = normalizeUser(response?.user || response?.data?.user || response?.data || response);
-    const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
-    syncCurrentSessionUser(users);
-    return { ok: true, user, users };
-  }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  return upsert(payload);
+  const method = payload?.id ? "PATCH" : "POST";
+  const path = payload?.id ? `/users/${payload.id}` : "/users";
+  const response = await apiRequest(path, {
+    method,
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const user = normalizeUser(response?.user || response?.data?.user || response?.data || response);
+  const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
+  syncCurrentSessionUser(users);
+  return { ok: true, user, users };
 }
 
 export async function updateUserStatus(user, nextActive) {
-  if (isBackendConfigured()) {
-    await apiRequest(`/users/${user.id}/status`, {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify({ isActive: nextActive }),
-    });
-    const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
-    syncCurrentSessionUser(users);
-    return users;
-  }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  return nextActive ? activate(user.id) : deactivate(user.id, false);
+  await apiRequest(`/users/${user.id}/status`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify({ isActive: nextActive }),
+  });
+  const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
+  syncCurrentSessionUser(users);
+  return users;
 }
 
 export async function resetUserPassword(userId) {
-  if (isBackendConfigured()) {
-    const response = await apiRequest(`/users/${userId}/password-reset`, {
-      method: "POST",
-      headers: authHeaders(),
-    });
-    const tempPassword =
-      response?.temporaryPassword ||
-      response?.password ||
-      response?.data?.temporaryPassword ||
-      response?.data?.password ||
-      "";
-    return { ok: true, password: tempPassword };
-  }
-
-  if (!isLocalMode()) {
-    const error = new Error("backend_not_configured");
-    error.code = "backend_not_configured";
-    throw error;
-  }
-
-  return { ok: true, password: resetPasswordMock(userId)?.password || "" };
+  const response = await apiRequest(`/users/${userId}/password-reset`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  const tempPassword =
+    response?.temporaryPassword ||
+    response?.password ||
+    response?.data?.temporaryPassword ||
+    response?.data?.password ||
+    "";
+  return { ok: true, password: tempPassword };
 }
 
 export {

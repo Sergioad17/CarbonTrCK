@@ -64,7 +64,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { fetchEmissionRecords } from "../api/records";
-import { isLocalMode } from "../api/config";
 
 const fd = "var(--eco-font-display)",
   fb = "var(--eco-font-body)",
@@ -73,237 +72,6 @@ const fN = (n, d = 1) =>
   n.toLocaleString("es-MX", { minimumFractionDigits: d, maximumFractionDigits: d });
 const COLORS = ["#22C55E", "#EAB308", "#3B82F6", "#8B5CF6", "#EC4899", "#06B6D4", "#64748B", "#94A3B8"];
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-/* ═══════════════════════════════════════════════════════════════
-   SEED DATA - matches Dashboard's style
-   ═══════════════════════════════════════════════════════════════ */
-const SEED_RECORDS = [
-  {
-    id: "s1",
-    dateISO: "2026-01-15",
-    area: "CC 1",
-    category: "electricidad",
-    activity: "Equipos de cómputo encendidos",
-    value: 1250,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 543.75,
-    co2e_t: 0.544,
-    status: "real",
-    source: "Recibo",
-    by: "Ana García",
-  },
-  {
-    id: "s2",
-    dateISO: "2026-01-15",
-    area: "CC 2",
-    category: "electricidad",
-    activity: "Servidores y switches activos",
-    value: 1100,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 478.5,
-    co2e_t: 0.479,
-    status: "real",
-    source: "Medición",
-    by: "Ana García",
-  },
-  {
-    id: "s3",
-    dateISO: "2026-01-20",
-    area: "Aulas",
-    category: "electricidad",
-    activity: "Iluminación y proyectores aulas 1-8",
-    value: 340,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 147.9,
-    co2e_t: 0.148,
-    status: "est",
-    source: "Estimación",
-    by: "Carlos López",
-  },
-  {
-    id: "s4",
-    dateISO: "2026-02-10",
-    area: "Industrial",
-    category: "electricidad",
-    activity: "Máquinas taller industrial",
-    value: 920,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 400.2,
-    co2e_t: 0.4,
-    status: "real",
-    source: "Recibo",
-    by: "Ana García",
-  },
-  {
-    id: "s5",
-    dateISO: "2026-02-15",
-    area: "Agrícola",
-    category: "combustible",
-    activity: "Tractor - riego y traslado",
-    value: 35,
-    unit: "L",
-    factor: 2.68,
-    co2e_kg: 93.8,
-    co2e_t: 0.094,
-    status: "real",
-    source: "Inventario",
-    by: "Pedro Ruiz",
-  },
-  {
-    id: "s6",
-    dateISO: "2026-03-01",
-    area: "Redes",
-    category: "electricidad",
-    activity: "Switches y routers 24/7",
-    value: 780,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 339.3,
-    co2e_t: 0.339,
-    status: "real",
-    source: "Medición",
-    by: "Ana García",
-  },
-  {
-    id: "s7",
-    dateISO: "2026-03-12",
-    area: "Admin",
-    category: "electricidad",
-    activity: "Oficinas administrativas",
-    value: 420,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 182.7,
-    co2e_t: 0.183,
-    status: "real",
-    source: "Recibo",
-    by: "Carlos López",
-  },
-  {
-    id: "s8",
-    dateISO: "2026-03-20",
-    area: "Agrícola",
-    category: "combustible",
-    activity: "Tractor - preparación de tierra",
-    value: 42,
-    unit: "L",
-    factor: 2.68,
-    co2e_kg: 112.56,
-    co2e_t: 0.113,
-    status: "real",
-    source: "Inventario",
-    by: "Pedro Ruiz",
-  },
-  {
-    id: "s9",
-    dateISO: "2026-04-05",
-    area: "Aulas",
-    category: "electricidad",
-    activity: "Aulas 9-16 iluminación + AC",
-    value: 1580,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 687.3,
-    co2e_t: 0.687,
-    status: "real",
-    source: "Recibo",
-    by: "Ana García",
-  },
-  {
-    id: "s10",
-    dateISO: "2026-04-18",
-    area: "CC 1",
-    category: "electricidad",
-    activity: "Laboratorio de redes y servidores",
-    value: 1340,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 582.9,
-    co2e_t: 0.583,
-    status: "real",
-    source: "Medición",
-    by: "Ana García",
-  },
-  {
-    id: "s11",
-    dateISO: "2026-05-02",
-    area: "Aulas",
-    category: "electricidad",
-    activity: "Aulas - periodo de exámenes",
-    value: 290,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 126.15,
-    co2e_t: 0.126,
-    status: "est",
-    source: "Estimación",
-    by: "Carlos López",
-  },
-  {
-    id: "s12",
-    dateISO: "2026-05-15",
-    area: "Agrícola",
-    category: "combustible",
-    activity: "Tractor - cosecha",
-    value: 28,
-    unit: "L",
-    factor: 2.68,
-    co2e_kg: 75.04,
-    co2e_t: 0.075,
-    status: "real",
-    source: "Inventario",
-    by: "Pedro Ruiz",
-  },
-  {
-    id: "s13",
-    dateISO: "2026-06-01",
-    area: "CC 2",
-    category: "electricidad",
-    activity: "Upgrade de equipos - mayor consumo",
-    value: 1420,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 617.7,
-    co2e_t: 0.618,
-    status: "real",
-    source: "Medición",
-    by: "Ana García",
-  },
-  {
-    id: "s14",
-    dateISO: "2026-06-10",
-    area: "Redes",
-    category: "electricidad",
-    activity: "Infraestructura de red campus",
-    value: 650,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 282.75,
-    co2e_t: 0.283,
-    status: "real",
-    source: "Recibo",
-    by: "Ana García",
-  },
-  {
-    id: "s15",
-    dateISO: "2026-01-25",
-    area: "Otros",
-    category: "electricidad",
-    activity: "Alumbrado exterior campus",
-    value: 180,
-    unit: "kWh",
-    factor: 0.435,
-    co2e_kg: 78.3,
-    co2e_t: 0.078,
-    status: "est",
-    source: "Estimación",
-    by: "Carlos López",
-  },
-];
 
 const fmtDate = iso => {
   if (!iso) return "-";
@@ -1016,8 +784,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
-      const nextRecords = await fetchEmissionRecords(fallbackRecords).catch(() => fallbackRecords);
+      const nextRecords = await fetchEmissionRecords().catch(() => []);
       if (cancelled) return;
       setRecords(nextRecords);
       setLoading(false);
@@ -1037,8 +804,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   /* Listen for new records from modal */
   useEffect(() => {
     const h = async () => {
-      const fallbackRecords = isLocalMode() ? SEED_RECORDS : [];
-      const nextRecords = await fetchEmissionRecords(fallbackRecords).catch(() => fallbackRecords);
+      const nextRecords = await fetchEmissionRecords().catch(() => []);
       setRecords(nextRecords);
     };
     window.addEventListener("carbontrack:newrecord", h);
@@ -2182,3 +1948,4 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     </div>
   );
 }
+

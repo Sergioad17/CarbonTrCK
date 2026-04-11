@@ -39,6 +39,7 @@ import {
   updateDevice,
   updateDeviceStatus,
 } from "../api/devices";
+import { API_URL } from "../api/config";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -192,7 +193,7 @@ const DEFAULT_FORM = {
   intervalSeconds: "60",
   metric: "electricity_consumption",
   unit: "kWh",
-  backendUrl: "https://api.example.edu",
+  backendUrl: API_URL,
   endpointPath: "/iot/readings",
   wifiProfile: "Campus-IoT",
   deviceType: "ESP32",
@@ -1289,7 +1290,7 @@ export default function DevicePage({ user }) {
                   />
                 </Field>
                 <Field label="Backend URL" hint="Privada, segura y accesible desde la red autorizada." required>
-                  <input value={form.backendUrl} onChange={(event) => updateForm("backendUrl", event.target.value)} placeholder="https://api.example.edu" style={inputBase}
+                  <input value={form.backendUrl} onChange={(event) => updateForm("backendUrl", event.target.value)} placeholder={API_URL} style={inputBase}
                     onFocus={(e) => { e.target.style.borderColor = "var(--eco-primary-400)"; e.target.style.boxShadow = "0 0 0 3px rgba(34,197,94,.1)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -9,6 +9,7 @@ import { fetchCurrentUser, removeSession } from './api/session'
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => fetchCurrentUser())
   const [ready, setReady] = useState(false)
+  const loginCommitTimerRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -23,21 +24,48 @@ function AuthProvider({ children }) {
     hydrate()
     return () => {
       cancelled = true
+      if (loginCommitTimerRef.current) {
+        window.clearTimeout(loginCommitTimerRef.current)
+        loginCommitTimerRef.current = null
+      }
     }
   }, [])
 
-  const login = async (credentials) => {
+  const login = async (credentials, options = {}) => {
     const nextUser = await loginRequest(credentials)
-    setUser(nextUser)
+    const commitDelayMs = Math.max(0, Number(options?.commitDelayMs || 0) || 0)
+
+    if (loginCommitTimerRef.current) {
+      window.clearTimeout(loginCommitTimerRef.current)
+      loginCommitTimerRef.current = null
+    }
+
+    if (commitDelayMs > 0) {
+      loginCommitTimerRef.current = window.setTimeout(() => {
+        setUser(nextUser)
+        loginCommitTimerRef.current = null
+      }, commitDelayMs)
+    } else {
+      setUser(nextUser)
+    }
+
     return nextUser
   }
 
   const logout = () => {
+    if (loginCommitTimerRef.current) {
+      window.clearTimeout(loginCommitTimerRef.current)
+      loginCommitTimerRef.current = null
+    }
     removeSession()
     setUser(null)
   }
 
   const updateUser = (nextUser) => {
+    if (loginCommitTimerRef.current) {
+      window.clearTimeout(loginCommitTimerRef.current)
+      loginCommitTimerRef.current = null
+    }
     setUser(nextUser)
   }
 

@@ -41,16 +41,16 @@ export function subscribeProfileRequests(listener) {
 }
 
 export async function persistProfileUser(profile, payload) {
-  if (isBackendConfigured()) {
-    const result = await saveUser({ ...profile, ...payload, id: profile?.id });
-    return {
-      ok: Boolean(result?.ok),
-      user: result?.user || null,
-      session: getSession(),
-    };
+  if (!isBackendConfigured()) {
+    return updateCurrentUser(payload);
   }
 
-  return updateCurrentUser(payload);
+  const result = await saveUser({ ...profile, ...payload, id: profile?.id });
+  return {
+    ok: Boolean(result?.ok),
+    user: result?.user || null,
+    session: getSession(),
+  };
 }
 
 export async function persistProfileSettings(settings) {
@@ -62,16 +62,18 @@ export async function registerProfileChangeRequest(input) {
 }
 
 export async function submitProfilePasswordChange(input) {
-  if (isBackendConfigured()) {
-    await apiRequest("/profile/password", {
-      method: "PATCH",
-      headers: authHeaders(),
-      body: JSON.stringify(input),
-    });
-    return { ok: true, mode: "backend" };
+  if (!isBackendConfigured()) {
+    const error = new Error("backend_not_configured");
+    error.code = "backend_not_configured";
+    throw error;
   }
 
-  return { ok: true, mode: "local_only" };
+  await apiRequest("/profile/password", {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(input),
+  });
+  return { ok: true, mode: "backend" };
 }
 
 export async function publishProfileNotification(notification) {

@@ -5,9 +5,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Database,
-  Download,
   HelpCircle,
-  Import,
   Info,
   Link as LinkIcon,
   Monitor,
@@ -17,20 +15,15 @@ import {
   ShieldAlert,
   SunMedium,
   TimerReset,
-  Trash2,
   Workflow,
   Leaf,
   Activity,
-  HardDrive,
-  Package,
-  Key,
   Check,
 } from "lucide-react";
 import { getBindingsMap } from "../lib/deviceBinding";
 import { fetchDefaultFactorValue } from "../api/factors";
 import { applySettings, fetchSettings, normalizeSettings, persistSettings, resetSettings } from "../api/settings";
 import { isBackendConfigured } from "../api/config";
-import { exportAll, getManagedStorageKeys, getStorageUsageEstimate, importAll, resetAll } from "../lib/storageExportImport";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -382,29 +375,7 @@ function SkeletonCard({ delay = 0 }) {
 }
 
 /* ─── Storage usage bar ─── */
-function UsageBar({ used, max = 5120 }) {
-  const pct = Math.min((used / max) * 100, 100);
-  const color = pct > 80 ? "var(--eco-danger)" : pct > 50 ? "var(--eco-warning)" : "var(--eco-primary-500)";
-  return (
-    <div style={{ marginTop: 8 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={subtleText}>{used} KB usados</span>
-        <span style={subtleText}>{max >= 5120 ? "5 MB" : `${max} KB`} disponibles</span>
-      </div>
-      <div style={{ height: 6, borderRadius: "var(--eco-radius-full)", background: "var(--eco-border)", overflow: "hidden" }}>
-        <div
-          style={{
-            height: "100%",
-            width: `${pct}%`,
-            borderRadius: "var(--eco-radius-full)",
-            background: color,
-            transition: "width 0.6s ease",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
+
 
 /* ─── Themed input with focus ring ─── */
 function StyledInput(props) {
@@ -451,31 +422,18 @@ function StyledSelect(props) {
   );
 }
 
-function parseJsonFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
-    reader.readAsText(file);
-  });
-}
-
 /* ═══════════════════════════════════════════════════════
    SettingsPage
    ═══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const saveTimerRef = useRef(null);
   const initializedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
   const [settings, setSettings] = useState(() => fetchSettings());
-  const [resetWord, setResetWord] = useState("");
-  const [importing, setImporting] = useState(false);
   const [bindingMap, setBindingMap] = useState({});
-  const [usage, setUsage] = useState(() => getStorageUsageEstimate());
   const [factorHints, setFactorHints] = useState({ electricity: null, fuel: null });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -493,7 +451,6 @@ export default function SettingsPage() {
         if (!active) return;
         setSettings(fetchSettings());
         setBindingMap(getBindingsMap());
-        setUsage(getStorageUsageEstimate());
         setFactorHints({
           electricity: electricityFactor,
           fuel: fuelFactor,
@@ -511,7 +468,6 @@ export default function SettingsPage() {
 
     const handleExternalRefresh = () => {
       setBindingMap(getBindingsMap());
-      setUsage(getStorageUsageEstimate());
       setSettings(fetchSettings());
     };
 
@@ -536,7 +492,6 @@ export default function SettingsPage() {
     try {
       const persisted = await persistSettings(settings);
       setSettings(persisted);
-      setUsage(getStorageUsageEstimate());
       setError("");
       setSaved(true);
       setDirty(false);
@@ -590,54 +545,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleExport = () => {
-    exportAll();
-    setUsage(getStorageUsageEstimate());
-    setToast({ tone: "success", title: "Datos exportados", message: "Se descargó el respaldo en formato JSON." });
-  };
-
-  const handleImportClick = () => fileInputRef.current?.click();
-
-  const handleImportChange = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!window.confirm(`Se importará el contenido de "${file.name}". Esto reemplazará los datos almacenados actualmente.`)) return;
-    setImporting(true);
-    try {
-      const raw = await parseJsonFile(file);
-      const result = importAll(raw);
-      if (!result.ok) throw new Error(result.reason);
-      setSettings(fetchSettings());
-      setBindingMap(getBindingsMap());
-      setUsage(getStorageUsageEstimate());
-      setToast({ tone: "success", title: "Datos importados", message: "Se restauró la información almacenada de CarbonTrack." });
-      setError("");
-    } catch {
-      setToast({ tone: "error", title: "Importación fallida", message: "El archivo no tiene un formato compatible." });
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleResetAll = () => {
-    if (resetWord !== "BORRAR") {
-      setToast({ tone: "error", title: "Confirmación incompleta", message: 'Escribe "BORRAR" para continuar.' });
-      return;
-    }
-    const result = resetAll();
-    if (!result.ok) {
-      setToast({ tone: "error", title: "No se pudo restablecer", message: "Inténtalo de nuevo en unos segundos." });
-      return;
-    }
-    setSettings(fetchSettings());
-    setBindingMap(getBindingsMap());
-    setUsage(getStorageUsageEstimate());
-    setResetWord("");
-    setToast({ tone: "success", title: "Datos restablecidos", message: "La información almacenada se limpió correctamente." });
-    setError("");
-  };
-
   /* ─── Loading skeleton ─── */
   if (loading) {
     return (
@@ -653,12 +560,12 @@ export default function SettingsPage() {
           </div>
           <p style={{ ...subtleText, marginTop: 6, marginLeft: 54 }}>Cargando tus preferencias...</p>
         </div>
-        <div style={sectionGrid}>
+        {false && <div style={sectionGrid}>
           <SkeletonCard delay={0} />
           <SkeletonCard delay={80} />
           <SkeletonCard delay={160} />
           <SkeletonCard delay={240} />
-        </div>
+        </div>}
       </div>
     );
   }
@@ -1023,7 +930,7 @@ export default function SettingsPage() {
         </div>
 
         {/* ═══ Row 3: Datos locales + Sistema ═══ */}
-        <div style={sectionGrid}>
+        {false && <div style={sectionGrid}>
           <AnimatedCard delay={300}>
             <SectionLabel icon={Database} title="Datos almacenados" description="Exporta, importa o limpia la información persistida por el frontend en este entorno." />
             <div style={{ display: "grid", gap: 16 }}>
@@ -1189,9 +1096,10 @@ export default function SettingsPage() {
               </div>
             </div>
           </AnimatedCard>
-        </div>
+        </div>}
       </div>
       <Toast toast={toast} />
     </>
   );
 }
+

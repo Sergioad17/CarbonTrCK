@@ -1,6 +1,6 @@
 import { apiRequest } from "./httpClient";
-import { isBackendConfigured, isLocalMode } from "./config";
-import { clearSession, createSessionForUser, getCurrentUser, getSession, setSession } from "../lib/sessionStore";
+import { isBackendConfigured } from "./config";
+import { clearSession, getCurrentUser, getSession, setSession } from "../lib/sessionStore";
 
 function normalizeAreaAccess(areaAccess) {
   if (!areaAccess || areaAccess.mode !== "custom") return { mode: "all", areaCodes: [] };
@@ -54,81 +54,40 @@ function resolveLoginPayload(payload) {
   return { user, token, refreshToken };
 }
 
-function buildLocalFallbackUser(email) {
-  const localPart = String(email || "")
-    .split("@")[0]
-    .replace(/[._-]+/g, " ")
-    .trim();
-  const fullName = localPart
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-
-  return {
-    email,
-    fullName: fullName || "Usuario CarbonTrack",
-    name: fullName || "Usuario CarbonTrack",
-    role: "admin",
-    notes: "Acceso local técnico sin autenticación remota",
-  };
-}
-
 export function isUsingBackendAuth() {
   return isBackendConfigured();
 }
 
 export async function login(credentials) {
-  const email = String(credentials?.email || "").trim().toLowerCase();
-  const password = String(credentials?.password || "");
-
-  if (isBackendConfigured()) {
-    const payload = await apiRequest("/auth/login", {
-      method: "POST",
-      auth: false,
-      body: JSON.stringify({ email, password }),
-    });
-    const { user, token, refreshToken } = resolveLoginPayload(payload);
-    setSession({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: new Date().toISOString(),
-      token,
-      refreshToken,
-      user,
-    });
-    return user;
-  }
-
-  if (!isLocalMode()) {
+  if (!isBackendConfigured()) {
     const error = new Error("backend_not_configured");
     error.code = "backend_not_configured";
     throw error;
   }
 
-  if (!email || !password) {
-    const error = new Error("credentials");
-    error.code = "credentials";
-    throw error;
-  }
-
-  const sessionUser = createSessionForUser(buildLocalFallbackUser(email));
-  if (!sessionUser) {
-    const error = new Error("credentials");
-    error.code = "credentials";
-    throw error;
-  }
-  return sessionUser;
+  const email = String(credentials?.email || "").trim().toLowerCase();
+  const password = String(credentials?.password || "");
+  const payload = await apiRequest("/auth/login", {
+    method: "POST",
+    auth: false,
+    body: JSON.stringify({ email, password }),
+  });
+  const { user, token, refreshToken } = resolveLoginPayload(payload);
+  setSession({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    createdAt: new Date().toISOString(),
+    token,
+    refreshToken,
+    user,
+  });
+  return user;
 }
 
 export async function hydrateCurrentUser() {
   const currentSession = getSession();
   if (!currentSession) return null;
-
-  if (isLocalMode()) {
-    return getCurrentUser();
-  }
 
   if (!currentSession.token) {
     clearSession();
@@ -161,12 +120,10 @@ export async function requestPasswordReset(emailInput) {
     throw error;
   }
 
-  if (isLocalMode()) {
-    return {
-      ok: true,
-      mode: "local",
-      message: "Recuperacion de contrasena solo disponible con backend configurado.",
-    };
+  if (!isBackendConfigured()) {
+    const error = new Error("backend_not_configured");
+    error.code = "backend_not_configured";
+    throw error;
   }
 
   return apiRequest("/auth/forgot-password", {

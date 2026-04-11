@@ -1,21 +1,7 @@
 import { apiRequest } from "./httpClient";
-import { isBackendConfigured, isLocalMode } from "./config";
-import {
-  createChangeRequest,
-  listChangeRequests,
-  subscribeChangeRequests,
-  updateChangeRequest,
-} from "../lib/profileChangeRequestsStore";
 
 let requestsCache = [];
 const listeners = new Set();
-
-function ensureModeAvailable() {
-  if (isBackendConfigured() || isLocalMode()) return;
-  const error = new Error("backend_not_configured");
-  error.code = "backend_not_configured";
-  throw error;
-}
 
 function emitRequests(items = requestsCache) {
   listeners.forEach((listener) => listener(items));
@@ -54,12 +40,6 @@ function syncRemoteCache(items) {
 }
 
 async function refreshProfileChangeRequests() {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return listChangeRequests();
-  }
-
   const payload = await apiRequest("/profile-change-requests", {
     method: "GET",
   });
@@ -67,17 +47,10 @@ async function refreshProfileChangeRequests() {
 }
 
 export function fetchProfileChangeRequests() {
-  ensureModeAvailable();
-  return isLocalMode() ? listChangeRequests() : requestsCache;
+  return requestsCache;
 }
 
 export async function createProfileChangeRequest(input) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return createChangeRequest(input);
-  }
-
   const payload = await apiRequest("/profile-change-requests", {
     method: "POST",
     body: JSON.stringify(input),
@@ -89,12 +62,6 @@ export async function createProfileChangeRequest(input) {
 }
 
 export async function updateProfileChangeRequest(id, updater) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return updateChangeRequest(id, updater);
-  }
-
   const current = requestsCache.find((item) => item.id === id) || null;
   const draft = typeof updater === "function" ? updater(current) : { ...current, ...updater };
   const payload = await apiRequest(`/profile-change-requests/${id}`, {
@@ -108,12 +75,6 @@ export async function updateProfileChangeRequest(id, updater) {
 }
 
 export function subscribeProfileChangeRequests(listener) {
-  ensureModeAvailable();
-
-  if (isLocalMode()) {
-    return subscribeChangeRequests(listener);
-  }
-
   listeners.add(listener);
   listener(requestsCache);
   refreshProfileChangeRequests().catch((error) => {

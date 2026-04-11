@@ -7,7 +7,30 @@ import dotenv from "dotenv";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-const hasDb = Boolean(process.env.DATABASE_URL);
+function resolveTestDatabaseUrl() {
+  const raw = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL || "";
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw);
+    if (url.hostname === "postgres") {
+      url.hostname = "127.0.0.1";
+      if (!url.port || url.port === "5432") url.port = "5433";
+      return url.toString();
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+}
+
+const resolvedDatabaseUrl = resolveTestDatabaseUrl();
+const hasDb = Boolean(resolvedDatabaseUrl);
+
+if (resolvedDatabaseUrl) {
+  process.env.TEST_DATABASE_URL = resolvedDatabaseUrl;
+  process.env.DATABASE_URL = resolvedDatabaseUrl;
+}
 
 let server;
 let baseUrl;
@@ -193,6 +216,16 @@ if (!hasDb) {
     assert.equal(response.status, 200);
     assert.equal(body.user.email, "admin@itsmante.edu.mx");
     assertNormalizedUserShape(body.user, { includeOrganizationId: true });
+  });
+
+  test("profile me", async () => {
+    const auth = await login();
+    const { response, body } = await request("/profile", {
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(body.profile.email, "admin@itsmante.edu.mx");
+    assertNormalizedUserShape(body.profile, { includeOrganizationId: true });
   });
 
   test("refresh exitoso", async () => {

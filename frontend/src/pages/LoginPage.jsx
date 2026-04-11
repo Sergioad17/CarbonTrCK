@@ -46,9 +46,16 @@ export default function LoginPage({ onLogin }) {
     if (!email || !emailValid || !password || !passValid) { triggerShake(); return }
     setLoading(true)
     try {
-      await onLogin({ email: email.toLowerCase(), password })
-    } catch {
-      setLoginError("credentials")
+      const nextUser = await onLogin(
+        { email: email.toLowerCase(), password },
+        { commitDelayMs: 1500 }
+      )
+      setSuccess({
+        name: nextUser?.fullName || nextUser?.name || nextUser?.email || "Usuario",
+        role: nextUser?.roleKey || nextUser?.role || "operativo",
+      })
+    } catch (error) {
+      setLoginError(error?.code || "credentials")
       triggerShake()
     } finally {
       setLoading(false)
@@ -63,8 +70,8 @@ export default function LoginPage({ onLogin }) {
     try {
       await requestPasswordReset(email)
       setForgotSent(true)
-    } catch {
-      setLoginError("credentials")
+    } catch (error) {
+      setLoginError(error?.code || "credentials")
       triggerShake()
     } finally {
       setLoading(false)
@@ -74,9 +81,9 @@ export default function LoginPage({ onLogin }) {
   const handleKeyDown = (e) => {
     if (e.key === "Enter") { forgotMode ? handleForgot() : handleLogin() }
   }
-
   const errorMessages = {
-    credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseña no coinciden. Verifica e intenta de nuevo." },
+    credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseÃ±a no coinciden. Verifica e intenta de nuevo." },
+    backend_not_configured: { title: "Backend no disponible", desc: "La autenticaciÃ³n requiere una API configurada y accesible." },
   }
 
   useEffect(() => {
@@ -374,7 +381,7 @@ export default function LoginPage({ onLogin }) {
               }}>
                 {usingBackend
                   ? "Accede con tus credenciales del backend configurado."
-                  : "Acceso técnico local para desarrollo para probar la interfaz sin necesidad de backend."}
+                  : "La autenticacion requiere una conexion activa con el backend configurado."}
               </p>
 
               {loginError && (
@@ -507,7 +514,7 @@ export default function LoginPage({ onLogin }) {
                   display: "flex",
                   alignItems: "center",
                   gap: 4
-                }}><Shield size={13} /> {usingBackend ? "Autenticación remota" : "Modo técnico local"}</p>
+                }}><Shield size={13} /> {usingBackend ? "Autenticación remota" : "Backend requerido"}</p>
                 <p style={{
                   fontFamily: fb,
                   fontSize: 11,
@@ -516,8 +523,8 @@ export default function LoginPage({ onLogin }) {
                   lineHeight: 1.55
                 }}>
                   {usingBackend
-                    ? "Te encuentras ahora mismo en modo demo trabajando Backend local + Postgres en Docker"
-                    : "No hay backend, todo es local para pruebas de interfaz y otros."}
+                    ? "La sesion se valida contra el backend configurado y sus credenciales activas."
+                    : "Sin backend disponible no se inventan usuarios ni datos locales; verifica la configuracion de la API."}
                 </p>
               </div>
             </div>
@@ -849,3 +856,4 @@ function Btn({ onClick, loading, children, animated = false }) {
     </button>
   )
 }
+

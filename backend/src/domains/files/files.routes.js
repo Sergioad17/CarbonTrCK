@@ -72,6 +72,5 @@ export function registerFilesRoutes(router) {
   filesRouter.get("/:id", asyncHandler(getStoredFileController));
 
   router.use("/files", filesRouter);
-  router.post("/uploads", requireAuth, singleFileUploadMiddleware, asyncHandler(createStoredFileController));
   router.post("/records/:id/files", requireAuth, requirePermission("records:update"), asyncHandler(attachFilesToRecordController));
 }
