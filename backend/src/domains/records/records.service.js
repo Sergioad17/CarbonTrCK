@@ -1,6 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { assertRequiredString } from "../../shared/utils/validation.js";
-import { createRecord, listRecords } from "./records.repository.js";
+import { archiveRecord, createRecord, listRecords } from "./records.repository.js";
 
 function ensureObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -45,4 +45,21 @@ export async function createRecordService(actor, payload, auditContext) {
   }
 
   return createRecord(actor, payload, auditContext);
+}
+
+export async function archiveRecordService(actor, recordId, payload, auditContext) {
+  ensureObject(payload);
+  assertRequiredString(recordId, "recordId");
+  assertRequiredString(payload.reason, "reason");
+
+  if (String(payload.reason || "").trim().length < 12) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "reason must contain at least 12 characters.",
+      details: { field: "reason" },
+    });
+  }
+
+  return archiveRecord(actor, recordId, payload, auditContext);
 }

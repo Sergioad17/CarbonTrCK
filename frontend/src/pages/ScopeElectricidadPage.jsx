@@ -10,6 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer,
   Area, AreaChart,
 } from "recharts";
+import { createNotification } from "../api/notifications";
 import { archiveEmissionRecord, fetchEmissionRecords } from "../api/records";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
@@ -394,6 +395,13 @@ export default function Scope2Page({ onOpenRecord }) {
     setArchivingId(recordToArchive.id);
     try {
       await archiveEmissionRecord(recordToArchive.id, buildArchiveAuditPayload(archivePermission.actor, reason));
+      createNotification({
+        type: "record_archived",
+        title: "Registro dado de baja",
+        message: `Se dio de baja el registro de electricidad "${recordToArchive.activity}" con trazabilidad conservada.`,
+        link: "/scope-2/electricidad",
+        meta: { recordId: recordToArchive.id, category: recordToArchive.category, scope: "scope_2" },
+      }).catch(() => null);
       setRemovingIds(prev => (prev.includes(recordToArchive.id) ? prev : [...prev, recordToArchive.id]));
       window.setTimeout(() => {
         setRecords(prev => prev.filter(record => record.id !== recordToArchive.id));

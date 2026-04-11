@@ -867,7 +867,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
         message: `Se dio de baja el registro "${recordToArchive.activity}" con trazabilidad conservada.`,
         link: "/emisiones",
         meta: { recordId: recordToArchive.id, category: recordToArchive.category },
-      });
+      }).catch(() => null);
     } catch (error) {
       setArchivingId("");
       setToast({

@@ -46,6 +46,7 @@ const FILTERS = [
 function getTypeMeta(type) {
   if (type === "record_created") return { icon: FilePlus2, color: "var(--eco-success)", bg: "var(--eco-success-bg)" };
   if (type === "record_imported") return { icon: Upload, color: "var(--eco-info)", bg: "var(--eco-info-bg)" };
+  if (type === "record_archived") return { icon: FolderArchive, color: "var(--eco-danger)", bg: "var(--eco-danger-bg)" };
   if (type === "export_done") return { icon: Download, color: "var(--eco-primary-600)", bg: "var(--eco-primary-50)" };
   if (type === "factor_updated") return { icon: Beaker, color: "var(--eco-secondary-600)", bg: "var(--eco-warning-bg)" };
   if (type === "goal_risk") return { icon: AlertTriangle, color: "var(--eco-warning)", bg: "var(--eco-warning-bg)" };

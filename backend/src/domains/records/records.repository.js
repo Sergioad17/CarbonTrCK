@@ -963,3 +963,86 @@ export async function createRecord(actor, payload, auditContext, options = {}) {
     return createdRecord;
   });
 }
+
+export async function archiveRecord(actor, recordId, payload, auditContext) {
+  return withTransaction(async (client) => {
+    const existingRecord = await getRecordByIdForActor(actor, recordId, client);
+
+    if (!existingRecord) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Record not found.",
+      });
+    }
+
+    const archivedAt = new Date().toISOString();
+    const archiveReason = cleanString(payload.reason);
+    const requestedBy = payload?.requestedBy && typeof payload.requestedBy === "object" ? payload.requestedBy : null;
+
+    const updateResult = await client.query(
+      `
+        UPDATE records
+        SET deleted_at = $3::timestamptz,
+            updated_at = $3::timestamptz,
+            updated_by = $4
+        WHERE id = $1
+          AND organization_id = $2
+          AND deleted_at IS NULL
+        RETURNING id
+      `,
+      [recordId, actor.organizationId, archivedAt, actor.id],
+    );
+
+    if (updateResult.rowCount !== 1) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Record not found.",
+      });
+    }
+
+    const archivedRecord = {
+      ...existingRecord,
+      deletedAt: archivedAt,
+      archivedAt,
+      archiveReason,
+      archiveRequestedBy: requestedBy || {
+        id: actor.id,
+        name: actor.fullName || actor.email || null,
+        email: actor.email || null,
+        role: actor.roleKey || null,
+      },
+      persisted: true,
+    };
+
+    await insertRecordRevision(client, {
+      recordId,
+      changedBy: actor.id,
+      changeReason: "archive",
+      snapshot: archivedRecord,
+    });
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "records.archive",
+      entityType: "record",
+      entityId: recordId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: {
+        reason: archiveReason,
+        campusCode: existingRecord.campusCode,
+        areaCode: existingRecord.areaCode,
+        scope: existingRecord.scope,
+        category: existingRecord.category,
+        activity: existingRecord.activity,
+        permission: cleanString(payload.permission || "records:update"),
+        requestedBy: archivedRecord.archiveRequestedBy,
+      },
+    });
+
+    return archivedRecord;
+  });
+}

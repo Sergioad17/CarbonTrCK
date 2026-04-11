@@ -1,4 +1,4 @@
-import { createRecordService, listRecordsService } from "./records.service.js";
+import { archiveRecordService, createRecordService, listRecordsService } from "./records.service.js";
 
 function auditContextFromRequest(request) {
   return {
@@ -15,4 +15,9 @@ export async function listRecordsController(request, response) {
 export async function createRecordController(request, response) {
   const item = await createRecordService(request.user, request.body, auditContextFromRequest(request));
   response.status(201).json({ item });
+}
+
+export async function archiveRecordController(request, response) {
+  const item = await archiveRecordService(request.user, request.params.id, request.body, auditContextFromRequest(request));
+  response.json({ item });
 }

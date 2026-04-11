@@ -256,6 +256,21 @@ if (!hasDb) {
     });
     assert.equal(second.response.status, 201);
 
+    const archivedType = await request("/notifications", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${admin.body.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "record_archived",
+        title: "P4 Notification Archive",
+        message: "P4 archive message",
+        link: "/emisiones",
+        meta: { category: "electricidad" },
+      }),
+    });
+    assert.equal(archivedType.response.status, 201);
+    assert.equal(archivedType.body.notification.type, "record_archived");
+    assert.equal(archivedType.body.notification.link, "/emisiones");
+
     const allRead = await request("/notifications/mark-all-read", {
       method: "POST",
       headers: { Authorization: `Bearer ${admin.body.token}` },

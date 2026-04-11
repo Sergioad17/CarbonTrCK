@@ -902,6 +902,198 @@ if (!hasDb) {
     assert.equal(response.status, 403);
   });
 
+  test("PATCH /records/:id/archive da de baja logica, conserva revision y audita", async () => {
+    const context = await getSeedContext();
+    await ensureRecordCatalogFixtures();
+    const auth = await login();
+
+    const created = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-08",
+        scope: "scope2",
+        metric: "electricity_consumption",
+        areaCode: "LAB",
+        campusCode: "CAMPUS-CT",
+        category: "electricidad",
+        activityText: "Archive Candidate",
+        value: 50,
+        unit: "kWh",
+        factor: 0.455,
+        source: "Medicion",
+        note: "TEST_RECORDS",
+      }),
+    });
+
+    assert.equal(created.response.status, 201);
+
+    const archived = await request(`/records/${created.body.item.id}/archive`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reason: "Registro duplicado validado en auditoria",
+        permission: "records:archive",
+      }),
+    });
+
+    assert.equal(archived.response.status, 200);
+    assert.equal(archived.body.item.id, created.body.item.id);
+    assert.equal(archived.body.item.archiveReason, "Registro duplicado validado en auditoria");
+    assert.ok(archived.body.item.archivedAt);
+    assert.ok(archived.body.item.deletedAt);
+
+    const listAfterArchive = await request("/records", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(listAfterArchive.response.status, 200);
+    assert.equal(listAfterArchive.body.items.some((item) => item.id === created.body.item.id), false);
+
+    const db = await query(
+      `
+        SELECT deleted_at, updated_by
+        FROM records
+        WHERE id = $1
+      `,
+      [created.body.item.id],
+    );
+
+    assert.equal(db.rowCount, 1);
+    assert.ok(db.rows[0].deleted_at);
+    assert.equal(db.rows[0].updated_by, context.ana_user_id);
+
+    const revisions = await query(
+      `
+        SELECT revision_no, change_reason, changed_by, snapshot
+        FROM record_revisions
+        WHERE record_id = $1
+        ORDER BY revision_no ASC
+      `,
+      [created.body.item.id],
+    );
+
+    assert.equal(revisions.rowCount, 2);
+    assert.equal(revisions.rows[1].revision_no, 2);
+    assert.equal(revisions.rows[1].change_reason, "archive");
+    assert.equal(revisions.rows[1].changed_by, context.ana_user_id);
+    assert.equal(revisions.rows[1].snapshot.archiveReason, "Registro duplicado validado en auditoria");
+    assert.ok(revisions.rows[1].snapshot.deletedAt);
+
+    const audit = await query(
+      `
+        SELECT organization_id, user_id, event_type, entity_type, entity_id, ip_address, user_agent, details
+        FROM audit_events
+        WHERE event_type = 'records.archive'
+          AND entity_id = $1
+      `,
+      [created.body.item.id],
+    );
+
+    assert.equal(audit.rowCount, 1);
+    assert.equal(audit.rows[0].organization_id, context.organization_id);
+    assert.equal(audit.rows[0].user_id, context.ana_user_id);
+    assert.equal(audit.rows[0].event_type, "records.archive");
+    assert.equal(audit.rows[0].entity_type, "record");
+    assert.equal(audit.rows[0].entity_id, created.body.item.id);
+    assert.equal(typeof audit.rows[0].details, "object");
+    assert.equal(audit.rows[0].details.reason, "Registro duplicado validado en auditoria");
+    assert.equal(audit.rows[0].details.areaCode, "LAB");
+    assert.equal(audit.rows[0].details.permission, "records:archive");
+  });
+
+  test("PATCH /records/:id/archive sin permiso responde 403", async () => {
+    await ensureRecordCatalogFixtures();
+    const adminAuth = await login("admin@itsmante.edu.mx", "admin123A");
+    const directorAuth = await login("director@itsmante.edu.mx", "consulta1A");
+
+    const created = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${adminAuth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-08",
+        scope: "scope2",
+        metric: "electricity_consumption",
+        areaCode: "LAB",
+        campusCode: "CAMPUS-CT",
+        category: "electricidad",
+        activityText: "Archive Forbidden",
+        value: 20,
+        unit: "kWh",
+        factor: 0.455,
+        source: "Medicion",
+        note: "TEST_RECORDS",
+      }),
+    });
+
+    assert.equal(created.response.status, 201);
+
+    const archived = await request(`/records/${created.body.item.id}/archive`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${directorAuth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reason: "Intento sin permiso suficiente",
+      }),
+    });
+
+    assert.equal(archived.response.status, 403);
+  });
+
+  test("PATCH /records/:id/archive valida motivo obligatorio y largo minimo", async () => {
+    await ensureRecordCatalogFixtures();
+    const auth = await login();
+
+    const created = await request("/records", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        dateISO: "2026-04-08",
+        scope: "scope2",
+        metric: "electricity_consumption",
+        areaCode: "LAB",
+        campusCode: "CAMPUS-CT",
+        category: "electricidad",
+        activityText: "Archive Validation",
+        value: 20,
+        unit: "kWh",
+        factor: 0.455,
+        source: "Medicion",
+        note: "TEST_RECORDS",
+      }),
+    });
+
+    assert.equal(created.response.status, 201);
+
+    const archived = await request(`/records/${created.body.item.id}/archive`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        reason: "corto",
+      }),
+    });
+
+    assert.equal(archived.response.status, 422);
+  });
+
   test("POST /records deniega creacion fuera del area permitida cuando areaAccess es custom", async () => {
     const context = await getSeedContext();
     await ensureRecordCatalogFixtures();

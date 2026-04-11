@@ -3,7 +3,7 @@ import { AppError } from "../../shared/errors/app-error.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 const ALLOWED_STATUSES = new Set(["unread", "read", "archived"]);
-const ALLOWED_TYPES = new Set(["record_created", "record_imported", "export_done", "factor_updated", "goal_risk", "system"]);
+const ALLOWED_TYPES = new Set(["record_created", "record_imported", "record_archived", "export_done", "factor_updated", "goal_risk", "system"]);
 
 function cleanString(value, fallback = "") {
   return String(value ?? fallback).trim();
