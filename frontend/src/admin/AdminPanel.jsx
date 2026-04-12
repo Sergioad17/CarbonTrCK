@@ -12,6 +12,14 @@ import RolesPage from "./views/RolesPage";
 import OrgStructurePage from "./views/OrgStructurePage";
 import CatalogsPage from "./views/CatalogsPage";
 import PeriodsPage from "./views/PeriodsPage";
+import EmissionFactorsPage from "./views/EmissionFactorsPage";
+import CaptureConfigPage from "./views/CaptureConfigPage";
+import DevicesPage from "./views/DevicesPage";
+import RecordsPage from "./views/RecordsPage";
+import ValidationPage from "./views/ValidationPage";
+import EmissionsCalcPage from "./views/EmissionsCalcPage";
+import GoalsPage from "./views/GoalsPage";
+import AlertsPage from "./views/AlertsPage";
 import AdminEmptyState from "./components/AdminEmptyState";
 
 function viewFromSearch(search) {
@@ -33,6 +41,14 @@ function AdminViewRouter({ view }) {
     case "admin-org":            return <OrgStructurePage />;
     case "admin-catalogs":       return <CatalogsPage />;
     case "admin-periods":        return <PeriodsPage />;
+    case "admin-factors":        return <EmissionFactorsPage />;
+    case "admin-capture":        return <CaptureConfigPage />;
+    case "admin-devices":        return <DevicesPage />;
+    case "admin-records":        return <RecordsPage />;
+    case "admin-validation":     return <ValidationPage />;
+    case "admin-emissions":      return <EmissionsCalcPage />;
+    case "admin-targets":        return <GoalsPage />;
+    case "admin-alerts":         return <AlertsPage />;
     default:
       return (
         <div style={{
