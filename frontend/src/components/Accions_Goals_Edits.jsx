@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart2,
   Calendar,
@@ -494,18 +494,25 @@ export default function Accions_Goals_Edits({
   creatorName,
 }) {
   const [ready, setReady] = useState(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!mode) return undefined;
     setReady(false);
     const t = setTimeout(() => setReady(true), 280);
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key === "Escape") onCloseRef.current?.();
+    };
     document.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(t);
       document.removeEventListener("keydown", onKey);
     };
-  }, [mode, onClose]);
+  }, [mode]);
 
   if (!mode) return null;
 
