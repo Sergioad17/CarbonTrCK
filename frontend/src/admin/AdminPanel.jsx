@@ -7,6 +7,11 @@ import InstitutionalConfigPage from "./views/InstitutionalConfigPage";
 import SystemConfigPage from "./views/SystemConfigPage";
 import SecurityPage from "./views/SecurityPage";
 import AuditLogPage from "./views/AuditLogPage";
+import UsersPage from "./views/UsersPage";
+import RolesPage from "./views/RolesPage";
+import OrgStructurePage from "./views/OrgStructurePage";
+import CatalogsPage from "./views/CatalogsPage";
+import PeriodsPage from "./views/PeriodsPage";
 import AdminEmptyState from "./components/AdminEmptyState";
 
 function viewFromSearch(search) {
@@ -23,6 +28,11 @@ function AdminViewRouter({ view }) {
     case "admin-system":         return <SystemConfigPage />;
     case "admin-security":       return <SecurityPage />;
     case "admin-audit":          return <AuditLogPage />;
+    case "admin-users":          return <UsersPage />;
+    case "admin-roles":          return <RolesPage />;
+    case "admin-org":            return <OrgStructurePage />;
+    case "admin-catalogs":       return <CatalogsPage />;
+    case "admin-periods":        return <PeriodsPage />;
     default:
       return (
         <div style={{
