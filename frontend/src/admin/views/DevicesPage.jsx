@@ -1,7 +1,7 @@
 import React from "react";
 import {
-  Activity, AlertTriangle, Building2, Clock, Cpu, Edit3, Key, MapPin, Plus,
-  Power, PowerOff, ScrollText, ShieldCheck, Trash2, Wifi, WifiOff, Plug, ServerCog,
+  Activity, AlertTriangle, Building2, Clock, Cpu, Key, MapPin,
+  ScrollText, ShieldCheck, Wifi, WifiOff, Plug, ServerCog,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
@@ -9,9 +9,6 @@ import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminTabs from "../components/AdminTabs";
-import AdminFormModal from "../components/AdminFormModal";
-import AdminConfirmDialog from "../components/AdminConfirmDialog";
-import { AdminTextField, AdminSelectField } from "../components/AdminFormSection";
 import {
   campuses,
   devices as mockDevices,
@@ -42,25 +39,6 @@ const HEALTH_STATUS = {
   healthy: { variant: "success", label: "Estable" },
   degraded: { variant: "warning", label: "Degradado" },
   critical: { variant: "error", label: "Critico" },
-};
-
-const EMPTY_DEVICE = {
-  name: "",
-  type: "electric_meter",
-  protocol: "Modbus TCP",
-  serial: "",
-  ip: "",
-  firmware: "",
-  frequency: "15 min",
-  assignedTo: "",
-  status: "online",
-  health: 100,
-  lastReading: new Date().toISOString(),
-  lastValue: "--",
-  installedAt: new Date().toISOString().slice(0, 10),
-  areaId: "",
-  campusId: "campus-central",
-  isActive: true,
 };
 
 const AREAS = orgEntities.filter(entity => entity.status === "active");
@@ -109,38 +87,14 @@ function getDeviceActivity(device) {
   };
 }
 
-function getAreaOptions(campusId) {
-  return AREAS
-    .filter(area => area.campusId === campusId)
-    .map(area => ({ value: area.id, label: area.name }));
-}
-
-function iconButtonStyle(danger) {
-  return {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    border: "1px solid var(--eco-border, #E2E8F0)",
-    background: "var(--eco-card, #fff)",
-    color: danger ? "var(--eco-danger, #DC2626)" : "var(--eco-text-soft, #64748B)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-  };
-}
-
 export default function DevicesPage() {
-  const [devices, setDevices] = React.useState(mockDevices.map(normalizeDevice));
+  const [devices] = React.useState(mockDevices.map(normalizeDevice));
   const [integrations] = React.useState(mockIntegrations);
   const [tab, setTab] = React.useState("devices");
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({ status: "all", type: "all", campus: "all" });
   const [selected, setSelected] = React.useState(null);
   const [selectedIntegration, setSelectedIntegration] = React.useState(null);
-  const [modalDevice, setModalDevice] = React.useState(null);
-  const [saving, setSaving] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState(null);
 
   const filtered = React.useMemo(() => devices.filter(device => {
     if (filters.status !== "all" && getOperationalKey(device) !== filters.status) return false;
@@ -178,49 +132,6 @@ export default function DevicesPage() {
     records: integrations.reduce((sum, integration) => sum + integration.recordsPulled, 0),
     linked: integrations.filter(integration => integration.deviceId).length,
   }), [integrations]);
-
-  function openDeviceEditor(device) {
-    const normalized = normalizeDevice(device || EMPTY_DEVICE);
-    const areaOptions = getAreaOptions(normalized.campusId);
-    const validArea = areaOptions.some(option => option.value === normalized.areaId);
-    setModalDevice({ ...normalized, areaId: validArea ? normalized.areaId : (areaOptions[0]?.value || "") });
-  }
-
-  function syncSelection(nextDevices, deviceId) {
-    if (!deviceId) return;
-    const nextSelected = nextDevices.find(device => device.id === deviceId) || null;
-    setSelected(nextSelected);
-  }
-
-  function handleSave() {
-    setSaving(true);
-    setTimeout(() => {
-      setDevices(prev => {
-        const nextDevice = normalizeDevice(modalDevice);
-        const nextDevices = modalDevice.id
-          ? prev.map(device => device.id === modalDevice.id ? { ...device, ...nextDevice } : device)
-          : [...prev, { ...nextDevice, id: `d${prev.length + 1}` }];
-        syncSelection(nextDevices, modalDevice.id);
-        return nextDevices;
-      });
-      setSaving(false);
-      setModalDevice(null);
-    }, 350);
-  }
-
-  function handleDelete() {
-    setDevices(prev => prev.filter(device => device.id !== confirmDelete.id));
-    if (selected?.id === confirmDelete.id) setSelected(null);
-    setConfirmDelete(null);
-  }
-
-  function handleToggleActivation(device) {
-    setDevices(prev => {
-      const nextDevices = prev.map(item => item.id === device.id ? { ...item, isActive: !item.isActive } : item);
-      syncSelection(nextDevices, device.id);
-      return nextDevices;
-    });
-  }
 
   const columns = [
     {
@@ -320,45 +231,6 @@ export default function DevicesPage() {
         );
       },
     },
-    {
-      key: "_actions",
-      label: "",
-      width: 120,
-      render: (_, row) => (
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            title={row.isActive ? "Desactivar dispositivo" : "Activar dispositivo"}
-            onClick={event => {
-              event.stopPropagation();
-              handleToggleActivation(row);
-            }}
-            style={iconButtonStyle(!row.isActive)}
-          >
-            {row.isActive ? <PowerOff size={14} /> : <Power size={14} />}
-          </button>
-          <button
-            title="Editar dispositivo"
-            onClick={event => {
-              event.stopPropagation();
-              openDeviceEditor(row);
-            }}
-            style={iconButtonStyle(false)}
-          >
-            <Edit3 size={14} />
-          </button>
-          <button
-            title="Eliminar dispositivo"
-            onClick={event => {
-              event.stopPropagation();
-              setConfirmDelete(row);
-            }}
-            style={iconButtonStyle(true)}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ),
-    },
   ];
 
   const integrationColumns = [
@@ -452,30 +324,8 @@ export default function DevicesPage() {
       <AdminPageHeader
         icon={Cpu}
         title="Dispositivos e integraciones"
-        subtitle="Operacion administrativa de medidores, sensores e integraciones con asignacion, salud y seguimiento reciente."
+        subtitle="Rastreo administrativo de medidores, sensores e integraciones. El alta y la vinculacion operativa se gestionan desde Dashboard > Dispositivos."
         breadcrumb={["Operacion", "Dispositivos"]}
-        actions={tab === "devices" && (
-          <button
-            onClick={() => openDeviceEditor({ ...EMPTY_DEVICE })}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              borderRadius: 8,
-              border: "none",
-              background: "var(--eco-primary-500, #22C55E)",
-              color: "#fff",
-              fontFamily: fb,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              boxShadow: "0 1px 3px rgba(34,197,94,.25)",
-            }}
-          >
-            <Plus size={14} /> Nuevo dispositivo
-          </button>
-        )}
       />
 
       {tab === "devices" ? (
@@ -640,71 +490,6 @@ export default function DevicesPage() {
         subtitle={selected?.serial || ""}
         badge={selected && <AdminStatusBadge variant={OPERATING_STATUS[getOperationalKey(selected)].variant} label={OPERATING_STATUS[getOperationalKey(selected)].label} />}
         width={560}
-        actions={selected && (
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            <button
-              onClick={() => handleToggleActivation(selected)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 8,
-                border: "1px solid var(--eco-border)",
-                background: "var(--eco-card)",
-                color: "var(--eco-text)",
-                fontFamily: fb,
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {selected.isActive ? <PowerOff size={13} /> : <Power size={13} />}
-              {selected.isActive ? "Desactivar" : "Activar"}
-            </button>
-            <button
-              onClick={() => setConfirmDelete(selected)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 8,
-                border: "1px solid var(--eco-border)",
-                background: "var(--eco-card)",
-                color: "var(--eco-danger, #DC2626)",
-                fontFamily: fb,
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              <Trash2 size={13} /> Eliminar
-            </button>
-            <button
-              onClick={() => {
-                openDeviceEditor(selected);
-                setSelected(null);
-              }}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "8px 14px",
-                borderRadius: 8,
-                border: "none",
-                background: "var(--eco-primary-500, #22C55E)",
-                color: "#fff",
-                fontFamily: fb,
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              <Edit3 size={13} /> Editar
-            </button>
-          </div>
-        )}
       >
         {selected && (
           <>
@@ -864,120 +649,6 @@ export default function DevicesPage() {
         )}
       </AdminEntityDrawer>
 
-      <AdminFormModal
-        open={!!modalDevice}
-        onClose={() => setModalDevice(null)}
-        title={modalDevice?.id ? "Editar dispositivo" : "Nuevo dispositivo"}
-        subtitle="Define ubicacion, asignacion y comportamiento operativo del dispositivo."
-        onSave={handleSave}
-        saving={saving}
-        width={680}
-      >
-        {modalDevice && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <AdminTextField
-                label="Nombre"
-                required
-                value={modalDevice.name}
-                onChange={value => setModalDevice(prev => ({ ...prev, name: value }))}
-              />
-            </div>
-            <AdminSelectField
-              label="Campus"
-              value={modalDevice.campusId}
-              onChange={value => {
-                const areaOptions = getAreaOptions(value);
-                setModalDevice(prev => ({
-                  ...prev,
-                  campusId: value,
-                  areaId: areaOptions.some(option => option.value === prev.areaId) ? prev.areaId : (areaOptions[0]?.value || ""),
-                }));
-              }}
-              options={campuses.map(campus => ({ value: campus.id, label: campus.name }))}
-            />
-            <AdminSelectField
-              label="Area"
-              value={modalDevice.areaId}
-              onChange={value => setModalDevice(prev => ({ ...prev, areaId: value }))}
-              options={getAreaOptions(modalDevice.campusId)}
-            />
-            <AdminSelectField
-              label="Tipo"
-              value={modalDevice.type}
-              onChange={value => setModalDevice(prev => ({ ...prev, type: value }))}
-              options={deviceTypes.map(type => ({ value: type.id, label: type.label }))}
-            />
-            <AdminTextField
-              label="Protocolo"
-              value={modalDevice.protocol}
-              onChange={value => setModalDevice(prev => ({ ...prev, protocol: value }))}
-            />
-            <AdminTextField
-              label="Serial"
-              value={modalDevice.serial}
-              onChange={value => setModalDevice(prev => ({ ...prev, serial: value }))}
-            />
-            <AdminTextField
-              label="IP / Host"
-              value={modalDevice.ip}
-              onChange={value => setModalDevice(prev => ({ ...prev, ip: value }))}
-            />
-            <AdminTextField
-              label="Firmware"
-              value={modalDevice.firmware}
-              onChange={value => setModalDevice(prev => ({ ...prev, firmware: value }))}
-              placeholder="ej: v2.14.3"
-            />
-            <AdminTextField
-              label="Frecuencia de lectura"
-              value={modalDevice.frequency}
-              onChange={value => setModalDevice(prev => ({ ...prev, frequency: value }))}
-              placeholder="ej: 15 min"
-            />
-            <AdminTextField
-              label="Responsable asignado"
-              value={modalDevice.assignedTo}
-              onChange={value => setModalDevice(prev => ({ ...prev, assignedTo: value }))}
-            />
-            <AdminSelectField
-              label="Estado tecnico"
-              value={modalDevice.status}
-              onChange={value => setModalDevice(prev => ({ ...prev, status: value }))}
-              options={[
-                { value: "online", label: "En linea" },
-                { value: "warning", label: "Advertencia" },
-                { value: "offline", label: "Sin conexion" },
-              ]}
-            />
-            <AdminSelectField
-              label="Estado operativo"
-              value={modalDevice.isActive ? "active" : "inactive"}
-              onChange={value => setModalDevice(prev => ({ ...prev, isActive: value === "active" }))}
-              options={[
-                { value: "active", label: "Operativo" },
-                { value: "inactive", label: "Desactivado" },
-              ]}
-            />
-            <AdminTextField
-              label="Fecha de instalacion"
-              value={modalDevice.installedAt}
-              onChange={value => setModalDevice(prev => ({ ...prev, installedAt: value }))}
-              placeholder="YYYY-MM-DD"
-            />
-          </div>
-        )}
-      </AdminFormModal>
-
-      <AdminConfirmDialog
-        open={!!confirmDelete}
-        onClose={() => setConfirmDelete(null)}
-        onConfirm={handleDelete}
-        title="Eliminar dispositivo"
-        message={`Seguro que quieres eliminar "${confirmDelete?.name}"? Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        danger
-      />
     </div>
   );
 }

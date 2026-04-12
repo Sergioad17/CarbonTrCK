@@ -827,11 +827,13 @@ export default function Accions_Goals_Edits({
 
   return (
     <Shell
-      title="Nueva acción de reducción"
-      subtitle="Registra una acción concreta vinculada a una meta para rastrear su impacto."
+      title={editing ? "Editar acción" : "Nueva acción de reducción"}
+      subtitle={editing
+        ? "Ajusta los datos de la acción seleccionada sin perder su vínculo con la meta."
+        : "Registra una acción concreta vinculada a una meta para rastrear su impacto."}
       onClose={onClose}
       onSubmit={onSubmit}
-      submitLabel="Guardar acción"
+      submitLabel={editing ? "Guardar cambios" : "Guardar acción"}
     >
       {!ready ? (
         <FormSkeleton isTarget={false} />

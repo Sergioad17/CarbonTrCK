@@ -34,6 +34,41 @@ const DEFAULT_FORM = {
   enabled: true,
 };
 
+function normalizeBackendUrlForProtocol(value, protocol) {
+  const raw = String(value || API_URL || "").trim();
+  if (!raw) return "";
+
+  const expectedProtocol = protocol === "mqtt" ? "mqtts:" : "https:";
+
+  try {
+    const parsed = new URL(raw);
+    parsed.protocol = expectedProtocol;
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeEndpointPathForProtocol(value, protocol) {
+  const fallback = protocol === "mqtt" ? "/telemetry/carbontrack/device" : "/iot/readings";
+  const normalized = String(value || fallback).trim();
+  if (!normalized) return fallback;
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function normalizeDevicePayloadForRequest(payload = {}) {
+  const protocol = String(payload.protocol || DEFAULT_FORM.protocol).trim().toLowerCase() || DEFAULT_FORM.protocol;
+  return {
+    ...payload,
+    protocol,
+    code: String(payload.code || "").trim().toUpperCase(),
+    campusCode: String(payload.campusCode || DEFAULT_FORM.campusCode).trim().toUpperCase(),
+    areaCode: String(payload.areaCode || DEFAULT_FORM.areaCode).trim().toUpperCase(),
+    backendUrl: normalizeBackendUrlForProtocol(payload.backendUrl, protocol),
+    endpointPath: normalizeEndpointPathForProtocol(payload.endpointPath, protocol),
+  };
+}
+
 function authHeaders() {
   const session = fetchSession();
   return session?.token ? { Authorization: `Bearer ${session.token}` } : {};
@@ -76,7 +111,11 @@ function normalizeDeviceList(payload) {
 }
 
 export function createDeviceDraft() {
-  return normalizeDevice(DEFAULT_FORM);
+  return normalizeDevice({
+    ...DEFAULT_FORM,
+    backendUrl: normalizeBackendUrlForProtocol(DEFAULT_FORM.backendUrl, DEFAULT_FORM.protocol),
+    endpointPath: normalizeEndpointPathForProtocol(DEFAULT_FORM.endpointPath, DEFAULT_FORM.protocol),
+  });
 }
 
 export async function fetchDevices() {
@@ -86,20 +125,22 @@ export async function fetchDevices() {
 
 export async function createDevice(payload) {
   assertBackendConfigured();
+  const normalizedPayload = normalizeDevicePayloadForRequest(payload);
   const response = await apiRequest(DEVICE_API_CONTRACT.create, {
     method: "POST",
     headers: authHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
   return normalizeDevice(response?.device || response?.item || response?.data?.device || response?.data?.item || response?.data || response);
 }
 
 export async function updateDevice(payload) {
   assertBackendConfigured();
-  const response = await apiRequest(DEVICE_API_CONTRACT.update(payload.id), {
+  const normalizedPayload = normalizeDevicePayloadForRequest(payload);
+  const response = await apiRequest(DEVICE_API_CONTRACT.update(normalizedPayload.id), {
     method: "PATCH",
     headers: authHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
   return normalizeDevice(response?.device || response?.item || response?.data?.device || response?.data?.item || response?.data || response);
 }

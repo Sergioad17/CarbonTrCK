@@ -240,6 +240,73 @@ function statusMeta(status) {
   return STATUS_META[status] || STATUS_META.provisioning;
 }
 
+function suggestBackendUrl(protocol, currentValue = API_URL) {
+  const raw = String(currentValue || "").trim();
+  if (!raw) return protocol === "mqtt" ? "mqtts://broker.carbontreck.local" : "https://api.carbontreck.local";
+  const expectedProtocol = protocol === "mqtt" ? "mqtts:" : "https:";
+
+  try {
+    const parsed = new URL(raw);
+    parsed.protocol = expectedProtocol;
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeEndpointPath(protocol, currentValue) {
+  const fallback = protocol === "mqtt" ? "/telemetry/carbontrack/device" : "/iot/readings";
+  const normalized = String(currentValue || fallback).trim();
+  return normalized.startsWith("/") ? normalized : `/${normalized}`;
+}
+
+function buildDeviceErrorMessage(error, protocol) {
+  const payload = error?.payload || null;
+  const field = payload?.details?.field;
+  const code = payload?.code || error?.code;
+  const message = String(payload?.message || error?.message || "").trim();
+
+  if (code === "DEVICE_CODE_ALREADY_EXISTS") {
+    return "Ya existe un dispositivo con ese codigo. Usa otro identificador unico.";
+  }
+  if (code === "INVALID_BINDING") {
+    return "El campus y el area seleccionados no pertenecen a la organizacion activa.";
+  }
+  if (field === "backendUrl") {
+    return protocol === "mqtt"
+      ? "La URL de ingesta debe usar mqtts:// para dispositivos MQTT."
+      : "La URL de ingesta debe usar https:// para dispositivos HTTPS.";
+  }
+  if (field === "intervalSeconds") {
+    return "El intervalo de lectura debe ser un entero positivo.";
+  }
+  if (message && message !== "request_failed") {
+    return message;
+  }
+  return "Revisa el contrato de la API de dispositivos y vuelve a intentar.";
+}
+
+function buildLocalDraftDevice(form, selectedId, currentDevices) {
+  const existing = currentDevices.find((item) => item.id === selectedId);
+  const now = new Date().toISOString();
+  return {
+    ...(existing || {}),
+    ...form,
+    id: existing?.id || `local-device-${Date.now()}`,
+    code: String(form.code || "").trim().toUpperCase(),
+    campusCode: String(form.campusCode || "").trim().toUpperCase(),
+    areaCode: String(form.areaCode || "").trim().toUpperCase(),
+    backendUrl: suggestBackendUrl(form.protocol, form.backendUrl),
+    endpointPath: normalizeEndpointPath(form.protocol, form.endpointPath),
+    token: existing?.token || "",
+    status: existing?.status || "provisioning",
+    firmwareVersion: existing?.firmwareVersion || "",
+    readingsToday: existing?.readingsToday || 0,
+    lastSeenAt: existing?.lastSeenAt || now,
+    enabled: typeof form.enabled === "boolean" ? form.enabled : true,
+  };
+}
+
 /* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Skeleton loader aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 function DevicePageSkeleton() {
@@ -1035,8 +1102,13 @@ export default function DevicePage({ user }) {
       setToast({ title: "Campos obligatorios", message: "Completa nombre, codigo y backend URL antes de guardar." });
       return;
     }
+    const payload = {
+      ...form,
+      backendUrl: suggestBackendUrl(form.protocol, form.backendUrl),
+      endpointPath: normalizeEndpointPath(form.protocol, form.endpointPath),
+    };
     try {
-      const nextDevice = selectedId ? await updateDevice(form) : await createDevice(form);
+      const nextDevice = selectedId ? await updateDevice(payload) : await createDevice(payload);
       setDevices((current) => (selectedId ? current.map((item) => (item.id === selectedId ? nextDevice : item)) : [nextDevice, ...current]));
       setSelectedId(nextDevice.id);
       setForm(createFormFromDevice(nextDevice));
@@ -1053,8 +1125,23 @@ export default function DevicePage({ user }) {
           ? `${nextDevice.name} quedo alineado al contrato de backend.`
           : `${nextDevice.name} quedo registrado y su credencial ya esta lista para copiarse.`,
       });
-    } catch {
-      setToast({ title: "No se pudo guardar", message: "Revisa el contrato de la API de dispositivos y vuelve a intentar." });
+    } catch (error) {
+      if (error?.code === "backend_not_configured") {
+        const localDevice = buildLocalDraftDevice(payload, selectedId, devices);
+        setDevices((current) => (selectedId ? current.map((item) => (item.id === selectedId ? localDevice : item)) : [localDevice, ...current]));
+        setSelectedId(localDevice.id);
+        setForm(createFormFromDevice(localDevice));
+        setToast({
+          title: selectedId ? "Dispositivo actualizado en local" : "Dispositivo guardado en local",
+          message: "No hubo backend disponible, pero el dispositivo quedo registrado en el inventario de esta sesion.",
+        });
+        return;
+      }
+
+      setToast({
+        title: "No se pudo guardar",
+        message: buildDeviceErrorMessage(error, payload.protocol),
+      });
     }
   };
 

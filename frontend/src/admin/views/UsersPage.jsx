@@ -1,7 +1,6 @@
 import React from "react";
 import {
   UserPlus,
-  Mail,
   KeyRound,
   ToggleLeft,
   ToggleRight,
@@ -10,24 +9,29 @@ import {
   Shield,
   Building2,
   Users as UsersIcon,
-  RefreshCw,
   CheckCircle2,
+  Download,
+  Bell,
+  X,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
 import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
-import AdminFormModal from "../components/AdminFormModal";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
-import { AdminTextField, AdminSelectField, AdminToggleField } from "../components/AdminFormSection";
+import { AdminToggleField } from "../components/AdminFormSection";
 import { users as mockUsers, roles, campuses } from "../mocks/adminMocks";
+import { exportRowsToCsv } from "../../lib/csvExport";
+import { fetchProfileChangeRequests, subscribeProfileChangeRequests } from "../../api/profileRequests";
 
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
+const fd = "var(--eco-font-display)";
 
 const ROLE_COLORS = { admin: "#7C3AED", directivo: "#2563EB", operativo: "#059669", consulta: "#64748B" };
 const ROLE_LABELS = { admin: "Admin", directivo: "Directivo", operativo: "Operativo", consulta: "Consulta" };
+const ICON_GRADIENT = "linear-gradient(135deg, var(--eco-primary-500), var(--eco-primary-600))";
 
 const EMPTY_USER = {
   name: "",
@@ -40,6 +44,38 @@ const EMPTY_USER = {
   forcePasswordChange: false,
   notes: "",
 };
+
+function splitNameParts(name = "") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  return {
+    firstName: parts[0] || "",
+    paternalLastName: parts[1] || "",
+    maternalLastName: parts.slice(2).join(" "),
+  };
+}
+
+function buildFullName(firstName, paternalLastName, maternalLastName) {
+  return [firstName, paternalLastName, maternalLastName].map((value) => String(value || "").trim()).filter(Boolean).join(" ");
+}
+
+function emptyUserForm(user) {
+  const parts = splitNameParts(user?.name);
+  return {
+    id: user?.id || "",
+    firstName: parts.firstName,
+    paternalLastName: parts.paternalLastName,
+    maternalLastName: parts.maternalLastName,
+    email: user?.email || "",
+    identifier: user?.identifier || "",
+    role: user?.role || "operativo",
+    campus: user?.campus || "Campus Central",
+    areas: user?.areas || [],
+    status: user?.status || "active",
+    forcePasswordChange: typeof user?.forcePasswordChange === "boolean" ? user.forcePasswordChange : false,
+    notes: user?.notes || "",
+    tempPassword: "",
+  };
+}
 
 const ALL_AREAS = [
   "Direccion General",
@@ -54,6 +90,90 @@ const ALL_AREAS = [
   "Investigacion",
   "Direccion Administrativa",
 ];
+
+const PAGE_STYLES = `
+@keyframes ctOverlay{from{opacity:0}to{opacity:1}}
+@keyframes ctPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:860px){
+  .ct-users-admin-modal-grid{grid-template-columns:1fr!important}
+  .ct-users-admin-modal-actions{flex-direction:column-reverse!important;align-items:stretch!important}
+}
+`;
+
+const inputBase = {
+  width: "100%",
+  height: 42,
+  borderRadius: "var(--eco-radius-md, 12px)",
+  border: "1px solid var(--eco-border, #E2E8F0)",
+  padding: "0 14px",
+  outline: "none",
+  fontFamily: fb,
+  fontSize: 13,
+  color: "var(--eco-text, #0F172A)",
+  background: "var(--eco-input-bg, var(--eco-card, #fff))",
+  transition: "border-color .18s ease, box-shadow .18s ease, background .18s ease",
+};
+
+const textAreaBase = {
+  ...inputBase,
+  minHeight: 96,
+  height: "auto",
+  padding: "10px 14px",
+  resize: "vertical",
+};
+
+const subtleText = {
+  margin: 0,
+  fontFamily: fb,
+  fontSize: 12,
+  color: "var(--eco-text-soft, #64748B)",
+  lineHeight: 1.55,
+};
+
+const sectionLabel = {
+  margin: 0,
+  fontFamily: fb,
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--eco-text-soft, #64748B)",
+  textTransform: "uppercase",
+  letterSpacing: ".06em",
+};
+
+const primaryHeaderBtn = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  minHeight: 38,
+  padding: "0 14px",
+  borderRadius: 10,
+  border: "1px solid var(--eco-primary-500, #22C55E)",
+  background: "var(--eco-primary-500, #22C55E)",
+  color: "#fff",
+  fontFamily: fb,
+  fontSize: 12.5,
+  fontWeight: 700,
+  cursor: "pointer",
+  boxShadow: "0 6px 18px rgba(34,197,94,.18)",
+};
+
+const secondaryHeaderBtn = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  minHeight: 38,
+  padding: "0 14px",
+  borderRadius: 10,
+  border: "1px solid var(--eco-border, #E2E8F0)",
+  background: "var(--eco-card, #fff)",
+  color: "var(--eco-text, #0F172A)",
+  fontFamily: fb,
+  fontSize: 12.5,
+  fontWeight: 700,
+  cursor: "pointer",
+};
 
 function RoleBadge({ role }) {
   const color = ROLE_COLORS[role] || "#64748B";
@@ -156,7 +276,7 @@ function FeedbackBanner({ feedback, onClose }) {
       border: "rgba(37,99,235,.18)",
       background: "rgba(37,99,235,.06)",
       color: "var(--eco-info, #2563EB)",
-      icon: Mail,
+      icon: Bell,
     },
   };
 
@@ -248,15 +368,521 @@ function createTemporaryPassword() {
   return `CT-${block}-${new Date().getMinutes().toString().padStart(2, "0")}`;
 }
 
+function requestTypeLabel(type) {
+  return type === "password" ? "Cambio de contrasena" : "Cambio de correo";
+}
+
+function StyledInput(props) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <input
+      {...props}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      style={{
+        ...inputBase,
+        ...(focused ? { borderColor: "var(--eco-primary-400, #4ADE80)", boxShadow: "0 0 0 3px rgba(34,197,94,.12)" } : null),
+        ...props.style,
+      }}
+    />
+  );
+}
+
+function StyledSelect(props) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <select
+      {...props}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      style={{
+        ...inputBase,
+        appearance: "none",
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 12px center",
+        paddingRight: 34,
+        cursor: "pointer",
+        ...(focused ? { borderColor: "var(--eco-primary-400, #4ADE80)", boxShadow: "0 0 0 3px rgba(34,197,94,.12)" } : null),
+        ...props.style,
+      }}
+    />
+  );
+}
+
+function StyledTextarea(props) {
+  const [focused, setFocused] = React.useState(false);
+  return (
+    <textarea
+      {...props}
+      onFocus={(event) => {
+        setFocused(true);
+        props.onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        props.onBlur?.(event);
+      }}
+      style={{
+        ...textAreaBase,
+        ...(focused ? { borderColor: "var(--eco-primary-400, #4ADE80)", boxShadow: "0 0 0 3px rgba(34,197,94,.12)" } : null),
+        ...props.style,
+      }}
+    />
+  );
+}
+
+function Field({ label, required, helper, error, children }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text, #0F172A)" }}>
+        {label}
+        {required ? <span style={{ color: "var(--eco-danger, #DC2626)", marginLeft: 3 }}>*</span> : null}
+      </span>
+      {children}
+      {error ? (
+        <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-danger, #DC2626)" }}>{error}</span>
+      ) : helper ? (
+        <span style={{ ...subtleText, fontSize: 11 }}>{helper}</span>
+      ) : null}
+    </label>
+  );
+}
+
+function ActionButton({ tone = "default", icon: Icon, children, ...props }) {
+  const palette = {
+    default: {
+      border: "1px solid var(--eco-border, #E2E8F0)",
+      background: "var(--eco-card, #fff)",
+      color: "var(--eco-text, #0F172A)",
+    },
+    primary: {
+      border: "1px solid var(--eco-primary-500, #22C55E)",
+      background: "var(--eco-primary-500, #22C55E)",
+      color: "#fff",
+    },
+    danger: {
+      border: "1px solid rgba(239,68,68,.22)",
+      background: "rgba(239,68,68,.08)",
+      color: "var(--eco-danger, #DC2626)",
+    },
+  }[tone] || {};
+
+  return (
+    <button
+      {...props}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        height: 40,
+        padding: "0 16px",
+        borderRadius: 10,
+        fontFamily: fb,
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: props.disabled ? "not-allowed" : "pointer",
+        opacity: props.disabled ? 0.6 : 1,
+        ...palette,
+        ...props.style,
+      }}
+    >
+      {Icon ? <Icon size={15} /> : null}
+      {children}
+    </button>
+  );
+}
+
+function IconButton({ label, onClick, icon }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        border: "1px solid var(--eco-border, #E2E8F0)",
+        background: "var(--eco-card, #fff)",
+        color: "var(--eco-text-soft, #64748B)",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, areaOptions, onClose, onSubmit, onGeneratePassword }) {
+  if (!state) return null;
+  const { user, form, errors, saving, setForm } = state;
+  const isEdit = Boolean(user);
+
+  function toggleArea(area) {
+    setForm((current) => ({
+      ...current,
+      areas: current.areas.includes(area)
+        ? current.areas.filter((item) => item !== area)
+        : [...current.areas, area],
+    }));
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 120, display: "grid", placeItems: "center", padding: 16 }}>
+      <div
+        style={{ position: "absolute", inset: 0, background: "var(--eco-overlay, rgba(15,23,42,.45))", backdropFilter: "blur(4px)", animation: "ctOverlay .18s ease-out" }}
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "relative",
+          width: "min(96vw, 880px)",
+          maxHeight: "92vh",
+          overflowY: "auto",
+          background: "var(--eco-card, #fff)",
+          border: "1px solid var(--eco-border, #E2E8F0)",
+          borderRadius: 24,
+          boxShadow: "var(--eco-shadow-xl, 0 24px 64px rgba(15,23,42,.18))",
+          animation: "ctPop .2s ease-out",
+        }}
+      >
+        <div style={{ padding: "22px 24px 18px", borderBottom: "1px solid var(--eco-border, #E2E8F0)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 14, background: ICON_GRADIENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {isEdit ? <Edit3 size={18} /> : <UserPlus size={18} />}
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontFamily: fd, fontSize: 21, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>
+                {isEdit ? "Editar usuario" : "Nuevo usuario"}
+              </h3>
+              <p style={{ ...subtleText, marginTop: 4, maxWidth: 520 }}>
+                {isEdit
+                  ? "Actualiza identidad, alcance y estado del usuario sin salir del panel administrativo."
+                  : "Configura el nuevo usuario con el mismo flujo operativo del modulo principal de usuarios."}
+              </p>
+            </div>
+          </div>
+          <IconButton label="Cerrar" onClick={onClose} icon={<X size={16} />} />
+        </div>
+
+        <form onSubmit={onSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "var(--eco-card-muted, #F8FAFC)", borderBottom: "1px solid var(--eco-border, #E2E8F0)" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Identidad del usuario</p>
+              <p style={{ ...subtleText, marginTop: 3 }}>Datos base para identificar la cuenta y su acceso institucional.</p>
+            </div>
+            <div className="ct-users-admin-modal-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+              <Field label="Nombre" required error={errors.firstName}>
+                <StyledInput value={form.firstName} onChange={(event) => setForm((current) => ({ ...current, firstName: event.target.value }))} placeholder="Nombre" />
+              </Field>
+              <Field label="Apellido paterno" required error={errors.paternalLastName}>
+                <StyledInput value={form.paternalLastName} onChange={(event) => setForm((current) => ({ ...current, paternalLastName: event.target.value }))} placeholder="Apellido paterno" />
+              </Field>
+              <Field label="Apellido materno">
+                <StyledInput value={form.maternalLastName} onChange={(event) => setForm((current) => ({ ...current, maternalLastName: event.target.value }))} placeholder="Apellido materno" />
+              </Field>
+              <Field label="Correo electronico" required error={errors.email}>
+                <StyledInput type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="usuario@dominio.com" />
+              </Field>
+              <Field label="Identificador interno" helper="Puedes conservar la clave existente o registrar una nueva.">
+                <StyledInput value={form.identifier} onChange={(event) => setForm((current) => ({ ...current, identifier: event.target.value }))} placeholder="ADM-001" />
+              </Field>
+              <Field label="Estado de la cuenta">
+                <StyledSelect value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}>
+                  <option value="active">Activa</option>
+                  <option value="inactive">Inactiva</option>
+                </StyledSelect>
+              </Field>
+            </div>
+          </div>
+
+          <div style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "var(--eco-card-muted, #F8FAFC)", borderBottom: "1px solid var(--eco-border, #E2E8F0)" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Permisos y asignacion</p>
+              <p style={{ ...subtleText, marginTop: 3 }}>Alineado al panel principal: rol, campus y areas del usuario.</p>
+            </div>
+            <div className="ct-users-admin-modal-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+              <Field label="Rol">
+                <StyledSelect value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}>
+                  {roleOptions.map((role) => (
+                    <option key={role.id} value={role.id}>{role.label}</option>
+                  ))}
+                </StyledSelect>
+              </Field>
+              <Field label="Campus">
+                <StyledSelect value={form.campus} onChange={(event) => setForm((current) => ({ ...current, campus: event.target.value }))}>
+                  {campusOptions.map((campus) => (
+                    <option key={campus.id} value={campus.name}>{campus.name}</option>
+                  ))}
+                </StyledSelect>
+              </Field>
+            </div>
+            <div style={{ padding: "0 16px 16px" }}>
+              <p style={{ ...sectionLabel, marginBottom: 10 }}>Areas asignadas</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {areaOptions.map((area) => {
+                  const selected = form.areas.includes(area);
+                  return (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() => toggleArea(area)}
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 999,
+                        border: `1px solid ${selected ? "var(--eco-primary-300, #86EFAC)" : "var(--eco-border, #E2E8F0)"}`,
+                        background: selected ? "var(--eco-primary-50, #F0FDF4)" : "var(--eco-card, #fff)",
+                        color: selected ? "var(--eco-primary-700, #15803D)" : "var(--eco-text, #0F172A)",
+                        fontFamily: fb,
+                        fontSize: 12,
+                        fontWeight: selected ? 700 : 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {area}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", background: "var(--eco-card-muted, #F8FAFC)", borderBottom: "1px solid var(--eco-border, #E2E8F0)" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Seguridad y contexto</p>
+              <p style={{ ...subtleText, marginTop: 3 }}>Administra restablecimiento de clave temporal y notas internas.</p>
+            </div>
+            <div className="ct-users-admin-modal-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
+              <Field label="Contrasena temporal" helper="Solo para flujo frontend. En backend real se enviaria por un canal seguro.">
+                <div style={{ display: "flex", gap: 8 }}>
+                  <StyledInput value={form.tempPassword} readOnly placeholder="Genera una clave temporal" />
+                  <ActionButton type="button" onClick={onGeneratePassword}>Generar</ActionButton>
+                </div>
+              </Field>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
+                <AdminToggleField
+                  label="Forzar cambio de contrasena en el siguiente acceso"
+                  checked={form.forcePasswordChange}
+                  onChange={(checked) => setForm((current) => ({ ...current, forcePasswordChange: checked }))}
+                  hint="Mantiene la cuenta protegida tras la entrega inicial."
+                />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <Field label="Observaciones">
+                  <StyledTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notas administrativas, alcance de acceso o contexto de operacion." />
+                </Field>
+              </div>
+            </div>
+          </div>
+
+          <div className="ct-users-admin-modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <ActionButton type="button" onClick={onClose}>Cancelar</ActionButton>
+            <ActionButton type="submit" tone="primary" icon={isEdit ? Edit3 : UserPlus} disabled={saving}>
+              {saving ? "Guardando..." : isEdit ? "Guardar cambios" : "Crear usuario"}
+            </ActionButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function RequestsPanel({ open, requests, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 125, display: "grid", placeItems: "start end", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "var(--eco-overlay, rgba(15,23,42,.45))", backdropFilter: "blur(4px)", animation: "ctOverlay .18s ease-out" }} onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "relative",
+          width: "min(460px, calc(100vw - 32px))",
+          maxHeight: "min(78vh, 720px)",
+          marginTop: 72,
+          background: "var(--eco-card, #fff)",
+          border: "1px solid var(--eco-border, #E2E8F0)",
+          borderRadius: 22,
+          boxShadow: "var(--eco-shadow-xl, 0 24px 64px rgba(15,23,42,.18))",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          animation: "ctPop .2s ease-out",
+        }}
+      >
+        <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--eco-border, #E2E8F0)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 12, background: ICON_GRADIENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Bell size={15} />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 16, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Peticiones</p>
+              <p style={{ ...subtleText, marginTop: 2 }}>{requests.filter((item) => item.status === "pending").length} pendientes</p>
+            </div>
+          </div>
+          <IconButton label="Cerrar" onClick={onClose} icon={<X size={16} />} />
+        </div>
+        <div style={{ padding: 8, overflowY: "auto", flex: 1 }}>
+          {requests.length === 0 ? (
+            <div style={{ padding: "28px 18px", textAlign: "center" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Sin peticiones registradas</p>
+              <p style={{ ...subtleText, marginTop: 6 }}>Las solicitudes de perfil y contrasena apareceran aqui para seguimiento administrativo.</p>
+            </div>
+          ) : (
+            requests.map((request) => {
+              const pending = request.status === "pending";
+              const toneStyles = pending
+                ? { color: "var(--eco-warning, #CA8A04)", background: "rgba(234,179,8,.12)" }
+                : request.status === "approved"
+                  ? { color: "var(--eco-success, #16A34A)", background: "rgba(34,197,94,.12)" }
+                  : { color: "var(--eco-danger, #DC2626)", background: "rgba(239,68,68,.10)" };
+
+              return (
+                <div key={request.id} style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 16, padding: 14, marginBottom: 8, background: "var(--eco-card-muted, #F8FAFC)" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+                    <div>
+                      <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>{requestTypeLabel(request.type)}</p>
+                      <p style={{ ...subtleText, marginTop: 4 }}>{request.userName}</p>
+                    </div>
+                    <span style={{ padding: "4px 10px", borderRadius: 999, fontFamily: fb, fontSize: 11, fontWeight: 700, ...toneStyles }}>
+                      {pending ? "Pendiente" : request.status === "approved" ? "Aprobada" : "Rechazada"}
+                    </span>
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Actual:</strong> {request.currentValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Solicitado:</strong> {request.requestedValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Motivo:</strong> {request.reason || "Sin motivo"}</p>
+                    <p style={{ ...subtleText, fontSize: 11 }}>Creada: {fmtDateTime(request.createdAt)}</p>
+                    {request.resolvedAt ? <p style={{ ...subtleText, fontSize: 11 }}>Resuelta: {fmtDateTime(request.resolvedAt)}</p> : null}
+                    {request.resolutionDetail ? <p style={{ ...subtleText, fontSize: 11 }}>{request.resolutionDetail}</p> : null}
+                  </div>
+                  {(request.history || []).length > 0 ? (
+                    <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+                      {(request.history || []).map((entry) => (
+                        <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--eco-primary-500, #22C55E)", marginTop: 5, flexShrink: 0 }} />
+                          <div>
+                            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text, #0F172A)" }}>{entry.actorName}</p>
+                            <p style={{ ...subtleText, marginTop: 2 }}>{entry.detail}</p>
+                            <p style={{ ...subtleText, marginTop: 2, fontSize: 11 }}>{fmtDateTime(entry.createdAt)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
+  const [copied, setCopied] = React.useState(false);
+
+  React.useEffect(() => {
+    setCopied(false);
+  }, [tempPassword, user?.id]);
+
+  if (!user) return null;
+
+  async function handleCopy() {
+    if (!tempPassword || !navigator?.clipboard?.writeText) return;
+    await navigator.clipboard.writeText(tempPassword);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 130, display: "grid", placeItems: "center", padding: 16 }}>
+      <div style={{ position: "absolute", inset: 0, background: "var(--eco-overlay, rgba(15,23,42,.45))", backdropFilter: "blur(4px)", animation: "ctOverlay .18s ease-out" }} onClick={onCancel} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "relative",
+          width: "min(92vw, 500px)",
+          background: "var(--eco-card, #fff)",
+          borderRadius: 22,
+          boxShadow: "var(--eco-shadow-xl, 0 24px 64px rgba(15,23,42,.18))",
+          border: "1px solid var(--eco-border, #E2E8F0)",
+          padding: 24,
+          animation: "ctPop .2s ease-out",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 14, background: tempPassword ? "rgba(34,197,94,.12)" : "rgba(234,179,8,.12)", color: tempPassword ? "var(--eco-success, #16A34A)" : "var(--eco-warning, #CA8A04)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {tempPassword ? <CheckCircle2 size={20} /> : <KeyRound size={20} />}
+          </div>
+          <div>
+            <h3 style={{ margin: 0, fontFamily: fd, fontSize: 18, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>
+              {tempPassword ? "Contrasena generada" : "Restablecer contrasena"}
+            </h3>
+            <p style={{ ...subtleText, marginTop: 4 }}>
+              {tempPassword
+                ? "Copia la contrasena temporal ahora. Este flujo es local y no modifica backend."
+                : `Se generara una contrasena temporal para ${user.name}.`}
+            </p>
+          </div>
+        </div>
+
+        {tempPassword ? (
+          <div style={{ background: "#0F172A", color: "#fff", borderRadius: 16, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "rgba(255,255,255,.56)", textTransform: "uppercase", letterSpacing: ".05em" }}>Contrasena temporal</p>
+              <p style={{ margin: "6px 0 0", fontFamily: fm, fontSize: 20, fontWeight: 700, letterSpacing: ".04em" }}>{tempPassword}</p>
+            </div>
+            <ActionButton type="button" onClick={handleCopy}>{copied ? "Copiada" : "Copiar"}</ActionButton>
+          </div>
+        ) : null}
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+          <ActionButton type="button" onClick={onCancel}>{tempPassword ? "Cerrar" : "Cancelar"}</ActionButton>
+          {!tempPassword ? (
+            <ActionButton type="button" tone="primary" icon={KeyRound} onClick={onConfirm}>
+              Generar contrasena
+            </ActionButton>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const [usersList, setUsersList] = React.useState(mockUsers);
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({});
   const [drawerUser, setDrawerUser] = React.useState(null);
-  const [modalUser, setModalUser] = React.useState(null);
+  const [formState, setFormState] = React.useState(null);
   const [confirmAction, setConfirmAction] = React.useState(null);
-  const [adminAction, setAdminAction] = React.useState(null);
-  const [saving, setSaving] = React.useState(false);
+  const [passwordResetState, setPasswordResetState] = React.useState({ user: null, password: "" });
+  const [requests, setRequests] = React.useState(() => fetchProfileChangeRequests());
+  const [requestsOpen, setRequestsOpen] = React.useState(false);
   const [feedback, setFeedback] = React.useState(null);
 
   const areaOptions = React.useMemo(() => {
@@ -294,40 +920,101 @@ export default function UsersPage() {
     return list;
   }, [filters, search, usersList]);
 
+  React.useEffect(() => subscribeProfileChangeRequests(setRequests), []);
+
   function syncSelectedUser(userId, updater) {
     setDrawerUser((current) => (current?.id === userId ? updater(current) : current));
-    setAdminAction((current) => (current?.user?.id === userId ? { ...current, user: updater(current.user) } : current));
+    setPasswordResetState((current) => (current?.user?.id === userId ? { ...current, user: updater(current.user) } : current));
   }
 
-  function handleSaveUser() {
-    setSaving(true);
-    setTimeout(() => {
-      if (modalUser.id) {
-        setUsersList((prev) => prev.map((user) => (user.id === modalUser.id ? { ...user, ...modalUser } : user)));
-        syncSelectedUser(modalUser.id, (user) => ({ ...user, ...modalUser }));
-        setFeedback({
-          tone: "success",
-          title: "Usuario actualizado",
-          message: `Se actualizaron los datos administrativos de ${modalUser.name}.`,
+  function openCreateModal() {
+    setFormState({
+      user: null,
+      form: emptyUserForm(),
+      errors: {},
+      saving: false,
+      setForm: (updater) => {
+        setFormState((prev) => {
+          if (!prev) return prev;
+          const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
+          return { ...prev, form: nextForm };
         });
-      } else {
-        const newUser = {
-          ...modalUser,
-          id: `u${Date.now()}`,
-          createdAt: new Date().toISOString().slice(0, 10),
-          lastAccess: null,
-        };
-        setUsersList((prev) => [...prev, newUser]);
-        setFeedback({
-          tone: "success",
-          title: "Usuario creado",
-          message: `La cuenta de ${newUser.name} quedo lista para asignacion y seguimiento.`,
-        });
-      }
+      },
+    });
+  }
 
-      setSaving(false);
-      setModalUser(null);
-    }, 500);
+  function openEditModal(user) {
+    setDrawerUser(null);
+    setFormState({
+      user,
+      form: emptyUserForm(user),
+      errors: {},
+      saving: false,
+      setForm: (updater) => {
+        setFormState((prev) => {
+          if (!prev) return prev;
+          const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
+          return { ...prev, form: nextForm };
+        });
+      },
+    });
+  }
+
+  function validateForm(form, editingUserId) {
+    const errors = {};
+    const firstName = String(form.firstName || "").trim();
+    const paternalLastName = String(form.paternalLastName || "").trim();
+    const email = String(form.email || "").trim().toLowerCase();
+    if (!firstName) errors.firstName = "Escribe el nombre.";
+    if (!paternalLastName) errors.paternalLastName = "Escribe el apellido paterno.";
+    if (!email) errors.email = "Escribe un correo electrónico.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(email)) errors.email = "Escribe un correo electrónico válido.";
+    else {
+      const duplicate = usersList.find((user) => user.id !== editingUserId && user.email.toLowerCase() === email);
+      if (duplicate) errors.email = "Este correo ya está registrado.";
+    }
+    return errors;
+  }
+
+  function handleSaveUser(event) {
+    event.preventDefault();
+    if (!formState) return;
+    const { user, form } = formState;
+    const errors = validateForm(form, user?.id);
+    if (Object.keys(errors).length > 0) {
+      setFormState((prev) => (prev ? { ...prev, errors } : prev));
+      return;
+    }
+
+    setFormState((prev) => (prev ? { ...prev, saving: true, errors: {} } : prev));
+    const name = buildFullName(form.firstName, form.paternalLastName, form.maternalLastName);
+    const nextUser = {
+      id: user?.id || `u${Date.now()}`,
+      name,
+      email: form.email.trim().toLowerCase(),
+      identifier: form.identifier.trim() || (user?.identifier || `USR-${Date.now().toString().slice(-4)}`),
+      role: form.role,
+      campus: form.campus,
+      areas: form.areas,
+      status: form.status,
+      createdAt: user?.createdAt || new Date().toISOString().slice(0, 10),
+      lastAccess: user?.lastAccess || null,
+      forcePasswordChange: form.forcePasswordChange,
+      notes: form.notes.trim(),
+    };
+
+    setUsersList((prev) => user
+      ? prev.map((item) => (item.id === user.id ? nextUser : item))
+      : [...prev, nextUser]);
+    if (user) syncSelectedUser(user.id, () => nextUser);
+    setFormState(null);
+    setFeedback({
+      tone: "success",
+      title: user ? "Usuario actualizado" : "Usuario creado",
+      message: user
+        ? `Se actualizaron los datos administrativos de ${nextUser.name}.`
+        : `La cuenta de ${nextUser.name} quedó lista para asignación y seguimiento.`,
+    });
   }
 
   function handleToggleStatus(user) {
@@ -347,7 +1034,7 @@ export default function UsersPage() {
   function handleDeleteUser(user) {
     setUsersList((prev) => prev.filter((item) => item.id !== user.id));
     setDrawerUser(null);
-    setAdminAction(null);
+    setPasswordResetState({ user: null, password: "" });
     setFeedback({
       tone: "info",
       title: "Usuario eliminado",
@@ -357,72 +1044,48 @@ export default function UsersPage() {
   }
 
   function openPasswordReset(user) {
-    setAdminAction({
-      type: "password",
-      user,
-      temporaryPassword: createTemporaryPassword(),
-      forcePasswordChange: true,
-      note: "",
-    });
-  }
-
-  function openEmailChange(user) {
-    setAdminAction({
-      type: "email",
-      user,
-      newEmail: user.email,
-      note: "",
-    });
+    setPasswordResetState({ user, password: "" });
   }
 
   function handleResetPassword() {
-    if (!adminAction?.user) return;
-
+    if (!passwordResetState.user) return;
+    const temporaryPassword = createTemporaryPassword();
     const updatedFields = {
-      forcePasswordChange: adminAction.forcePasswordChange,
+      forcePasswordChange: true,
       lastPasswordResetAt: new Date().toISOString(),
-      notes: adminAction.note
-        ? [adminAction.user.notes, `Reset local: ${adminAction.note}`].filter(Boolean).join("\n")
-        : adminAction.user.notes,
+      notes: passwordResetState.user.notes,
     };
 
     setUsersList((prev) => prev.map((user) => (
-      user.id === adminAction.user.id ? { ...user, ...updatedFields } : user
+      user.id === passwordResetState.user.id ? { ...user, ...updatedFields } : user
     )));
-    syncSelectedUser(adminAction.user.id, (user) => ({ ...user, ...updatedFields }));
+    syncSelectedUser(passwordResetState.user.id, (user) => ({ ...user, ...updatedFields }));
     setFeedback({
       tone: "success",
-      title: "Contrasena restablecida",
-      message: `Se genero una clave temporal para ${adminAction.user.name}: ${adminAction.temporaryPassword}. ${
-        adminAction.forcePasswordChange ? "Se forzo cambio en el proximo acceso." : "El cambio obligatorio quedo desactivado."
-      }`,
+      title: "Contraseña temporal generada",
+      message: `Nueva contraseña para ${passwordResetState.user.name}: ${temporaryPassword}.`,
     });
-    setAdminAction(null);
+    setPasswordResetState({ user: passwordResetState.user, password: temporaryPassword });
   }
 
-  function handleChangeEmail() {
-    if (!adminAction?.user) return;
-
-    const nextEmail = adminAction.newEmail.trim();
-    if (!nextEmail) return;
-
-    const updatedFields = {
-      email: nextEmail,
-      notes: adminAction.note
-        ? [adminAction.user.notes, `Cambio de correo: ${adminAction.note}`].filter(Boolean).join("\n")
-        : adminAction.user.notes,
-    };
-
-    setUsersList((prev) => prev.map((user) => (
-      user.id === adminAction.user.id ? { ...user, ...updatedFields } : user
-    )));
-    syncSelectedUser(adminAction.user.id, (user) => ({ ...user, ...updatedFields }));
-    setFeedback({
-      tone: "info",
-      title: "Correo actualizado",
-      message: `${adminAction.user.name} ahora usa ${nextEmail} como correo administrativo.`,
+  function handleExportCsv() {
+    exportRowsToCsv({
+      filename: `carbontrack-admin-usuarios-${new Date().toISOString().slice(0, 10)}.csv`,
+      rows: filtered,
+      columns: [
+        { label: "Nombre", get: (user) => user.name },
+        { label: "Correo", get: (user) => user.email },
+        { label: "Identificador", get: (user) => user.identifier },
+        { label: "Rol", get: (user) => ROLE_LABELS[user.role] || user.role },
+        { label: "Campus", get: (user) => user.campus },
+        { label: "Estado", get: (user) => (user.status === "active" ? "Activo" : "Inactivo") },
+      ],
     });
-    setAdminAction(null);
+    setFeedback({
+      tone: "success",
+      title: "CSV exportado",
+      message: "Se exportó el listado filtrado actual.",
+    });
   }
 
   const activeCount = usersList.filter((user) => user.status === "active").length;
@@ -519,16 +1182,7 @@ export default function UsersPage() {
             label="Editar"
             onClick={(event) => {
               event.stopPropagation();
-              setModalUser({ ...row });
-            }}
-          />
-          <AdminActionButton
-            icon={Mail}
-            label="Correo"
-            accent="info"
-            onClick={(event) => {
-              event.stopPropagation();
-              openEmailChange(row);
+              openEditModal(row);
             }}
           />
           <AdminActionButton
@@ -545,44 +1199,28 @@ export default function UsersPage() {
     },
   ];
 
-  const passwordActionOpen = adminAction?.type === "password";
-  const emailActionOpen = adminAction?.type === "email";
+  const pendingRequests = requests.filter((item) => item.status === "pending");
 
   return (
     <>
+      <style>{PAGE_STYLES}</style>
       <AdminPageHeader
         title="Usuarios y permisos"
         subtitle={`${activeCount} activos · ${inactiveCount} inactivos · ${usersList.length} total`}
         icon={UsersIcon}
         breadcrumb={["Operacion", "Usuarios"]}
         actions={(
-          <button
-            onClick={() => setModalUser({ ...EMPTY_USER })}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 18px",
-              borderRadius: 8,
-              border: "none",
-              background: "var(--eco-primary-500, #22C55E)",
-              fontFamily: fb,
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#fff",
-              cursor: "pointer",
-              transition: "all .12s",
-              boxShadow: "0 1px 3px rgba(34,197,94,.25)",
-            }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.background = "var(--eco-primary-600, #16A34A)";
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.background = "var(--eco-primary-500, #22C55E)";
-            }}
-          >
-            <UserPlus size={14} /> Nuevo usuario
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={openCreateModal} style={primaryHeaderBtn}>
+              <UserPlus size={14} /> Nuevo usuario
+            </button>
+            <button onClick={handleExportCsv} style={secondaryHeaderBtn}>
+              <Download size={14} /> Exportar CSV
+            </button>
+            <button onClick={() => setRequestsOpen(true)} style={secondaryHeaderBtn}>
+              <Bell size={14} /> Ver peticiones ({pendingRequests.length})
+            </button>
+          </div>
         )}
       />
 
@@ -637,8 +1275,7 @@ export default function UsersPage() {
         width={470}
         actions={drawerUser && (
           <>
-            <AdminActionButton icon={Edit3} label="Editar" onClick={() => setModalUser({ ...drawerUser })} />
-            <AdminActionButton icon={Mail} label="Cambiar correo" accent="info" onClick={() => openEmailChange(drawerUser)} />
+            <AdminActionButton icon={Edit3} label="Editar" onClick={() => openEditModal(drawerUser)} />
             <AdminActionButton icon={KeyRound} label="Restablecer clave" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
             <AdminActionButton
               icon={drawerUser.status === "active" ? ToggleRight : ToggleLeft}
@@ -693,7 +1330,6 @@ export default function UsersPage() {
                 Acciones administrativas
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <AdminActionButton icon={Mail} label="Cambiar correo" accent="info" onClick={() => openEmailChange(drawerUser)} />
                 <AdminActionButton icon={KeyRound} label="Restablecer contrasena" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
               </div>
             </div>
@@ -736,238 +1372,26 @@ export default function UsersPage() {
         )}
       </AdminEntityDrawer>
 
-      <AdminFormModal
-        open={!!modalUser}
-        onClose={() => setModalUser(null)}
-        title={modalUser?.id ? "Editar usuario" : "Nuevo usuario"}
-        subtitle={modalUser?.id ? modalUser.email : "Completa los datos del nuevo usuario"}
-        onSave={handleSaveUser}
-        saving={saving}
-        width={580}
-      >
-        {modalUser && (
-          <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <AdminTextField
-                label="Nombre completo"
-                required
-                value={modalUser.name}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, name: value }))}
-                placeholder="Nombre y apellido"
-              />
-              <AdminTextField
-                label="Correo electronico"
-                required
-                type="email"
-                value={modalUser.email}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, email: value }))}
-                placeholder="usuario@institucion.mx"
-              />
-              <AdminTextField
-                label="Identificador"
-                value={modalUser.identifier}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, identifier: value }))}
-                placeholder="ADM-001"
-                hint="Matricula o codigo interno"
-              />
-              <AdminSelectField
-                label="Rol"
-                required
-                value={modalUser.role}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, role: value }))}
-                options={roles.filter((role) => role.enabled).map((role) => ({ value: role.id, label: role.label }))}
-              />
-              <AdminSelectField
-                label="Campus"
-                value={modalUser.campus}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, campus: value }))}
-                options={campuses.map((campus) => ({ value: campus.name, label: campus.name }))}
-              />
-              <AdminSelectField
-                label="Estado"
-                value={modalUser.status}
-                onChange={(value) => setModalUser((prev) => ({ ...prev, status: value }))}
-                options={[
-                  { value: "active", label: "Activo" },
-                  { value: "inactive", label: "Inactivo" },
-                ]}
-              />
-            </div>
+      <UserFormModal
+        state={formState}
+        roles={roles.filter((role) => role.enabled)}
+        campuses={campuses}
+        areaOptions={areaOptions}
+        onClose={() => setFormState(null)}
+        onSubmit={handleSaveUser}
+        onGeneratePassword={() => {
+          setFormState((prev) => (prev ? { ...prev, form: { ...prev.form, tempPassword: createTemporaryPassword() } } : prev));
+        }}
+      />
 
-            <div>
-              <span style={{
-                fontFamily: fb,
-                fontSize: 12,
-                fontWeight: 600,
-                color: "var(--eco-text-soft, #64748B)",
-                letterSpacing: ".02em",
-              }}>
-                Areas asignadas
-              </span>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 6,
-                marginTop: 8,
-              }}>
-                {areaOptions.map((area) => {
-                  const checked = modalUser.areas?.includes(area);
-                  return (
-                    <label
-                      key={area}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 7,
-                        fontFamily: fb,
-                        fontSize: 12.5,
-                        color: "var(--eco-text, #1E293B)",
-                        cursor: "pointer",
-                        padding: "4px 0",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setModalUser((prev) => ({
-                            ...prev,
-                            areas: checked
-                              ? prev.areas.filter((item) => item !== area)
-                              : [...(prev.areas || []), area],
-                          }));
-                        }}
-                        style={{ accentColor: "var(--eco-primary-500, #22C55E)" }}
-                      />
-                      {area}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
+      <RequestsPanel open={requestsOpen} requests={requests} onClose={() => setRequestsOpen(false)} />
 
-            <AdminToggleField
-              label="Forzar cambio de contrasena en proximo inicio"
-              checked={modalUser.forcePasswordChange}
-              onChange={(value) => setModalUser((prev) => ({ ...prev, forcePasswordChange: value }))}
-            />
-
-            <AdminTextField
-              label="Observaciones"
-              multiline
-              rows={2}
-              value={modalUser.notes}
-              onChange={(value) => setModalUser((prev) => ({ ...prev, notes: value }))}
-              placeholder="Notas internas sobre este usuario..."
-            />
-          </>
-        )}
-      </AdminFormModal>
-
-      <AdminFormModal
-        open={passwordActionOpen}
-        onClose={() => setAdminAction(null)}
-        title="Restablecer contrasena"
-        subtitle={adminAction?.user ? `Cuenta: ${adminAction.user.email}` : ""}
-        onSave={handleResetPassword}
-        saving={false}
-        width={520}
-      >
-        {passwordActionOpen && (
-          <>
-            <div style={{
-              padding: "14px 16px",
-              borderRadius: 12,
-              border: "1px solid rgba(234,179,8,.2)",
-              background: "rgba(234,179,8,.08)",
-            }}>
-              <div style={{
-                fontFamily: fb,
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: "var(--eco-text, #1E293B)",
-              }}>
-                Restablecimiento administrativo
-              </div>
-              <div style={{
-                marginTop: 4,
-                fontFamily: fb,
-                fontSize: 12.5,
-                color: "var(--eco-text-soft, #64748B)",
-                lineHeight: 1.5,
-              }}>
-                Este flujo es local y deja trazabilidad visual dentro del modulo sin depender de backend.
-              </div>
-            </div>
-
-            <AdminTextField
-              label="Clave temporal"
-              value={adminAction.temporaryPassword}
-              disabled
-              hint="Usala para comunicar el acceso temporal al usuario."
-            />
-
-            <AdminActionButton
-              icon={RefreshCw}
-              label="Generar otra clave"
-              accent="default"
-              onClick={() => setAdminAction((prev) => ({ ...prev, temporaryPassword: createTemporaryPassword() }))}
-            />
-
-            <AdminToggleField
-              label="Forzar cambio de contrasena al iniciar sesion"
-              checked={adminAction.forcePasswordChange}
-              onChange={(value) => setAdminAction((prev) => ({ ...prev, forcePasswordChange: value }))}
-              description="Se actualiza el estado local del usuario para reflejar la medida de seguridad."
-            />
-
-            <AdminTextField
-              label="Nota administrativa"
-              multiline
-              rows={2}
-              value={adminAction.note}
-              onChange={(value) => setAdminAction((prev) => ({ ...prev, note: value }))}
-              placeholder="Motivo del restablecimiento o seguimiento interno"
-            />
-          </>
-        )}
-      </AdminFormModal>
-
-      <AdminFormModal
-        open={emailActionOpen}
-        onClose={() => setAdminAction(null)}
-        title="Cambiar correo"
-        subtitle={adminAction?.user ? `Usuario: ${adminAction.user.name}` : ""}
-        onSave={handleChangeEmail}
-        saving={false}
-        width={520}
-      >
-        {emailActionOpen && (
-          <>
-            <AdminTextField
-              label="Correo actual"
-              value={adminAction.user.email}
-              disabled
-            />
-            <AdminTextField
-              label="Nuevo correo"
-              type="email"
-              required
-              value={adminAction.newEmail}
-              onChange={(value) => setAdminAction((prev) => ({ ...prev, newEmail: value }))}
-              placeholder="nuevo.correo@institucion.mx"
-            />
-            <AdminTextField
-              label="Motivo del cambio"
-              multiline
-              rows={2}
-              value={adminAction.note}
-              onChange={(value) => setAdminAction((prev) => ({ ...prev, note: value }))}
-              placeholder="Cambio de dominio, ajuste por plantilla o correccion de captura"
-            />
-          </>
-        )}
-      </AdminFormModal>
+      <ResetPasswordModal
+        user={passwordResetState.user}
+        tempPassword={passwordResetState.password}
+        onCancel={() => setPasswordResetState({ user: null, password: "" })}
+        onConfirm={handleResetPassword}
+      />
 
       <AdminConfirmDialog
         open={confirmAction?.type === "toggle"}

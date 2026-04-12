@@ -1,15 +1,15 @@
 import React from "react";
 import {
-  FlaskConical, Plus, Edit3, History, AlertTriangle, CheckCircle2, Clock, FileText, Star, BadgeCheck, Copy,
+  FlaskConical, Plus, Edit3, History, AlertTriangle, CheckCircle2, Clock, FileText, Star, BadgeCheck, Copy, Download, Upload,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
 import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
-import AdminFormModal from "../components/AdminFormModal";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
-import { AdminTextField, AdminSelectField, AdminNumberField } from "../components/AdminFormSection";
 import { emissionFactors as mockFactors, factorVersions as mockVersions } from "../mocks/adminMocks";
+import FactorModal, { createEmptyFactorForm, resolveFactorDenominator } from "../../components/FactorModal";
+import { exportRowsToCsv } from "../../lib/csvExport";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
@@ -33,6 +33,141 @@ const EMPTY_FACTOR = {
   version: "v1.0", official: false, notes: "",
 };
 
+function splitUnit(unit = "") {
+  const [numeratorUnit = "kgCO2e", denominatorUnit = "kWh"] = String(unit).split("/");
+  return { numeratorUnit, denominatorUnit };
+}
+
+function typeToCategory(type, denominatorUnit = "") {
+  if (type === "electricity") return "electricidad";
+  if (type === "fuel") return "combustible";
+  if (type === "water" && denominatorUnit.toLowerCase() === "m3") return "otros";
+  return "otros";
+}
+
+function categoryToType(category, denominatorUnit, fallbackType = "water") {
+  if (category === "electricidad") return "electricity";
+  if (category === "combustible") return "fuel";
+  if (String(denominatorUnit || "").toLowerCase() === "m3") return "water";
+  return fallbackType;
+}
+
+function normalizeFactor(factor) {
+  const { numeratorUnit, denominatorUnit } = splitUnit(factor.unit);
+  return {
+    ...factor,
+    region: factor.region || "MX",
+    provider: factor.provider || factor.source || "",
+    sourceUrl: factor.sourceUrl || "",
+    numeratorUnit,
+    denominatorUnit,
+    isDefault: typeof factor.isDefault === "boolean" ? factor.isDefault : Boolean(factor.official),
+    isActive: typeof factor.isActive === "boolean" ? factor.isActive : factor.status === "active",
+    uncertaintyPct: factor.uncertaintyPct ?? "",
+  };
+}
+
+function factorToModalForm(factor) {
+  const normalized = normalizeFactor(factor);
+  return {
+    ...createEmptyFactorForm({
+      id: normalized.id,
+      scope: `scope${normalized.scope}`,
+      category: typeToCategory(normalized.type, normalized.denominatorUnit),
+      denominatorUnit: normalized.denominatorUnit,
+      value: normalized.value,
+      region: normalized.region,
+      provider: normalized.provider,
+      sourceUrl: normalized.sourceUrl,
+      validFrom: normalized.validFrom,
+      validTo: normalized.validUntil || "",
+      isDefault: normalized.isDefault,
+      isActive: normalized.isActive,
+      uncertaintyPct: normalized.uncertaintyPct,
+      notes: normalized.notes,
+    }),
+    editMode: "edit",
+  };
+}
+
+function buildFactorFromModal(form, currentFactor, nextId) {
+  const denominatorUnit = resolveFactorDenominator(form.category, form.denominatorUnit);
+  const scope = Number(String(form.scope || "scope2").replace("scope", "")) || 2;
+  const type = categoryToType(form.category, denominatorUnit, currentFactor?.type || "water");
+  const region = form.region === "Custom" ? String(form.customRegion || "").trim() : form.region;
+  const status = form.isActive ? "active" : "draft";
+  const currentVersion = Number(String(currentFactor?.version || "v1.0").replace(/[^\d.]/g, "")) || 1;
+  const version = currentFactor
+    ? (form.editMode === "newVersion" ? `v${(currentVersion + 0.1).toFixed(1)}` : currentFactor.version || "v1.0")
+    : "v1.0";
+  const generatedCode = currentFactor?.code || `${type.toUpperCase().slice(0, 4)}-S${scope}-${String(nextId).replace(/^f/i, "").toUpperCase()}`;
+  const generatedName = currentFactor?.name || `Factor ${TYPE_LABELS[type] || "Personalizado"} Scope ${scope}${region ? ` (${region})` : ""}`;
+
+  return normalizeFactor({
+    ...(currentFactor || {}),
+    id: currentFactor?.id || nextId,
+    code: generatedCode,
+    name: generatedName,
+    scope,
+    type,
+    unit: `${form.numeratorUnit || "kgCO2e"}/${denominatorUnit}`,
+    value: Number(form.value),
+    source: String(form.provider || "").trim() || currentFactor?.source || "Fuente interna",
+    validFrom: form.validFrom,
+    validUntil: form.validTo || "",
+    status,
+    version,
+    official: Boolean(form.isDefault),
+    notes: String(form.notes || "").trim(),
+    region,
+    provider: String(form.provider || "").trim(),
+    sourceUrl: String(form.sourceUrl || "").trim(),
+    numeratorUnit: form.numeratorUnit || "kgCO2e",
+    denominatorUnit,
+    isDefault: Boolean(form.isDefault),
+    isActive: Boolean(form.isActive),
+    uncertaintyPct: form.uncertaintyPct === "" ? "" : Number(form.uncertaintyPct),
+  });
+}
+
+function validateModalForm(form) {
+  const errors = {};
+  const numericValue = Number(form.value);
+  const region = form.region === "Custom" ? String(form.customRegion || "").trim() : form.region;
+  if (!form.scope) errors.scope = "Selecciona un scope.";
+  if (!form.category) errors.category = "Selecciona una categoría.";
+  if (!Number.isFinite(numericValue) || numericValue <= 0) errors.value = "El valor debe ser mayor a 0.";
+  if (!region) errors.region = "Selecciona una región.";
+  if (form.region === "Custom" && !String(form.customRegion || "").trim()) errors.customRegion = "Escribe la región personalizada.";
+  if (!form.validFrom) errors.validFrom = "La fecha inicial es obligatoria.";
+  if (form.validTo && form.validTo < form.validFrom) errors.validTo = "La vigencia final no puede ser anterior a la inicial.";
+  return errors;
+}
+
+function parseCsvRow(line) {
+  const cells = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (quoted && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      cells.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current);
+  return cells.map((cell) => cell.trim());
+}
+
 function detectDuplicateCode(factors, factor) {
   return factors.find(f => f.id !== factor.id && f.code.trim().toLowerCase() === (factor.code || "").trim().toLowerCase());
 }
@@ -49,12 +184,14 @@ function detectOverlap(factors, factor) {
 }
 
 export default function EmissionFactorsPage() {
-  const [factors, setFactors] = React.useState(mockFactors);
+  const [factors, setFactors] = React.useState(() => mockFactors.map(normalizeFactor));
+  const [versions, setVersions] = React.useState(mockVersions);
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({ status: "all", scope: "all", type: "all" });
   const [selected, setSelected] = React.useState(null);
-  const [modalFactor, setModalFactor] = React.useState(null);
-  const [saving, setSaving] = React.useState(false);
+  const [modalState, setModalState] = React.useState(null);
+  const [feedback, setFeedback] = React.useState(null);
+  const importInputRef = React.useRef(null);
 
   const filtered = React.useMemo(() => {
     return factors.filter(f => {
@@ -76,42 +213,183 @@ export default function EmissionFactorsPage() {
     draft:   factors.filter(f => f.status === "draft").length,
   }), [factors]);
 
-  function handleSave() {
-    setSaving(true);
-    setTimeout(() => {
-      setFactors(prev => {
-        let next;
-        if (modalFactor.id) {
-          next = prev.map(f => f.id === modalFactor.id ? { ...modalFactor } : f);
-        } else {
-          next = [...prev, { ...modalFactor, id: "f" + (prev.length + 1) }];
+  const openCreate = () => {
+    const setForm = (updater) => setModalState((prev) => {
+      if (!prev) return prev;
+      const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
+      return { ...prev, form: nextForm };
+    });
+    setModalState({ factor: null, form: createEmptyFactorForm(), errors: {}, saving: false, usageCount: 0, setForm });
+  };
+
+  const openEdit = (factor, mode = "edit") => {
+    const setForm = (updater) => setModalState((prev) => {
+      if (!prev) return prev;
+      const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
+      return { ...prev, form: nextForm };
+    });
+    setModalState({
+      factor,
+      form: { ...factorToModalForm(factor), editMode: mode },
+      errors: {},
+      saving: false,
+      usageCount: versions[factor.id]?.length || 0,
+      setForm,
+    });
+  };
+
+  const closeModal = () => setModalState(null);
+
+  function handleSave(event) {
+    event.preventDefault();
+    if (!modalState) return;
+    const errors = validateModalForm(modalState.form, factors, modalState.factor);
+    if (Object.keys(errors).length > 0) {
+      setModalState((prev) => (prev ? { ...prev, errors } : prev));
+      return;
+    }
+
+    setModalState((prev) => (prev ? { ...prev, saving: true, errors: {} } : prev));
+
+    window.setTimeout(() => {
+      setFactors((prev) => {
+        const nextId = modalState.factor?.id || `f${prev.length + 1}`;
+        const nextFactor = buildFactorFromModal(modalState.form, modalState.factor, nextId);
+        let next = modalState.factor
+          ? prev.map((item) => (item.id === modalState.factor.id ? nextFactor : item))
+          : [...prev, nextFactor];
+        if (nextFactor.official) {
+          next = next.map((item) => (
+            item.id !== nextFactor.id && item.scope === nextFactor.scope && item.type === nextFactor.type
+              ? { ...item, official: false, isDefault: false }
+              : item
+          ));
         }
-        // If marked official, unmark others of same scope+type
-        if (modalFactor.official) {
-          next = next.map(f =>
-            f.id !== (modalFactor.id || next[next.length - 1].id) &&
-            f.scope === modalFactor.scope && f.type === modalFactor.type
-              ? { ...f, official: false } : f
-          );
-        }
+        setSelected((current) => (current?.id === nextFactor.id ? nextFactor : current));
+        setVersions((current) => {
+          const existing = current[nextFactor.id] || [];
+          const entry = {
+            version: nextFactor.version,
+            value: nextFactor.value,
+            changedAt: new Date().toISOString().slice(0, 10),
+            changedBy: "Admin CarbonTrack Demo",
+            note: modalState.form.notes || (modalState.factor ? "Actualización desde admin avanzado." : "Alta inicial del factor."),
+          };
+          return {
+            ...current,
+            [nextFactor.id]: modalState.factor && modalState.form.editMode !== "newVersion"
+              ? existing.map((item, index) => (index === 0 ? entry : item))
+              : [entry, ...existing],
+          };
+        });
+        setFeedback({
+          tone: "success",
+          title: modalState.factor
+            ? (modalState.form.editMode === "newVersion" ? "Nueva versión creada" : "Factor actualizado")
+            : "Factor creado",
+          message: `${nextFactor.code} quedó disponible en el catálogo administrativo.`,
+        });
         return next;
       });
-      setSaving(false);
-      setModalFactor(null);
-    }, 350);
+      setModalState(null);
+    }, 180);
   }
 
   function markAsOfficial(factor) {
     setFactors(prev => prev.map(f => {
-      if (f.id === factor.id) return { ...f, official: true };
-      if (f.scope === factor.scope && f.type === factor.type) return { ...f, official: false };
+      if (f.id === factor.id) return { ...f, official: true, isDefault: true };
+      if (f.scope === factor.scope && f.type === factor.type) return { ...f, official: false, isDefault: false };
       return f;
     }));
-    setSelected(s => s && s.id === factor.id ? { ...s, official: true } : s);
+    setSelected(s => s && s.id === factor.id ? { ...s, official: true, isDefault: true } : s);
+    setFeedback({ tone: "success", title: "Factor oficial actualizado", message: `${factor.code} ahora es el predeterminado visible.` });
   }
 
-  const dupCode = modalFactor ? detectDuplicateCode(factors, modalFactor) : null;
-  const overlap = modalFactor ? detectOverlap(factors, modalFactor) : null;
+  function exportCsv() {
+    exportRowsToCsv({
+      filename: `carbontrack-admin-factores-${new Date().toISOString().slice(0, 10)}.csv`,
+      rows: filtered,
+      columns: [
+        { label: "Codigo", get: (factor) => factor.code },
+        { label: "Nombre", get: (factor) => factor.name },
+        { label: "Scope", get: (factor) => factor.scope },
+        { label: "Tipo", get: (factor) => factor.type },
+        { label: "Valor", get: (factor) => factor.value },
+        { label: "Unidad", get: (factor) => factor.unit },
+        { label: "Region", get: (factor) => factor.region || "" },
+        { label: "Proveedor", get: (factor) => factor.provider || factor.source || "" },
+        { label: "URL Fuente", get: (factor) => factor.sourceUrl || "" },
+        { label: "Vigencia Desde", get: (factor) => factor.validFrom || "" },
+        { label: "Vigencia Hasta", get: (factor) => factor.validUntil || "" },
+        { label: "Default", get: (factor) => (factor.official ? "true" : "false") },
+        { label: "Activo", get: (factor) => (factor.status === "active" ? "true" : "false") },
+        { label: "Notas", get: (factor) => factor.notes || "" },
+      ],
+    });
+    setFeedback({ tone: "success", title: "CSV exportado", message: `Se exportaron ${filtered.length} factor(es).` });
+  }
+
+  function triggerImport() {
+    importInputRef.current?.click();
+  }
+
+  async function handleImportFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) {
+      setFeedback({ tone: "error", title: "Importación inválida", message: "El archivo no contiene filas de factores." });
+      event.target.value = "";
+      return;
+    }
+    const headers = parseCsvRow(lines[0]).map((header) => header.toLowerCase());
+    const required = ["codigo", "nombre", "scope", "tipo", "valor"];
+    if (required.some((header) => !headers.includes(header))) {
+      setFeedback({ tone: "error", title: "Importación inválida", message: "El CSV debe incluir Código, Nombre, Scope, Tipo y Valor." });
+      event.target.value = "";
+      return;
+    }
+    const imported = lines.slice(1).map((line, index) => {
+      const cells = parseCsvRow(line);
+      const row = Object.fromEntries(headers.map((header, headerIndex) => [header, cells[headerIndex] || ""]));
+      return normalizeFactor({
+        id: `imp-${Date.now()}-${index}`,
+        code: row.codigo || `IMP-${index + 1}`,
+        name: row.nombre || `Factor importado ${index + 1}`,
+        scope: Number(row.scope) || 2,
+        type: row.tipo || "electricity",
+        unit: row.unidad || "kgCO2e/kWh",
+        value: Number(row.valor || 0),
+        source: row.proveedor || "",
+        validFrom: row["vigencia desde"] || row.vigencia_desde || new Date().toISOString().slice(0, 10),
+        validUntil: row["vigencia hasta"] || row.vigencia_hasta || "",
+        status: String(row.activo).toLowerCase() === "false" ? "draft" : "active",
+        version: row.version || "v1.0",
+        official: String(row.default).toLowerCase() === "true",
+        notes: row.notas || "",
+        region: row.region || "MX",
+        provider: row.proveedor || "",
+        sourceUrl: row["url fuente"] || row.url_fuente || "",
+      });
+    }).filter((factor) => factor.value > 0);
+
+    if (imported.length === 0) {
+      setFeedback({ tone: "error", title: "Sin filas válidas", message: "No se pudieron convertir factores válidos desde el CSV." });
+      event.target.value = "";
+      return;
+    }
+
+    setFactors((prev) => {
+      const byCode = new Map(prev.map((factor) => [factor.code.toLowerCase(), factor]));
+      imported.forEach((factor) => {
+        byCode.set(factor.code.toLowerCase(), factor);
+      });
+      return Array.from(byCode.values());
+    });
+    setFeedback({ tone: "success", title: "Importación completada", message: `Se importaron ${imported.length} factor(es) en frontend.` });
+    event.target.value = "";
+  }
 
   const columns = [
     { key: "code", label: "Código", mono: true, width: 150, render: (v, row) => (
@@ -149,17 +427,57 @@ export default function EmissionFactorsPage() {
         subtitle="Gestión versionada de factores oficiales por tipo, fuente y vigencia."
         breadcrumb={["Operación", "Factores"]}
         actions={
-          <button onClick={() => setModalFactor({ ...EMPTY_FACTOR })} style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "8px 16px", borderRadius: 8, border: "none",
-            background: "var(--eco-primary-500, #22C55E)", color: "#fff",
-            fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer",
-            boxShadow: "0 1px 3px rgba(34,197,94,.25)",
-          }}>
-            <Plus size={14} /> Nuevo factor
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={triggerImport} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", borderRadius: 8,
+              border: "1px solid var(--eco-border, #E2E8F0)", background: "var(--eco-card, #fff)", color: "var(--eco-text, #1E293B)",
+              fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>
+              <Upload size={14} /> Importar
+            </button>
+            <button onClick={exportCsv} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 14px", borderRadius: 8,
+              border: "1px solid var(--eco-border, #E2E8F0)", background: "var(--eco-card, #fff)", color: "var(--eco-text, #1E293B)",
+              fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>
+              <Download size={14} /> Exportar
+            </button>
+            <button onClick={openCreate} style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 16px", borderRadius: 8, border: "none",
+              background: "var(--eco-primary-500, #22C55E)", color: "#fff",
+              fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              boxShadow: "0 1px 3px rgba(34,197,94,.25)",
+            }}>
+              <Plus size={14} /> Nuevo factor
+            </button>
+          </div>
         }
       />
+
+      <input ref={importInputRef} type="file" accept=".csv,text/csv" onChange={handleImportFile} style={{ display: "none" }} />
+
+      {feedback ? (
+        <div style={{
+          marginBottom: 16,
+          padding: "12px 14px",
+          borderRadius: 12,
+          border: `1px solid ${feedback.tone === "error" ? "rgba(239,68,68,.22)" : "rgba(34,197,94,.22)"}`,
+          background: feedback.tone === "error" ? "rgba(239,68,68,.06)" : "rgba(34,197,94,.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}>
+          <div>
+            <div style={{ fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong, #1E293B)" }}>{feedback.title}</div>
+            <div style={{ fontFamily: fb, fontSize: 12.5, color: "var(--eco-text-soft, #64748B)", marginTop: 2 }}>{feedback.message}</div>
+          </div>
+          <button type="button" onClick={() => setFeedback(null)} style={{ border: "none", background: "transparent", color: "var(--eco-text-soft, #64748B)", cursor: "pointer", fontFamily: fb, fontWeight: 600 }}>Cerrar</button>
+        </div>
+      ) : null}
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 16 }}>
@@ -241,7 +559,7 @@ export default function EmissionFactorsPage() {
                 <BadgeCheck size={13} /> Marcar oficial
               </button>
             )}
-            <button onClick={() => { setModalFactor({ ...selected }); setSelected(null); }} style={{
+            <button onClick={() => { openEdit(selected, "edit"); setSelected(null); }} style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "8px 14px", borderRadius: 8, border: "none",
               background: "var(--eco-primary-500, #22C55E)", color: "#fff",
@@ -275,7 +593,7 @@ export default function EmissionFactorsPage() {
                 <History size={13} /> Historial de versiones
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {(mockVersions[selected.id] || []).map((v, i) => (
+                {(versions[selected.id] || []).map((v, i) => (
                   <div key={i} style={{
                     display: "flex", gap: 12,
                     padding: "10px 12px",
@@ -309,107 +627,7 @@ export default function EmissionFactorsPage() {
         )}
       </AdminEntityDrawer>
 
-      {/* Form modal */}
-      <AdminFormModal
-        open={!!modalFactor}
-        onClose={() => setModalFactor(null)}
-        title={modalFactor?.id ? "Editar factor de emisión" : "Nuevo factor de emisión"}
-        subtitle="Captura los datos básicos del factor y su vigencia."
-        onSave={handleSave}
-        saving={saving}
-        width={620}
-      >
-        {modalFactor && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {(dupCode || overlap) && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                {dupCode && (
-                  <div style={{
-                    display: "flex", alignItems: "flex-start", gap: 8,
-                    padding: "10px 14px", marginBottom: 8,
-                    background: "rgba(239,68,68,.08)",
-                    border: "1px solid rgba(239,68,68,.25)",
-                    borderRadius: 8,
-                    color: "var(--eco-danger)",
-                    fontFamily: fb, fontSize: 12,
-                  }}>
-                    <Copy size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div>
-                      <strong>Código duplicado:</strong> ya existe un factor con código <code style={{ fontFamily: fm }}>{dupCode.code}</code> ({dupCode.name}).
-                    </div>
-                  </div>
-                )}
-                {overlap && (
-                  <div style={{
-                    display: "flex", alignItems: "flex-start", gap: 8,
-                    padding: "10px 14px", marginBottom: 8,
-                    background: "rgba(234,179,8,.08)",
-                    border: "1px solid rgba(234,179,8,.25)",
-                    borderRadius: 8,
-                    color: "var(--eco-warning)",
-                    fontFamily: fb, fontSize: 12,
-                  }}>
-                    <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div>
-                      <strong>Vigencia traslapada:</strong> el factor <code style={{ fontFamily: fm }}>{overlap.code}</code> cubre {overlap.validFrom} → {overlap.validUntil} en el mismo scope/tipo.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <AdminTextField label="Código" required value={modalFactor.code}
-              onChange={v => setModalFactor(p => ({ ...p, code: v }))} placeholder="GRID-MX-2026" />
-            <AdminTextField label="Versión" value={modalFactor.version}
-              onChange={v => setModalFactor(p => ({ ...p, version: v }))} placeholder="v1.0" />
-            <div style={{ gridColumn: "1 / -1" }}>
-              <AdminTextField label="Nombre" required value={modalFactor.name}
-                onChange={v => setModalFactor(p => ({ ...p, name: v }))} />
-            </div>
-            <AdminSelectField label="Scope" value={modalFactor.scope}
-              onChange={v => setModalFactor(p => ({ ...p, scope: Number(v) }))}
-              options={[{value:1,label:"Scope 1"},{value:2,label:"Scope 2"},{value:3,label:"Scope 3"}]} />
-            <AdminSelectField label="Tipo" value={modalFactor.type}
-              onChange={v => setModalFactor(p => ({ ...p, type: v }))}
-              options={[{value:"electricity",label:"Electricidad"},{value:"fuel",label:"Combustible"},{value:"water",label:"Agua"}]} />
-            <AdminNumberField label="Valor" required value={modalFactor.value} step={0.001}
-              onChange={v => setModalFactor(p => ({ ...p, value: v }))} />
-            <AdminTextField label="Unidad" value={modalFactor.unit}
-              onChange={v => setModalFactor(p => ({ ...p, unit: v }))} placeholder="kgCO2e/kWh" />
-            <AdminTextField label="Vigencia desde" type="date" value={modalFactor.validFrom}
-              onChange={v => setModalFactor(p => ({ ...p, validFrom: v }))} />
-            <AdminTextField label="Vigencia hasta" type="date" value={modalFactor.validUntil}
-              onChange={v => setModalFactor(p => ({ ...p, validUntil: v }))} />
-            <div style={{ gridColumn: "1 / -1" }}>
-              <AdminTextField label="Fuente" value={modalFactor.source}
-                onChange={v => setModalFactor(p => ({ ...p, source: v }))} placeholder="SENER 2026" />
-            </div>
-            <AdminSelectField label="Estado" value={modalFactor.status}
-              onChange={v => setModalFactor(p => ({ ...p, status: v }))}
-              options={[{value:"draft",label:"Borrador"},{value:"active",label:"Vigente"},{value:"expired",label:"Vencido"}]} />
-            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 24 }}>
-              <input
-                id="fact-official"
-                type="checkbox"
-                checked={!!modalFactor.official}
-                onChange={e => setModalFactor(p => ({ ...p, official: e.target.checked }))}
-                style={{ accentColor: "#CA8A04", cursor: "pointer", width: 16, height: 16 }}
-              />
-              <label htmlFor="fact-official" style={{
-                fontFamily: fb, fontSize: 12.5, fontWeight: 600,
-                color: "var(--eco-text)", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 5,
-              }}>
-                <Star size={13} color="#CA8A04" fill={modalFactor.official ? "#CA8A04" : "transparent"} />
-                Factor oficial vigente
-              </label>
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <AdminTextField label="Notas" multiline rows={3} value={modalFactor.notes}
-                onChange={v => setModalFactor(p => ({ ...p, notes: v }))} />
-            </div>
-          </div>
-        )}
-      </AdminFormModal>
+      <FactorModal state={modalState} onClose={closeModal} onSubmit={handleSave} />
     </div>
   );
 }
