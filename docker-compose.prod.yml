@@ -30,6 +30,9 @@ services:
     environment:
       NODE_ENV: production
       APP_BASE_URL: https://carbontrack.lat/api
+    volumes:
+      # Archivos subidos por usuarios (se persisten entre rebuilds)
+      - uploads_data:/app/storage/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,7 +75,7 @@ services:
       certbot certonly
         --webroot
         --webroot-path=/var/www/certbot
-        --email tu@email.com
+        --email carbontrack.edu@gmail.com
         --agree-tos
         --no-eff-email
         -d carbontrack.lat
@@ -80,5 +83,10 @@ services:
 
 volumes:
   postgres_data:
+    name: carbontrack-p2-postgres_data
+  uploads_data:
+    name: carbontrack-p2-uploads
   letsencrypt:
+    name: carbontrack-p2-letsencrypt
   certbot_www:
+    name: carbontrack-p2-certbot_www

@@ -12,7 +12,7 @@
 set -e
 
 DOMAIN="carbontrack.lat"
-EMAIL="tu@email.com"          # <-- Cambiar por tu email real
+EMAIL="carbontrack.edu@gmail.com"          # <-- Cambiar por tu email real
 COMPOSE="docker compose -f docker-compose.prod.yml"
 
 # ─────────────────────────────────────────────────────────────────
