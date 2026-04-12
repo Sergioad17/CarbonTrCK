@@ -12,3 +12,4 @@ frontend/.env.production
 .docker/
 docker-data/
 *.log
+.env.prod

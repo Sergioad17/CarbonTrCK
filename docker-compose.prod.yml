@@ -1,0 +1,84 @@
+services:
+
+  # ── Base de datos ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: carbontrack-p2-postgres
+    env_file:
+      - .env.prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/database.sql:/docker-entrypoint-initdb.d/001_database.sql:ro
+      - ./backend/database/seed_catalogs.sql:/docker-entrypoint-initdb.d/002_seed_catalogs.sql:ro
+      - ./backend/database/seed_auth.sql:/docker-entrypoint-initdb.d/003_seed_auth.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # Sin puerto expuesto al host: solo accesible internamente
+
+  # ── Backend (API) ──────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: carbontrack-p2-backend
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      APP_BASE_URL: https://carbontrack.lat/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    # Sin puerto expuesto al host: nginx hace el proxy internamente
+
+  # ── Nginx (frontend + proxy + SSL + whitelist) ─────────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      args:
+        # URL base de la API: queda embebida en el build del frontend
+        VITE_API_BASE_URL: https://carbontrack.lat/api
+    container_name: carbontrack-p2-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados SSL (generados por certbot)
+      - letsencrypt:/etc/letsencrypt:ro
+      # Webroot para renovación automática del cert
+      - certbot_www:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Certbot (renovación SSL) ───────────────────────────────────────────────
+  # Se usa con: docker compose -f docker-compose.prod.yml run --rm certbot <comando>
+  certbot:
+    image: certbot/certbot:latest
+    container_name: carbontrack-p2-certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    profiles:
+      - certbot
+    entrypoint: >
+      certbot certonly
+        --webroot
+        --webroot-path=/var/www/certbot
+        --email tu@email.com
+        --agree-tos
+        --no-eff-email
+        -d carbontrack.lat
+        -d www.carbontrack.lat
+
+volumes:
+  postgres_data:
+  letsencrypt:
+  certbot_www:
