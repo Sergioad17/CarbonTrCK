@@ -17,16 +17,6 @@ const CSS = `
 @media(max-width:1024px){.ct-kpi-g{grid-template-columns:1fr 1fr!important}.ct-ch-m,.ct-ch-d,.ct-area-g{grid-template-columns:1fr!important}}
 @media(max-width:640px){.ct-kpi-g{grid-template-columns:1fr!important}.ct-hdr-a{flex-direction:column;width:100%}.ct-hdr-a button{width:100%}}
 `;
-const AREA_DEFS = [
-  { id: "cc1", label: "Centro de computo 1", aliases: ["cc 1", "cc1", "centro de computo 1"] },
-  { id: "cc2", label: "Centro de computo 2", aliases: ["cc 2", "cc2", "centro de computo 2"] },
-  { id: "redes", label: "Taller de redes", aliases: ["redes", "taller de redes"] },
-  { id: "aulas", label: "Aulas (16)", aliases: ["aulas", "aula"] },
-  { id: "juntas", label: "Sala de juntas", aliases: ["juntas", "sala de juntas"] },
-  { id: "admin", label: "Areas administrativas", aliases: ["admin", "administracion", "areas administrativas"] },
-  { id: "agricola", label: "Innovacion agricola (tractor y vivero)", aliases: ["agricola", "tractor", "vivero"] },
-  { id: "industrial", label: "Talleres Industrial y Calidad", aliases: ["industrial", "calidad", "industrial/calidad"] },
-];
 const SCOPE_COL = { electricidad: "#22C55E", combustible: "#EAB308", otros: "#64748B" };
 const SRC_COL = { Recibo: "#22C55E", Medicion: "#3B82F6", Encuesta: "#EAB308", Inventario: "#06B6D4", Estimacion: "#94A3B8" };
 const ST_COL = { real: "#22C55E", est: "#EAB308" };
@@ -39,10 +29,7 @@ const fN = (n, d = 1) => Number(n || 0).toLocaleString("es-MX", { minimumFractio
 const toMK = iso => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return ""; return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; };
 const toML = iso => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "-"; return `${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; };
 const toDL = iso => { const d = new Date(`${iso}T12:00:00`); if (Number.isNaN(d.getTime())) return "-"; return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`; };
-function normSrc(s) { const t = String(s || "").toLowerCase(); if (t.includes("recibo") || t.includes("cfe")) return "Recibo"; if (t.includes("medi")) return "Medicion"; if (t.includes("encu")) return "Encuesta"; if (t.includes("inven")) return "Inventario"; if (t.includes("estim")) return "Estimacion"; return "Medicion"; }
-function normCat(r) { const c = String(r?.category || "").toLowerCase(), u = String(r?.unit || "").toLowerCase(); if (c.includes("elec") || u === "kwh") return "electricidad"; if (c.includes("comb") || u === "l" || u === "lt" || u === "litros") return "combustible"; return c === "otros" ? "otros" : "electricidad"; }
-function normArea(raw) { const t = String(raw || "").toLowerCase().trim(); return AREA_DEFS.find(a => a.aliases.some(al => t.includes(al))) || AREA_DEFS[0]; }
-function toNormRec(inp, fid) { const area = normArea(inp?.area), cat = normCat(inp), unit = String(inp?.unit || (cat === "combustible" ? "L" : cat === "electricidad" ? "kWh" : "unidad")), val = Number(inp?.value) || 0, fac = Number(inp?.factor) > 0 ? Number(inp?.factor) : cat === "combustible" ? 2.68 : cat === "electricidad" ? 0.435 : 1, co2 = Number(inp?.co2e_kg) > 0 ? Number(inp?.co2e_kg) : val * fac, isEst = Boolean(inp?.isEstimated) || inp?.status === "est"; return { id: String(inp?.id || fid), dateISO: String(inp?.dateISO || new Date().toISOString().slice(0, 10)), areaId: area.id, areaLabel: area.label, category: cat, unit, value: val, factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, isEstimated: isEst, status: isEst ? "est" : "real", source: normSrc(inp?.source), activity: String(inp?.activity || "Sin actividad"), note: String(inp?.note || ""), evidenceUrl: String(inp?.evidenceUrl || inp?.evidence || ""), fuelType: String(inp?.fuelType || "") }; }
+
 function matchPer(r, pm, mo, yr, fd2, td) { if (pm === "mes") return toMK(r.dateISO) === `${yr}-${String(mo).padStart(2, "0")}`; const t = new Date(`${r.dateISO}T12:00:00`).getTime(); if (fd2 && t < new Date(`${fd2}T00:00:00`).getTime()) return false; if (td && t > new Date(`${td}T23:59:59`).getTime()) return false; return true; }
 function runF(recs, f) { return recs.filter(r => { if (!matchPer(r, f.periodMode, f.month, f.year, f.fromDate, f.toDate)) return false; if (f.category && r.category !== f.category) return false; if (f.status && r.status !== f.status) return false; if (f.source && r.source !== f.source) return false; if (f.areaId && r.areaId !== f.areaId) return false; if (f.fuelType && r.category === "combustible" && String(r.fuelType || "").toLowerCase() !== f.fuelType.toLowerCase()) return false; return true; }); }
 function buildCsv(rows) { const h = ["Fecha", "Area", "Categoria", "Actividad", "Valor", "Unidad", "Factor", "CO2e_kg", "CO2e_t", "Estado", "Fuente", "Evidencia"]; const esc = v => `"${String(v ?? "").replaceAll('"', '""')}"`; const b = rows.map(r => [r.dateISO, r.areaLabel, r.category, r.activity, r.value, r.unit, r.factor, r.co2e_kg, r.co2e_t, r.status === "real" ? "Real" : "Estimado", r.source, r.evidenceUrl || "-"]); return [h.map(esc).join(","), ...b.map(row => row.map(esc).join(","))].join("\n"); }
@@ -276,25 +263,26 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
    ═══════════════════════════════════════════════════════════════ */
 export default function AreasPage({ onOpenRecord }) {
   const navigate = useNavigate(), location = useLocation(), today = new Date();
-  const [records, setRecords] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [toast, setToast] = useState(null); const [drill, setDrill] = useState(null);
+  const [records, setRecords] = useState([]); const [areas, setAreas] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [toast, setToast] = useState(null); const [drill, setDrill] = useState(null);
   const [filters, setFilters] = useState({ periodMode: "mes", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", areaId: "", fuelType: "" });
   const [filtersOpen, setFiltersOpen] = useState(true); const [hovRow, setHovRow] = useState(null);
 
   const areaId = useMemo(() => { const m = location.pathname.match(/^\/areas\/([^/]+)/); return m ? m[1] : null; }, [location.pathname]);
-  const isDetail = Boolean(areaId); const activeArea = AREA_DEFS.find(a => a.id === areaId) || null;
+  const isDetail = Boolean(areaId); const activeArea = areas.find(a => a.code === areaId) || null;
   const activeFC = useMemo(() => [filters.category, filters.status, filters.source, filters.fuelType].filter(Boolean).length, [filters]);
 
   const reload = useCallback(async () => {
     setLoading(true);
     const data = await fetchAreasRecords();
     setRecords(data.records.sort((a, b) => b.dateISO.localeCompare(a.dateISO)));
+    if (data.areas?.length) setAreas(data.areas);
     setError(data.error);
     setLoading(false);
   }, []);
   useEffect(() => { reload(); }, [reload]);
   useEffect(() => { const h = () => { reload(); setToast({ title: "Actualización", message: "Registro guardado." }); }; window.addEventListener("carbontrack:newrecord", h); window.addEventListener("storage", h); return () => { window.removeEventListener("carbontrack:newrecord", h); window.removeEventListener("storage", h); }; }, [reload]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }, [toast]);
-  useEffect(() => { if (isDetail && !activeArea) navigate("/areas", { replace: true }); }, [isDetail, activeArea, navigate]);
+  useEffect(() => { if (!loading && areas.length > 0 && isDetail && !activeArea) navigate("/areas", { replace: true }); }, [loading, areas, isDetail, activeArea, navigate]);
 
   const listF = useMemo(() => runF(records, { ...filters, areaId: "", fuelType: "" }), [records, filters]);
   const detailF = useMemo(() => runF(records, { ...filters, areaId: areaId || "", fuelType: filters.category === "combustible" ? filters.fuelType : "" }), [records, filters, areaId]);
@@ -306,7 +294,7 @@ export default function AreasPage({ onOpenRecord }) {
   const gKpis = useMemo(() => { const tot = visList.reduce((s, r) => s + r.co2e_t, 0); const s2 = visList.filter(r => r.category === "electricidad").reduce((s, r) => s + r.co2e_t, 0); const s1 = visList.filter(r => r.category === "combustible").reduce((s, r) => s + r.co2e_t, 0); const pR = visList.length ? Math.round((visList.filter(r => r.status === "real").length / visList.length) * 100) : 0; let ch = "-"; if (filters.periodMode === "mes") { const pm = filters.month === 1 ? 12 : filters.month - 1, py = filters.month === 1 ? filters.year - 1 : filters.year; const prev = runF(records, { ...filters, month: pm, year: py, areaId: "", fuelType: "" }).reduce((s, r) => s + r.co2e_t, 0); if (prev > 0) { const d = ((tot - prev) / prev) * 100; ch = `${d > 0 ? "+" : ""}${fN(d, 1)}%`; } } return { total: tot, scope2: s2, scope1: s1, pctReal: pR, change: ch }; }, [visList, filters, records]);
 
   /* ─── Area cards ─── */
-  const areaCards = useMemo(() => AREA_DEFS.map(area => { const rows = visList.filter(r => r.areaId === area.id); const allRows = records.filter(r => r.areaId === area.id); const tot = rows.reduce((s, r) => s + r.co2e_t, 0); const elec = rows.filter(r => r.category === "electricidad").reduce((s, r) => s + r.co2e_t, 0); const fuel = rows.filter(r => r.category === "combustible").reduce((s, r) => s + r.co2e_t, 0); const real = rows.filter(r => r.status === "real").length; const est = rows.filter(r => r.status === "est").length; const lastDate = (allRows[0]?.dateISO) || rows[0]?.dateISO || ""; return { ...area, totalT: tot, elec, fuel, dominant: real >= est ? "real" : "est", pctReal: rows.length ? Math.round((real / rows.length) * 100) : 0, rowCount: rows.length, lastDate }; }), [visList, records]);
+  const areaCards = useMemo(() => areas.map(area => { const rows = visList.filter(r => r.areaId === area.code); const allRows = records.filter(r => r.areaId === area.code); const tot = rows.reduce((s, r) => s + r.co2e_t, 0); const elec = rows.filter(r => r.category === "electricidad").reduce((s, r) => s + r.co2e_t, 0); const fuel = rows.filter(r => r.category === "combustible").reduce((s, r) => s + r.co2e_t, 0); const real = rows.filter(r => r.status === "real").length; const est = rows.filter(r => r.status === "est").length; const lastDate = (allRows[0]?.dateISO) || rows[0]?.dateISO || ""; return { ...area, id: area.code, label: area.name, totalT: tot, elec, fuel, dominant: real >= est ? "real" : "est", pctReal: rows.length ? Math.round((real / rows.length) * 100) : 0, rowCount: rows.length, lastDate }; }), [areas, visList, records]);
 
   /* ─── List charts ─── */
   const areaBars = useMemo(() => areaCards.map(a => ({ areaId: a.id, area: a.label, co2e: a.totalT })), [areaCards]);
@@ -375,7 +363,7 @@ export default function AreasPage({ onOpenRecord }) {
   /* ═══ DETAIL VIEW ═══ */
   const renderDetail = () => (<>
     <div style={{ marginBottom: 14, animation: "ctUp .3s ease-out" }}><button onClick={() => navigate("/areas")} style={{ ...btnS, height: 32, fontSize: 12 }} onMouseEnter={hS} onMouseLeave={lS}><ChevronLeft size={12} />Volver a Áreas</button></div>
-    <FiltersHeader title={`Área: ${activeArea?.label || ""}`} titleIcon={<Building2 size={18} color="white" />} microcopy="Revisa consumo y emisiones. Clic en gráficas para filtrar." showFuelFilter={filters.category === "combustible"} {...fhProps} />
+    <FiltersHeader title={`Área: ${activeArea?.name || activeArea?.label || ""}`} titleIcon={<Building2 size={18} color="white" />} microcopy="Revisa consumo y emisiones. Clic en gráficas para filtrar." showFuelFilter={filters.category === "combustible"} {...fhProps} />
 
     <SectionLabel icon={<Leaf size={14} />} delay={100}>Indicadores del área</SectionLabel>
     <div className="ct-kpi-g" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 24 }}>
