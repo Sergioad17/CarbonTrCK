@@ -6,6 +6,7 @@ import { fetchScopeCombustibleRecords } from "../api/scopeCombustible";
 import { archiveEmissionRecord } from "../api/records";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
+import { getSession } from "../lib/sessionStore";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -26,6 +27,33 @@ const ANIM_CSS = `
 const ST_C={real:{bg:"var(--eco-success-bg)",c:"var(--eco-success)",b:"#BBF7D0",l:"Real"},est:{bg:"var(--eco-warning-bg)",c:"var(--eco-secondary-600)",b:"#FDE68A",l:"Estimado"}};
 const TR_C={up:{c:"var(--eco-danger)",i:<TrendingUp size={13}/>,bg:"var(--eco-danger-bg)"},down:{c:"var(--eco-success)",i:<TrendingDown size={13}/>,bg:"var(--eco-success-bg)"},neutral:{c:"var(--eco-gray-500)",i:<Minus size={13}/>,bg:"var(--eco-gray-100)"}};
 const ST_ACC={warning:{c:"var(--eco-warning)",b:"#FDE68A"},danger:{c:"var(--eco-danger)",b:"#FECACA"},success:{c:"var(--eco-success)",b:"#BBF7D0"}};
+
+/* ═══ AUTH-AWARE IMAGE ═══ */
+function getAuthToken(){return getSession()?.token||null;}
+function EvidenceImage({url,accentColor="var(--eco-secondary-600)"}){
+  const[src,setSrc]=useState(null);const[failed,setFailed]=useState(false);
+  useEffect(()=>{
+    if(!url||!url.startsWith("http"))return;
+    let objUrl=null;const token=getAuthToken();
+    fetch(url,token?{headers:{Authorization:`Bearer ${token}`}}:{})
+      .then(r=>r.ok?r.blob():Promise.reject())
+      .then(blob=>{if(!blob.type.startsWith("image/")){setFailed(true);return;}objUrl=URL.createObjectURL(blob);setSrc(objUrl);})
+      .catch(()=>setFailed(true));
+    return()=>{if(objUrl)URL.revokeObjectURL(objUrl);};
+  },[url]);
+  if(!url||!url.startsWith("http")||failed||!src)return null;
+  return(
+    <div style={{borderRadius:"var(--eco-radius-sm)",overflow:"hidden",border:"1px solid var(--eco-border)",animation:"ctFadeUp .35s ease-out both"}}>
+      <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",background:"var(--eco-gray-50)",borderBottom:"1px solid var(--eco-border)"}}>
+        <Paperclip size={11} style={{color:accentColor,flexShrink:0}}/>
+        <span style={{fontFamily:fb,fontSize:11,fontWeight:600,color:"var(--eco-gray-500)"}}>Evidencia adjunta</span>
+      </div>
+      <div style={{background:"var(--eco-gray-100)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <img src={src} alt="Evidencia" style={{width:"100%",maxHeight:260,objectFit:"contain",display:"block"}}/>
+      </div>
+    </div>
+  );
+}
 
 /* ═══ HOOKS ═══ */
 function useCountUp(target,dur=650){const[v,setV]=useState(0);const ref=useRef(null);useEffect(()=>{let s=null;const ease=t=>1-Math.pow(1-t,3);const step=ts=>{if(!s)s=ts;const p=Math.min((ts-s)/dur,1);setV(ease(p)*target);if(p<1)ref.current=requestAnimationFrame(step);else setV(target);};ref.current=requestAnimationFrame(step);return()=>ref.current&&cancelAnimationFrame(ref.current);},[target,dur]);return v;}
@@ -480,7 +508,18 @@ export default function ScopeCombustiblePage({onOpenRecord}){
           )}
         </div>
 
-        <div style={{background:"white",border:"1px solid var(--eco-border)",borderRadius:"var(--eco-radius-md)",padding:12}}>
+        <div style={{background:"var(--eco-surface, white)",border:"1px solid var(--eco-border)",borderRadius:"var(--eco-radius-md)",padding:14,display:"flex",flexDirection:"column",gap:12,animation:"ctFadeUp .3s ease-out 120ms both"}}>
+          <p style={{margin:0,fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)"}}>Detalle capturado</p>
+
+          <EvidenceImage url={drill.evidenceUrl} accentColor="var(--eco-secondary-600)" />
+
+          <div style={{padding:"10px 12px",borderRadius:"var(--eco-radius-sm)",background:"var(--eco-gray-50)",border:"1px solid var(--eco-gray-100)"}}>
+            <p style={{margin:"0 0 4px",fontFamily:fb,fontSize:11,fontWeight:600,color:"var(--eco-gray-500)"}}>Actividad / descripción</p>
+            <p style={{margin:0,fontFamily:fb,fontSize:12.5,color:"var(--eco-gray-700)",lineHeight:1.6}}>{drill.activity||"Sin actividad registrada."}</p>
+          </div>
+        </div>
+
+        <div style={{background:"var(--eco-surface, white)",border:"1px solid var(--eco-border)",borderRadius:"var(--eco-radius-md)",padding:12}}>
           <p style={{margin:"0 0 8px",fontFamily:fd,fontSize:13,fontWeight:700,color:"var(--eco-gray-700)",display:"flex",alignItems:"center",gap:6}}><Filter size={12}/>Filtros activos</p>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{summaryFilters.map(item=><span key={item} style={{fontFamily:fb,fontSize:11,fontWeight:500,padding:"3px 8px",borderRadius:"var(--eco-radius-full)",background:"var(--eco-gray-100)",color:"var(--eco-gray-600)"}}>{item}</span>)}</div>
         </div>

@@ -30,7 +30,7 @@ CROSS JOIN (
   VALUES
     ('ADM', 'Administracion'),
     ('LAB', 'Laboratorio'),
-    ('PLANTA', 'Planta piloto')
+    ('CC1', 'Centro de computo 1')
 ) AS x(code, name)
 ON CONFLICT (campus_id,code) DO NOTHING;
 

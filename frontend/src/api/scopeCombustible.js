@@ -29,6 +29,7 @@ function normalizeFuelRecord(record, fallbackId) {
     source: String(record?.source || "Medicion"),
     equipment: String(record?.equipment || inferEquipment(record?.activity || "")),
     evidence: String(record?.evidence || record?.evidenceUrl || ""),
+    evidenceUrl: String(record?.evidenceUrl || ""),
   };
 }
 

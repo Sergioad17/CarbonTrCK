@@ -3,7 +3,7 @@ import {
   Zap, Plus, Download, Eye, Calendar, RotateCcw, FileX, ExternalLink, Trash2, X,
   CheckCircle2, TrendingUp, TrendingDown, Minus, Gauge, Activity, ChevronRight,
   ChevronDown, ChevronUp, ChevronLeft, Filter, AlertTriangle, Building2,
-  Search, ArrowRight,
+  Search, ArrowRight, Paperclip,
 } from "lucide-react";
 import {
   LineChart, Line, BarChart, Bar, PieChart as RPieChart, Pie, Cell,
@@ -14,6 +14,7 @@ import { createNotification } from "../api/notifications";
 import { archiveEmissionRecord, fetchEmissionRecords } from "../api/records";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
+import { getSession } from "../lib/sessionStore";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -35,6 +36,35 @@ const ST_C = { real: { bg:"var(--eco-success-bg)", c:"var(--eco-success)", b:"#B
 const TR_C = { up: { c:"var(--eco-danger)", i:<TrendingUp size={13}/>, bg:"var(--eco-danger-bg)" }, down: { c:"var(--eco-success)", i:<TrendingDown size={13}/>, bg:"var(--eco-success-bg)" }, neutral: { c:"var(--eco-gray-500)", i:<Minus size={13}/>, bg:"var(--eco-gray-100)" } };
 const ST_ACC = { warning: { c:"var(--eco-warning)", b:"#FDE68A" }, danger: { c:"var(--eco-danger)", b:"#FECACA" }, success: { c:"var(--eco-success)", b:"#BBF7D0" } };
 
+/* ═══ AUTH-AWARE IMAGE ═══ */
+function getAuthToken() { return getSession()?.token || null; }
+function EvidenceImage({ url, accentColor = "var(--eco-info)" }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!url || !url.startsWith("http")) return;
+    let objUrl = null;
+    const token = getAuthToken();
+    fetch(url, token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+      .then(r => r.ok ? r.blob() : Promise.reject())
+      .then(blob => { if (!blob.type.startsWith("image/")) { setFailed(true); return; } objUrl = URL.createObjectURL(blob); setSrc(objUrl); })
+      .catch(() => setFailed(true));
+    return () => { if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [url]);
+  if (!url || !url.startsWith("http") || failed || !src) return null;
+  return (
+    <div style={{ borderRadius: "var(--eco-radius-sm)", overflow: "hidden", border: "1px solid var(--eco-border)", animation: "ctFadeUp .35s ease-out both" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--eco-gray-50)", borderBottom: "1px solid var(--eco-border)" }}>
+        <Paperclip size={11} style={{ color: accentColor, flexShrink: 0 }} />
+        <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-gray-500)" }}>Evidencia adjunta</span>
+      </div>
+      <div style={{ background: "var(--eco-gray-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <img src={src} alt="Evidencia" style={{ width: "100%", maxHeight: 260, objectFit: "contain", display: "block" }} />
+      </div>
+    </div>
+  );
+}
+
 /* ═══ HOOKS ═══ */
 function useCountUp(target, dur = 650) {
   const [v, setV] = useState(0); const ref = useRef(null);
@@ -54,7 +84,7 @@ function normRec(r, fid) {
   const kwh = Number.isFinite(Number(r?.value)) ? Number(r.value) : 0;
   const fac = Number.isFinite(Number(r?.factor)) && Number(r?.factor) > 0 ? Number(r.factor) : 0.435;
   const co2 = Number.isFinite(Number(r?.co2e_kg)) && Number(r?.co2e_kg) > 0 ? Number(r.co2e_kg) : kwh * fac;
-  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), note: String(r?.note || ""), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-") };
+  return { id: r?.id || fid, dateISO: String(r?.dateISO || ""), area: String(r?.area || "Sin área"), activity: String(r?.activity || "Sin actividad"), note: String(r?.note || ""), category: "electricidad", value: kwh, unit: "kWh", factor: fac, co2e_kg: co2, co2e_t: co2 / 1000, status: r?.status === "est" ? "est" : "real", source: String(r?.source || "Medición"), by: String(r?.by || "-"), evidenceUrl: String(r?.evidenceUrl || "") };
 }
 
 async function loadElec() {
@@ -639,8 +669,10 @@ export default function Scope2Page({ onOpenRecord }) {
           )}
         </div>
 
-        <div style={{ background: "white", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", padding: 14, display: "flex", flexDirection: "column", gap: 12, animation: "ctFadeUp .3s ease-out 120ms both" }}>
+        <div style={{ background: "var(--eco-surface, white)", border: "1px solid var(--eco-border)", borderRadius: "var(--eco-radius-md)", padding: 14, display: "flex", flexDirection: "column", gap: 12, animation: "ctFadeUp .3s ease-out 120ms both" }}>
           <p style={{ margin: 0, fontFamily: fd, fontSize: 13, fontWeight: 700, color: "var(--eco-gray-700)" }}>Detalle capturado</p>
+
+          <EvidenceImage url={drill.evidenceUrl} accentColor="var(--eco-info)" />
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ padding: "10px 12px", borderRadius: "var(--eco-radius-sm)", background: "var(--eco-gray-50)", border: "1px solid var(--eco-gray-100)" }}>
