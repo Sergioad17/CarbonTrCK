@@ -1,0 +1,136 @@
+/* Fingerprint login animation — used en el success screen del LoginPage */
+
+.ct-fp-container {
+  align-items: center;
+  background: var(--eco-primary-600, #16a34a);
+  border-radius: 40px;
+  box-shadow:
+    0 14px 28px rgba(12, 46, 26, 0.45),
+    0 10px 10px rgba(12, 46, 26, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  display: flex;
+  height: 80px;
+  justify-content: center;
+  position: relative;
+  width: 100px;
+  font-family: var(--eco-font-display, sans-serif);
+  font-weight: 600;
+  font-size: 21px;
+}
+
+.ct-fp-container .ct-fp-text {
+  color: #ffffff;
+  position: absolute;
+  transition: opacity 300ms;
+  user-select: none;
+  -moz-user-select: none;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.ct-fp-container .ct-fp-fingerprint {
+  left: -8px;
+  opacity: 0;
+  position: absolute;
+  stroke: rgba(255, 255, 255, 0.45);
+  top: -9px;
+  transition: opacity 1ms;
+}
+
+.ct-fp-container .ct-fp-fingerprint-active {
+  stroke: #ffffff;
+}
+
+.ct-fp-container .ct-fp-fingerprint-out {
+  opacity: 1;
+}
+
+.ct-fp-container .ct-fp-odd {
+  stroke-dasharray: 0px 50px;
+  stroke-dashoffset: 1px;
+  transition: stroke-dasharray 1ms;
+}
+
+.ct-fp-container .ct-fp-even {
+  stroke-dasharray: 50px 50px;
+  stroke-dashoffset: -41px;
+  transition: stroke-dashoffset 1ms;
+}
+
+.ct-fp-container .ct-fp-ok {
+  opacity: 0;
+}
+
+/* Active state — animación corriendo (7s total, texto visible ~1.4s al inicio) */
+.ct-fp-container.ct-fp-active {
+  animation: 7s ctFpContainer;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-text {
+  opacity: 0;
+  animation: 7s ctFpText forwards;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint {
+  opacity: 1;
+  transition: opacity 300ms 1200ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint-base .ct-fp-odd {
+  stroke-dasharray: 50px 50px;
+  transition: stroke-dasharray 800ms 1100ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint-base .ct-fp-even {
+  stroke-dashoffset: 0px;
+  transition: stroke-dashoffset 800ms 1000ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint-active .ct-fp-odd {
+  stroke-dasharray: 50px 50px;
+  transition: stroke-dasharray 2000ms 2500ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint-active .ct-fp-even {
+  stroke-dashoffset: 0px;
+  transition: stroke-dashoffset 2000ms 2300ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-fingerprint-out {
+  opacity: 0;
+  transition: opacity 300ms 5100ms;
+}
+
+.ct-fp-container.ct-fp-active .ct-fp-ok {
+  opacity: 1;
+  animation: 7s ctFpOk forwards;
+}
+
+@keyframes ctFpContainer {
+  0%   { width: 210px; }
+  14%  { width: 210px; }
+  20%  { width: 80px;  }
+  75%  { transform: scale(1);   }
+  78%  { transform: scale(1.2); }
+  80%  { transform: scale(1);   }
+  95%  { width: 80px;  }
+  100% { width: 210px; }
+}
+
+@keyframes ctFpText {
+  0%   { opacity: 1; transform: scale(1);   }
+  14%  { opacity: 1; transform: scale(1);   }
+  20%  { opacity: 0; transform: scale(0.5); }
+  95%  { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 1; transform: scale(1);   }
+}
+
+@keyframes ctFpOk {
+  0%   { opacity: 0; }
+  74%  { opacity: 0; transform: scale(0);   }
+  78%  { opacity: 1; transform: scale(1.1); }
+  80%  { opacity: 1; transform: scale(1);   }
+  93%  { opacity: 1; transform: scale(1);   }
+  97%  { opacity: 0; transform: scale(0.5); }
+  100% { opacity: 0; }
+}
