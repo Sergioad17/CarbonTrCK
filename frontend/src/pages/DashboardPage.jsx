@@ -707,7 +707,8 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
   const stC = {
     success: "var(--eco-success)",
     warning: "var(--eco-warning)",
-    danger: "var(--eco-danger)"
+    danger: "var(--eco-danger)",
+    info: "var(--eco-info)"
   };
   const sparkPts = spark?.length > 1 ? (() => {
     const mx = Math.max(...spark),
@@ -733,7 +734,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       background: "white",
       borderRadius: "var(--eco-radius-lg)",
       padding: 20,
-      border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : "var(--eco-border)"}`,
+      border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : status === "success" ? "#BBF7D0" : status === "info" ? "#BFDBFE" : "var(--eco-border)"}`,
       boxShadow: "var(--eco-shadow-sm)",
       cursor: onClick ? "pointer" : "default",
       transition: "all 250ms cubic-bezier(0.33,1,0.68,1)",
@@ -2252,6 +2253,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 iconColor="var(--eco-info)"
                 delta={summarizeEmissions.scope2Delta}
                 trend={summarizeEmissions.scope2Delta < 0 ? "down" : summarizeEmissions.scope2Delta > 0 ? "up" : "neutral"}
+                status="info"
                 onClick={() => setDrill({ type: "scope2" })}
                 delay={60}
                 spark={scope2Spark}
@@ -2266,7 +2268,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 iconColor="var(--eco-secondary-600)"
                 delta={summarizeEmissions.scope1Delta}
                 trend={summarizeEmissions.scope1Delta < 0 ? "down" : summarizeEmissions.scope1Delta > 0 ? "up" : "neutral"}
-                status={summarizeEmissions.scope1Delta > 0 ? "warning" : "success"}
+                status="warning"
                 spark={scope1Spark}
                 onClick={() => setDrill({ type: "scope1" })}
                 delay={120}

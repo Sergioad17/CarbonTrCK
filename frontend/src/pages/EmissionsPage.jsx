@@ -215,7 +215,7 @@ function Kpi({
     neutral: { i: <Minus size={13} />, c: "var(--eco-gray-500)" },
   }[trend || "neutral"];
 
-  const stC = { success: "var(--eco-success)", warning: "var(--eco-warning)", danger: "var(--eco-danger)" };
+  const stC = { success: "var(--eco-success)", warning: "var(--eco-warning)", danger: "var(--eco-danger)", info: "var(--eco-info)" };
 
   return (
     <div
@@ -227,7 +227,17 @@ function Kpi({
         borderRadius: "var(--eco-radius-lg)",
         padding: 20,
         border: `1.5px solid ${
-          active ? "var(--eco-primary-400)" : status === "warning" ? "#FDE68A" : "var(--eco-border)"
+          active
+            ? "var(--eco-primary-400)"
+            : status === "warning"
+            ? "#FDE68A"
+            : status === "success"
+            ? "#BBF7D0"
+            : status === "info"
+            ? "#BFDBFE"
+            : status === "danger"
+            ? "#FECACA"
+            : "var(--eco-border)"
         }`,
         boxShadow: active ? "0 0 0 3px var(--eco-primary-100)" : "var(--eco-shadow-sm)",
         cursor: onClick ? "pointer" : "default",
@@ -1303,6 +1313,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             icon={<Zap size={19} />}
             iconBg="var(--eco-info-bg)"
             iconColor="var(--eco-info)"
+            status="info"
             delay={60}
             active={fCat === "electricidad"}
             onClick={() => {
@@ -1319,6 +1330,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
             icon={<Flame size={19} />}
             iconBg="var(--eco-secondary-50)"
             iconColor="var(--eco-secondary-600)"
+            status="warning"
             delay={120}
             active={fCat === "combustible"}
             onClick={() => {
