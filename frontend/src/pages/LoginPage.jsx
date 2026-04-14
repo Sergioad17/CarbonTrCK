@@ -82,8 +82,8 @@ export default function LoginPage({ onLogin }) {
     if (e.key === "Enter") { forgotMode ? handleForgot() : handleLogin() }
   }
   const errorMessages = {
-    credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseÃ±a no coinciden. Verifica e intenta de nuevo." },
-    backend_not_configured: { title: "Backend no disponible", desc: "La autenticaciÃ³n requiere una API configurada y accesible." },
+    credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseña no coinciden. Verifica e intenta de nuevo." },
+    backend_not_configured: { title: "Backend no disponible", desc: "La autenticación requiere una API configurada y accesible." },
   }
 
   useEffect(() => {

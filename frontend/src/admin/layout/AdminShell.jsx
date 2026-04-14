@@ -36,9 +36,8 @@ export default function AdminShell({ activeView, onNavigate, children }) {
   return (
     <>
       <style>{ADMIN_CSS}</style>
-      <div style={{
+      <div className="eco-pattern3" style={{
         display: "flex", height: "100%", minHeight: 0,
-        background: "var(--eco-bg, #F8FAFC)",
       }}>
         {/* Sub-navigation panel */}
         <div className="admin-shell-subnav">
