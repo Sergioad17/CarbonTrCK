@@ -35,6 +35,7 @@ function normalizeUserPayload(input = {}) {
     areaAccess: normalizeAreaAccess(input.areaAccess),
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
     lastLoginAt: input.lastLoginAt || null,
+    previousLoginAt: input.previousLoginAt || null,
     notes: String(input.notes || "").trim(),
   };
 }
@@ -96,7 +97,11 @@ export async function hydrateCurrentUser() {
 
   try {
     const payload = await apiRequest("/auth/me", { method: "GET" });
-    const user = normalizeUserPayload(payload?.user || payload?.data?.user || payload?.data || payload);
+    const rawUser = payload?.user || payload?.data?.user || payload?.data || payload;
+    const user = normalizeUserPayload({
+      ...rawUser,
+      previousLoginAt: rawUser?.previousLoginAt || currentSession.user?.previousLoginAt || null,
+    });
     setSession({
       ...currentSession,
       userId: user.id,

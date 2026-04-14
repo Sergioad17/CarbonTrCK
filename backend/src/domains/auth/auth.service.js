@@ -139,6 +139,7 @@ export async function loginService(payload, auditContext, env) {
   }
 
   const user = await getUserAuthorizationContext(userRecord.id);
+  const previousLoginAt = user?.lastLoginAt || null;
   const sessionId = crypto.randomUUID();
   const accessToken = signAccessToken(buildTokenPayload(user, sessionId));
   const refreshToken = signRefreshToken(buildTokenPayload(user, sessionId));
@@ -185,7 +186,7 @@ export async function loginService(payload, auditContext, env) {
 
   const freshUser = await getUserAuthorizationContext(user.id);
   return {
-    user: freshUser,
+    user: { ...freshUser, previousLoginAt },
     token: accessToken,
     refreshToken,
   };

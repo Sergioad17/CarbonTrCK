@@ -1,23 +1,17 @@
-import { applySettings, normalizeSettings, resolveTheme } from "../lib/settingsStore";
+import { applySettings, getSettings, normalizeSettings, resolveTheme, saveSettings } from "../lib/settingsStore";
 import { apiRequest } from "./httpClient";
 import { isBackendConfigured } from "./config";
 import { fetchSession } from "./session";
 
 const DEFAULT_CACHE = normalizeSettings({});
-let settingsCache = DEFAULT_CACHE;
-
-function emitSettingsChanged(nextSettings) {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent("carbontrack:settings-changed", { detail: nextSettings }));
-}
+let settingsCache = (typeof window !== "undefined" ? getSettings() : DEFAULT_CACHE);
 
 function extractSettings(payload) {
   return payload?.settings || payload?.item || payload?.data?.settings || payload?.data?.item || payload?.data || payload;
 }
 
 function syncMemoryCache(nextSettings) {
-  settingsCache = normalizeSettings(nextSettings);
-  emitSettingsChanged(settingsCache);
+  settingsCache = saveSettings(nextSettings);
   return settingsCache;
 }
 

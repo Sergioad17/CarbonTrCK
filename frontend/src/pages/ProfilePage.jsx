@@ -899,7 +899,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               <InfoRow label="Acceso" value={areaLabel} icon={Globe} />
               <InfoRow label="Campus" value={profile.campusCode || "Sin campus asignado"} icon={Shield} />
               <InfoRow label="Estado" value={profile.isActive ? "Activo" : "Inactivo"} icon={CheckCircle2} />
-              <InfoRow label="Último acceso" value={formatDateTime(profile.lastLoginAt || session?.createdAt)} icon={Clock} />
+              <InfoRow label="Último acceso" value={formatDateTime(profile.previousLoginAt)} icon={Clock} />
             </div>
 
             {/* Edit button */}
@@ -1217,7 +1217,7 @@ export default function ProfilePage({ user, onLogout, onUserChange }) {
               />
               <div className="ct-profile-session-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 14 }}>
                 {[
-                  { label: "Último acceso", value: formatDateTime(profile.lastLoginAt || session?.createdAt) },
+                  { label: "Último acceso", value: formatDateTime(profile.previousLoginAt) },
                   { label: "Acceso actual", value: formatDateTime(session?.createdAt) },
                   { label: "Dispositivo", value: browserSummary() },
                 ].map((item) => (
