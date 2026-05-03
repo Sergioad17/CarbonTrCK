@@ -11,6 +11,7 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  app.disable("etag");
   app.use(requestIdMiddleware);
   app.use(cors({ origin: true, credentials: true }));
   app.use(express.json({ limit: "1mb" }));

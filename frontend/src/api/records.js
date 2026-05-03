@@ -1,15 +1,10 @@
 import { apiRequest } from "./httpClient";
-import { API_URL, assertBackendConfigured } from "./config";
+import { assertBackendConfigured, buildApiUrl } from "./config";
 import { getSession } from "../lib/sessionStore";
 
 function authHeaders() {
   const session = getSession();
   return session?.token ? { Authorization: `Bearer ${session.token}` } : {};
-}
-
-function buildApiUrl(path) {
-  const normalizedPath = String(path || "").startsWith("/") ? path : `/${path || ""}`;
-  return `${API_URL}${normalizedPath}`;
 }
 
 function cleanString(value, fallback = "") {

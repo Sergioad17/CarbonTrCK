@@ -15,3 +15,14 @@ export function assertBackendConfigured() {
   error.code = "backend_not_configured";
   throw error;
 }
+
+export function buildApiUrl(path) {
+  const normalizedPath = String(path || "").startsWith("/") ? String(path || "") : `/${path || ""}`;
+  const apiBase = assertBackendConfigured();
+
+  if (normalizedPath.startsWith("/api/")) {
+    return `${apiBase}${normalizedPath.slice(4)}`;
+  }
+
+  return `${apiBase}${normalizedPath}`;
+}

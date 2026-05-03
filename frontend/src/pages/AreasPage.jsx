@@ -243,10 +243,10 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
       </button>
       {filtersOpen && <div style={{ padding: "14px 16px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(155px,1fr))", gap: 10 }}>
-          <FilterSel label="Periodo" value={filters.periodMode} onChange={e => setFilters(p => ({ ...p, periodMode: e.target.value }))} icon={<Calendar size={11} />} options={[{ v: "mes", l: "Mes / Año" }, { v: "rango", l: "Rango" }]} />
+          <FilterSel label="Periodo" value={filters.periodMode} onChange={e => setFilters(p => ({ ...p, periodMode: e.target.value }))} icon={<Calendar size={11} />} options={[{ v: "todos", l: "Todos" }, { v: "mes", l: "Mes / Año" }, { v: "rango", l: "Rango" }]} />
           {filters.periodMode === "mes" ? <><FilterSel label="Mes" value={filters.month} onChange={e => setFilters(p => ({ ...p, month: Number(e.target.value) }))} options={MONTHS_ES.map((m, i) => ({ v: i + 1, l: m }))} /><FilterSel label="Año" value={filters.year} onChange={e => setFilters(p => ({ ...p, year: Number(e.target.value) }))} options={[2024, 2025, 2026, 2027].map(y => ({ v: y, l: String(y) }))} /></>
-            : <><label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Desde</span><input type="date" value={filters.fromDate} onChange={e => setFilters(p => ({ ...p, fromDate: e.target.value }))} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, outline: "none" }} onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-border)"} /></label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Hasta</span><input type="date" value={filters.toDate} onChange={e => setFilters(p => ({ ...p, toDate: e.target.value }))} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, outline: "none" }} onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-border)"} /></label></>}
+            : filters.periodMode === "rango" ? <><label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Desde</span><input type="date" value={filters.fromDate} onChange={e => setFilters(p => ({ ...p, fromDate: e.target.value }))} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, outline: "none" }} onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-border)"} /></label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 5 }}><span style={{ fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-gray-500)" }}>Hasta</span><input type="date" value={filters.toDate} onChange={e => setFilters(p => ({ ...p, toDate: e.target.value }))} style={{ height: 36, borderRadius: "var(--eco-radius-md)", border: "1px solid var(--eco-border)", padding: "0 10px", fontFamily: fb, fontSize: 13, outline: "none" }} onFocus={e => e.target.style.borderColor = "var(--eco-primary-300)"} onBlur={e => e.target.style.borderColor = "var(--eco-border)"} /></label></> : null}
           <FilterSel label="Categoría" value={filters.category} onChange={e => setFilters(p => ({ ...p, category: e.target.value }))} options={[{ v: "", l: "Todas" }, { v: "electricidad", l: "Electricidad" }, { v: "combustible", l: "Combustible" }, { v: "otros", l: "Otros" }]} />
           <FilterSel label="Estado" value={filters.status} onChange={e => setFilters(p => ({ ...p, status: e.target.value }))} options={[{ v: "", l: "Todos" }, { v: "real", l: "Real" }, { v: "est", l: "Estimado" }]} />
           <FilterSel label="Fuente" value={filters.source} onChange={e => setFilters(p => ({ ...p, source: e.target.value }))} options={[{ v: "", l: "Todas" }, ...Object.keys(SRC_COL).map(s => ({ v: s, l: s }))]} />
@@ -264,7 +264,7 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
 export default function AreasPage({ onOpenRecord }) {
   const navigate = useNavigate(), location = useLocation(), today = new Date();
   const [records, setRecords] = useState([]); const [areas, setAreas] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [toast, setToast] = useState(null); const [drill, setDrill] = useState(null);
-  const [filters, setFilters] = useState({ periodMode: "mes", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", areaId: "", fuelType: "" });
+  const [filters, setFilters] = useState({ periodMode: "todos", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", areaId: "", fuelType: "" });
   const [filtersOpen, setFiltersOpen] = useState(true); const [hovRow, setHovRow] = useState(null);
 
   const areaId = useMemo(() => { const m = location.pathname.match(/^\/areas\/([^/]+)/); return m ? m[1] : null; }, [location.pathname]);
@@ -313,7 +313,7 @@ export default function AreasPage({ onOpenRecord }) {
   const topDStatus = dStatus.reduce((a, b) => b.pct > a.pct ? b : a, dStatus[0] || { pct: 0, name: "Estado" });
   const sortedDR = useMemo(() => [...detailF].sort((a, b) => b.dateISO.localeCompare(a.dateISO)), [detailF]);
 
-  const clearF = () => setFilters(p => ({ ...p, periodMode: "mes", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", fuelType: "" }));
+  const clearF = () => setFilters(p => ({ ...p, periodMode: "todos", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", fuelType: "" }));
   const exportCur = () => { const rows = isDetail ? sortedDR : listF; const name = isDetail ? `areas-${areaId}-${new Date().toISOString().slice(0, 10)}.csv` : `areas-resumen-${new Date().toISOString().slice(0, 10)}.csv`; dlCsv(name, rows); setToast({ title: "Exportación", message: "CSV exportado." }); };
   const openTrace = (row = null) => setDrill({ row: row || curRows[0] || null });
   const navCat = cat => { navigate(cat === "combustible" ? "/scope/combustible" : "/scope/electricidad"); setDrill(null); };
@@ -418,7 +418,7 @@ export default function AreasPage({ onOpenRecord }) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Área: {activeArea?.label || "Global"}</p>
             <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Registros: {curRows.length}</p>
-            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Periodo: {filters.periodMode === "mes" ? `${MONTHS_ES[filters.month - 1]} ${filters.year}` : `${filters.fromDate || "-"} a ${filters.toDate || "-"}`}</p>
+            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Periodo: {filters.periodMode === "mes" ? `${MONTHS_ES[filters.month - 1]} ${filters.year}` : filters.periodMode === "rango" ? `${filters.fromDate || "-"} a ${filters.toDate || "-"}` : "Todo el periodo"}</p>
             <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-gray-600)" }}>Estado: {filters.status ? filters.status === "real" ? "Real" : "Estimado" : "Todos"}</p>
           </div>
         </div>

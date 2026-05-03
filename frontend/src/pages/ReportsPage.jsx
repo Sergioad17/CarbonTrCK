@@ -113,7 +113,7 @@ export default function ReportsPage(){
   const[previewRows,setPreviewRows]=useState([]);const[summary,setSummary]=useState(null);
   const[traceOpen,setTraceOpen]=useState(false);const[hovRow,setHovRow]=useState(null);
   const[step,setStep]=useState(1); // wizard step: 1=periodo, 2=alcance, 3=opciones
-  const[filters,setFilters]=useState({periodMode:"mes",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});
+  const[filters,setFilters]=useState({periodMode:"todos",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});
 
   const reload=useCallback(async ()=>{const ld=await loadRecs();setRecords(ld.records);setError(ld.error);},[]);
   useEffect(()=>{let active=true;(async()=>{await reload();if(active)setLoading(false);})();return()=>{active=false;};},[reload]);
@@ -125,7 +125,7 @@ export default function ReportsPage(){
 
   const onGenerate=()=>{setError("");setLoadingGen(true);setGenerated(false);try{const filtered=runF(records,filters);const s=buildSum(filtered);setPreviewRows(filtered);setSummary(s);setGenerated(true);setToast({title:"Reporte generado",message:`${filtered.length} registros procesados.`});}catch{setGenerated(false);setError("No se pudo generar el reporte.");}finally{setLoadingGen(false);}};
 
-  const onClear=()=>{setFilters({periodMode:"mes",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});setGenerated(false);setPreviewRows([]);setSummary(null);setError("");setStep(1);};
+  const onClear=()=>{setFilters({periodMode:"todos",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});setGenerated(false);setPreviewRows([]);setSummary(null);setError("");setStep(1);};
 
   const onDownload=()=>{if(!canDownload||!summary)return;const pp=filters.periodMode==="mes"?`${filters.year}-${String(filters.month).padStart(2,"0")}`:`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;const name=`carbontrack_reporte_${filters.category}_${filters.area}_${pp}.csv`;
     if(filters.detailLevel==="summary"){const rows=[...summary.byArea.map(r=>({tipo:"Area",nombre:r.area,co2e_t:r.co2e,porcentaje:r.pct})),...summary.byCategory.map(r=>({tipo:"Categoria",nombre:r.label,co2e_t:r.co2e,porcentaje:r.pct})),{tipo:"Total",nombre:"Total CO2e",co2e_t:summary.total,porcentaje:100}];const csv=buildCsvText(rows,[{label:"Tipo",get:r=>r.tipo},{label:"Nombre",get:r=>r.nombre},{label:"CO2e_t",get:r=>fN(r.co2e_t,3)},{label:"%",get:r=>fN(r.porcentaje,1)}]);downloadCsvFile(name,csv);}
@@ -137,7 +137,7 @@ export default function ReportsPage(){
 
   /* ─── Wizard step summary text ─── */
   const stepSummary=useMemo(()=>{
-    const p=filters.periodMode==="mes"?`${MONTHS_ES[filters.month-1]} ${filters.year}`:`${filters.fromDate||"-"} a ${filters.toDate||"-"}`;
+    const p=filters.periodMode==="mes"?`${MONTHS_ES[filters.month-1]} ${filters.year}`:filters.periodMode==="rango"?`${filters.fromDate||"-"} a ${filters.toDate||"-"}`:"Todo el periodo";
     const c=filters.category==="all"?"Todas":filters.category==="electricidad"?"Electricidad":filters.category==="combustible"?"Combustible":"Otros";
     const a=filters.area==="all"?"Todas":filters.area;
     return{periodo:p,categoria:c,area:a,estado:filters.realMode==="all"?"Todos":filters.realMode==="real"?"Real":"Estimado",formato:filters.format.toUpperCase(),nivel:filters.detailLevel==="summary"?"Resumen":"Detallado"};
@@ -181,16 +181,17 @@ export default function ReportsPage(){
         {step===1&&<div style={{padding:24,animation:"ctSlideRt .3s ease-out"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}><Calendar size={18} style={{color:"var(--eco-primary-600)"}}/><h3 style={{margin:0,fontFamily:fd,fontSize:18,fontWeight:700,color:"var(--eco-gray-800)"}}>¿Qué periodo quieres reportar?</h3></div>
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+            <StepChip label="Todo el periodo" active={filters.periodMode==="todos"} onClick={()=>setFilters(p=>({...p,periodMode:"todos"}))} icon={<Calendar size={13}/>}/>
             <StepChip label="Mes específico" active={filters.periodMode==="mes"} onClick={()=>setFilters(p=>({...p,periodMode:"mes"}))} icon={<Calendar size={13}/>}/>
             <StepChip label="Rango de fechas" active={filters.periodMode==="rango"} onClick={()=>setFilters(p=>({...p,periodMode:"rango"}))} icon={<ArrowRight size={13}/>}/>
           </div>
           {filters.periodMode==="mes"?<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <select value={filters.month} onChange={e=>setFilters(p=>({...p,month:Number(e.target.value)}))} style={selS}>{MONTHS_ES.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
             <select value={filters.year} onChange={e=>setFilters(p=>({...p,year:Number(e.target.value)}))} style={selS}>{[2024,2025,2026,2027].map(y=><option key={y} value={y}>{y}</option>)}</select>
-          </div>:<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          </div>:filters.periodMode==="rango"?<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
             <input type="date" value={filters.fromDate} onChange={e=>setFilters(p=>({...p,fromDate:e.target.value}))} style={selS} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-border)"}/>
             <input type="date" value={filters.toDate} onChange={e=>setFilters(p=>({...p,toDate:e.target.value}))} style={selS} onFocus={e=>e.target.style.borderColor="var(--eco-primary-300)"} onBlur={e=>e.target.style.borderColor="var(--eco-border)"}/>
-          </div>}
+          </div>:null}
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:20}}><button onClick={()=>setStep(2)} style={{height:38,padding:"0 20px",borderRadius:"var(--eco-radius-full)",border:"none",background:"var(--eco-primary-500)",color:"white",fontFamily:fb,fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,transition:"all 200ms"}} onMouseEnter={e=>{e.currentTarget.style.background="var(--eco-primary-600)";}} onMouseLeave={e=>{e.currentTarget.style.background="var(--eco-primary-500)";}}>Siguiente<ChevronRight size={15}/></button></div>
         </div>}
 

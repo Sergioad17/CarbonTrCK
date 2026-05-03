@@ -1,6 +1,7 @@
 import pg from "pg";
 import { env } from "../config/env.js";
 import { AppError } from "../errors/app-error.js";
+import { logger } from "../logger/index.js";
 import { mapDatabaseError } from "./sql-errors.js";
 
 const { Pool } = pg;
@@ -13,7 +14,7 @@ const pool = new Pool({
 });
 
 pool.on("error", (error) => {
-  throw error;
+  logger.error({ err: error }, "database_pool_idle_client_error");
 });
 
 export async function query(text, params = []) {

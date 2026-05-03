@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, PieChart as RPieChart, Pie, Cell, XAxis
 import { createNotification } from "../api/notifications";
 import { fetchScopeCombustibleRecords } from "../api/scopeCombustible";
 import { archiveEmissionRecord } from "../api/records";
+import { buildApiUrl } from "../api/config";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
 import { getSession } from "../lib/sessionStore";
@@ -30,18 +31,28 @@ const ST_ACC={warning:{c:"var(--eco-warning)",b:"#FDE68A"},danger:{c:"var(--eco-
 
 /* ═══ AUTH-AWARE IMAGE ═══ */
 function getAuthToken(){return getSession()?.token||null;}
+function resolveEvidenceUrl(value){
+  const raw=String(value||"").trim();
+  if(!raw)return"";
+  if(/^(https?:|blob:|data:)/i.test(raw))return raw;
+  if(raw.startsWith("//")&&typeof window!=="undefined")return`${window.location.protocol}${raw}`;
+  try{return buildApiUrl(raw);}catch{return typeof window!=="undefined"?new URL(raw,window.location.origin).toString():raw;}
+}
 function EvidenceImage({url,accentColor="var(--eco-secondary-600)"}){
   const[src,setSrc]=useState(null);const[failed,setFailed]=useState(false);
   useEffect(()=>{
-    if(!url||!url.startsWith("http"))return;
+    const resolvedUrl=resolveEvidenceUrl(url);
+    setSrc(null);setFailed(false);
+    if(!resolvedUrl)return;
+    if(resolvedUrl.startsWith("data:")||resolvedUrl.startsWith("blob:")){setSrc(resolvedUrl);return;}
     let objUrl=null;const token=getAuthToken();
-    fetch(url,token?{headers:{Authorization:`Bearer ${token}`}}:{})
+    fetch(resolvedUrl,token?{headers:{Authorization:`Bearer ${token}`}}:{})
       .then(r=>r.ok?r.blob():Promise.reject())
       .then(blob=>{if(!blob.type.startsWith("image/")){setFailed(true);return;}objUrl=URL.createObjectURL(blob);setSrc(objUrl);})
       .catch(()=>setFailed(true));
     return()=>{if(objUrl)URL.revokeObjectURL(objUrl);};
   },[url]);
-  if(!url||!url.startsWith("http")||failed||!src)return null;
+  if(!url||failed||!src)return null;
   return(
     <div style={{borderRadius:"var(--eco-radius-sm)",overflow:"hidden",border:"1px solid var(--eco-border)",animation:"ctFadeUp .35s ease-out both"}}>
       <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 12px",background:"var(--eco-gray-50)",borderBottom:"1px solid var(--eco-border)"}}>
