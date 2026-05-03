@@ -182,7 +182,7 @@ export default function AuditLogPage() {
             background: "var(--eco-card, #fff)",
             boxShadow: "-8px 0 30px rgba(0,0,0,.10)",
             display: "flex", flexDirection: "column",
-            animation: "adminFadeIn .2s ease-out",
+            animation: "adminDrawerIn .22s cubic-bezier(.2,.8,.2,1)",
           }}>
             {/* Drawer header */}
             <div style={{

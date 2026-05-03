@@ -26,7 +26,7 @@ export default function AdminEntityDrawer({
         borderLeft: "1px solid var(--eco-border, #E2E8F0)",
         boxShadow: "-8px 0 30px rgba(0,0,0,.1)",
         display: "flex", flexDirection: "column",
-        animation: "adminSlideIn .25s ease-out",
+        animation: "adminDrawerIn .22s cubic-bezier(.2,.8,.2,1)",
       }}>
         {/* Header */}
         <div style={{
@@ -88,12 +88,6 @@ export default function AdminEntityDrawer({
         )}
       </div>
 
-      <style>{`
-        @keyframes adminSlideIn {
-          from { transform: translateX(30px); opacity: 0; }
-          to   { transform: translateX(0); opacity: 1; }
-        }
-      `}</style>
     </>
   );
 }

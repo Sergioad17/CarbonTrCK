@@ -6,8 +6,20 @@ const fb = "var(--eco-font-body)";
 /* ─── CSS keyframes injected once ─────────────────────────────────────── */
 const ADMIN_CSS = `
 @keyframes adminFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes adminContentIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes adminModalIn {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 10px)) scale(.985); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes adminDrawerIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 @media (max-width: 1024px) {
   .admin-content-inner {
@@ -36,7 +48,7 @@ export default function AdminShell({ activeView, onNavigate, children }) {
   return (
     <>
       <style>{ADMIN_CSS}</style>
-      <div className="eco-pattern3" style={{
+      <div className="eco-pattern3 admin-shell" style={{
         display: "flex", height: "100%", minHeight: 0,
       }}>
         {/* Sub-navigation panel */}
@@ -95,7 +107,7 @@ export default function AdminShell({ activeView, onNavigate, children }) {
           <div className="admin-content-inner" style={{
             flex: 1, padding: "24px 28px 40px",
             maxWidth: 1280, width: "100%",
-            animation: "adminFadeIn .35s ease-out both",
+            animation: "adminContentIn .35s ease-out both",
           }}>
             {children}
           </div>

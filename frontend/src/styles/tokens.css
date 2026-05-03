@@ -354,6 +354,39 @@ a:focus-visible {
   color: var(--eco-text-soft) !important;
 }
 
+/* Admin panel dark-mode polish */
+:root[data-theme="dark"] .admin-shell {
+  background-color: var(--eco-bg);
+}
+
+:root[data-theme="dark"] .admin-shell table,
+:root[data-theme="dark"] .admin-shell tbody,
+:root[data-theme="dark"] .admin-shell tr,
+:root[data-theme="dark"] .admin-shell td {
+  color: var(--eco-text);
+}
+
+:root[data-theme="dark"] .admin-shell *[style*="background: var(--eco-gray-300)"],
+:root[data-theme="dark"] .admin-shell *[style*="background:var(--eco-gray-300)"],
+:root[data-theme="dark"] .admin-shell *[style*="background: #CBD5E1"],
+:root[data-theme="dark"] .admin-shell *[style*="background: #cbd5e1"] {
+  background: #334155 !important;
+}
+
+:root[data-theme="dark"] .admin-shell *[style*="background: rgba(255,255,255,.65)"],
+:root[data-theme="dark"] .admin-shell *[style*="background: rgba(255, 255, 255, 0.65)"] {
+  background: rgba(248, 250, 252, 0.10) !important;
+}
+
+:root[data-theme="dark"] .admin-shell *[style*="box-shadow: 0 20px 60px rgba(0,0,0,.18)"] {
+  box-shadow: var(--eco-shadow-xl) !important;
+}
+
+:root[data-theme="dark"] .admin-shell input::placeholder,
+:root[data-theme="dark"] .admin-shell textarea::placeholder {
+  color: #7D8FA3;
+}
+
 /* - Recharts / SVG (chart backgrounds) - */
 :root[data-theme="dark"] .recharts-cartesian-grid-horizontal line,
 :root[data-theme="dark"] .recharts-cartesian-grid-vertical line {

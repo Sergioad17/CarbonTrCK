@@ -148,10 +148,10 @@ export default function AlertsPage() {
       }}>
         <span style={{
           display: "block", width: 16, height: 16, borderRadius: "50%",
-          background: "#fff",
+          background: "white",
           transform: v ? "translateX(16px)" : "translateX(0)",
           transition: "transform .2s",
-          boxShadow: "0 1px 2px rgba(0,0,0,.15)",
+          boxShadow: "0 1px 2px rgba(0,0,0,.25)",
         }} />
       </button>
     ) },

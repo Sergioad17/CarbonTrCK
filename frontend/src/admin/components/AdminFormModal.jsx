@@ -18,7 +18,7 @@ export default function AdminFormModal({
           position: "fixed", inset: 0, zIndex: 100,
           background: "rgba(15,23,42,.45)",
           backdropFilter: "blur(3px)",
-          animation: "adminFadeIn .18s ease-out",
+          animation: "adminFadeIn .16s ease-out",
         }}
       />
       {/* Modal */}
@@ -32,7 +32,7 @@ export default function AdminFormModal({
         border: "1px solid var(--eco-border, #E2E8F0)",
         borderRadius: 14,
         boxShadow: "0 20px 60px rgba(0,0,0,.18)",
-        animation: "adminFadeIn .22s ease-out",
+        animation: "adminModalIn .2s cubic-bezier(.2,.8,.2,1)",
       }}>
         {/* Header */}
         <div style={{

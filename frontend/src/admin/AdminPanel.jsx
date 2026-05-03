@@ -20,6 +20,10 @@ import ValidationPage from "./views/ValidationPage";
 import EmissionsCalcPage from "./views/EmissionsCalcPage";
 import GoalsPage from "./views/GoalsPage";
 import AlertsPage from "./views/AlertsPage";
+import ReportsPage from "./views/ReportsPage";
+import BackupsPage from "./views/BackupsPage";
+import HelpDocsPage from "./views/HelpDocsPage";
+import AIControlPage from "./views/AIControlPage";
 import AdminEmptyState from "./components/AdminEmptyState";
 
 function viewFromSearch(search) {
@@ -49,6 +53,10 @@ function AdminViewRouter({ view }) {
     case "admin-emissions":      return <EmissionsCalcPage />;
     case "admin-targets":        return <GoalsPage />;
     case "admin-alerts":         return <AlertsPage />;
+    case "admin-reports":        return <ReportsPage />;
+    case "admin-backups":        return <BackupsPage />;
+    case "admin-help":           return <HelpDocsPage />;
+    case "admin-ai":             return <AIControlPage />;
     default:
       return (
         <div style={{

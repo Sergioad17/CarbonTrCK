@@ -54,8 +54,8 @@ export const recentActivity = [
 export const quickActions = [
   { id: "new-user",      label: "Nuevo usuario",       icon: "UserPlus",       viewId: "admin-users",    available: true  },
   { id: "new-period",    label: "Abrir periodo",        icon: "CalendarPlus",   viewId: "admin-periods",  available: true  },
-  { id: "run-backup",    label: "Ejecutar respaldo",    icon: "DatabaseBackup", viewId: "admin-backups",  available: false },
-  { id: "export-report", label: "Exportar reporte",     icon: "FileDown",       viewId: "admin-reports",  available: false },
+  { id: "run-backup",    label: "Ejecutar respaldo",    icon: "DatabaseBackup", viewId: "admin-backups",  available: true  },
+  { id: "export-report", label: "Exportar reporte",     icon: "FileDown",       viewId: "admin-reports",  available: true  },
   { id: "view-audit",    label: "Ver bitácora",         icon: "ScrollText",     viewId: "admin-audit",    available: true  },
   { id: "check-health",  label: "Estado de servicios",  icon: "Activity",       viewId: null,             available: true, scrollTo: "admin-health-card" },
 ];
@@ -206,12 +206,12 @@ export const adminNavTree = [
   },
   {
     section: "Soporte",
-    enabled: false,
+    enabled: true,
     items: [
-      { id: "admin-reports",        label: "Reportes y exportaciones",  icon: "FileBarChart",   enabled: false },
-      { id: "admin-backups",        label: "Respaldos y mantenimiento", icon: "HardDrive",      enabled: false },
-      { id: "admin-help",           label: "Ayuda y documentación",     icon: "LifeBuoy",       enabled: false },
-      { id: "admin-ai",             label: "Inteligencia artificial",   icon: "Sparkles",       enabled: false },
+      { id: "admin-reports",        label: "Reportes y exportaciones",  icon: "FileBarChart",   enabled: true },
+      { id: "admin-backups",        label: "Respaldos y mantenimiento", icon: "HardDrive",      enabled: true },
+      { id: "admin-help",           label: "Ayuda y documentación",     icon: "LifeBuoy",       enabled: true },
+      { id: "admin-ai",             label: "Inteligencia artificial",   icon: "Sparkles",       enabled: true },
     ],
   },
 ];
@@ -797,4 +797,408 @@ export const notificationChannels = [
   { id:"push",   label:"Push",         icon:"Bell" },
   { id:"inapp",  label:"En la app",    icon:"MessageSquare" },
   { id:"sms",    label:"SMS",          icon:"Smartphone" },
+];
+
+/* ════════════════════════════════════════════════════════════════════════
+   PART 3 — SOPORTE
+   - Reports & exports
+   - Backups & maintenance
+   - Help & documentation
+   - AI control
+   ════════════════════════════════════════════════════════════════════════ */
+
+// ─── Reports: predefined templates ──────────────────────────────────────
+export const reportTemplates = [
+  { id:"rt-period",     name:"Reporte por periodo",       description:"Resumen completo de emisiones del periodo seleccionado.",          category:"period",     icon:"Calendar",      formats:["pdf","xlsx","csv"], lastRun:"2026-04-09T09:10:00Z" },
+  { id:"rt-area",       name:"Reporte por área",          description:"Emisiones agrupadas por área, edificio o laboratorio.",            category:"area",       icon:"Building2",     formats:["pdf","xlsx","csv"], lastRun:"2026-04-05T11:30:00Z" },
+  { id:"rt-scope",      name:"Reporte por scope",         description:"Desglose Scope 1 / 2 / 3 con totales y comparativos.",              category:"scope",      icon:"Layers",        formats:["pdf","xlsx"],       lastRun:"2026-04-08T16:00:00Z" },
+  { id:"rt-category",   name:"Reporte por categoría",     description:"Consumos agrupados por categoría (electricidad, gas, etc.).",       category:"category",   icon:"BookOpen",      formats:["pdf","xlsx","csv"], lastRun:"2026-04-02T14:20:00Z" },
+  { id:"rt-goals",      name:"Reporte de metas",          description:"Avance de metas y acciones de reducción.",                          category:"goals",      icon:"Target",        formats:["pdf","xlsx"],       lastRun:"2026-03-30T08:00:00Z" },
+  { id:"rt-users",      name:"Reporte de usuarios",       description:"Actividad, accesos y registros capturados por usuario.",            category:"users",      icon:"Users",         formats:["pdf","xlsx","csv"], lastRun:"2026-03-28T10:00:00Z" },
+  { id:"rt-devices",    name:"Reporte de dispositivos",   description:"Estado, lecturas y disponibilidad de dispositivos IoT.",            category:"devices",    icon:"Cpu",           formats:["pdf","xlsx","csv"], lastRun:"2026-04-10T07:30:00Z" },
+  { id:"rt-comparative",name:"Reporte comparativo",       description:"Comparación entre periodos, áreas o campus.",                       category:"comparative",icon:"GitCompare",    formats:["pdf","xlsx"],       lastRun:"2026-04-01T09:00:00Z" },
+];
+
+// ─── Reports: export history ────────────────────────────────────────────
+export const reportExportHistory = [
+  { id:"ex1", reportName:"Emisiones 2026-Q1 – Resumen completo",     templateId:"rt-period",     format:"pdf",  size:"2.4 MB",  generatedBy:"María López",       ts:"2026-04-09T09:10:00Z", status:"completed", evidences:12, periodLabel:"2026-Q1" },
+  { id:"ex2", reportName:"Comparativo Edificios Campus Central",     templateId:"rt-comparative",format:"xlsx", size:"1.1 MB",  generatedBy:"Sergio Arellano",   ts:"2026-04-08T16:00:00Z", status:"completed", evidences:0,  periodLabel:"2026-Q1" },
+  { id:"ex3", reportName:"Scope 1 – Combustibles",                   templateId:"rt-scope",      format:"pdf",  size:"890 KB",  generatedBy:"Sergio Arellano",   ts:"2026-04-08T15:20:00Z", status:"completed", evidences:6,  periodLabel:"2026-Q1" },
+  { id:"ex4", reportName:"Avance metas institucionales 2026",        templateId:"rt-goals",      format:"pdf",  size:"1.8 MB",  generatedBy:"Ana Torres",        ts:"2026-04-05T11:30:00Z", status:"completed", evidences:4,  periodLabel:"2026" },
+  { id:"ex5", reportName:"Actividad usuarios marzo",                 templateId:"rt-users",      format:"csv",  size:"320 KB",  generatedBy:"Sergio Arellano",   ts:"2026-04-02T14:20:00Z", status:"completed", evidences:0,  periodLabel:"2026-03" },
+  { id:"ex6", reportName:"Dispositivos – estado abril",              templateId:"rt-devices",    format:"xlsx", size:"720 KB",  generatedBy:"Carlos Méndez",     ts:"2026-04-01T09:00:00Z", status:"completed", evidences:0,  periodLabel:"2026-04" },
+  { id:"ex7", reportName:"Emisiones por área – Campus Norte",        templateId:"rt-area",       format:"pdf",  size:"1.4 MB",  generatedBy:"Diego Herrera",     ts:"2026-03-28T10:00:00Z", status:"completed", evidences:3,  periodLabel:"2026-Q1" },
+  { id:"ex8", reportName:"Categorías – Resumen 2026",                templateId:"rt-category",   format:"xlsx", size:"640 KB",  generatedBy:"María López",       ts:"2026-03-25T11:45:00Z", status:"completed", evidences:0,  periodLabel:"2026" },
+  { id:"ex9", reportName:"Reporte personalizado scope 2",            templateId:"rt-scope",      format:"pdf",  size:"—",       generatedBy:"Ana Torres",        ts:"2026-04-11T08:00:00Z", status:"failed",    evidences:0,  periodLabel:"2026-Q2" },
+  { id:"ex10",reportName:"Auditoría energética – borrador",          templateId:"rt-comparative",format:"pdf",  size:"—",       generatedBy:"Sergio Arellano",   ts:"2026-04-11T07:30:00Z", status:"pending",   evidences:0,  periodLabel:"2026-Q1" },
+];
+
+// ─── Reports: mock preview data ─────────────────────────────────────────
+export const reportPreviewSample = {
+  title:        "Emisiones por scope – 2026-Q1",
+  generatedAt:  "2026-04-09T09:10:00Z",
+  generatedBy:  "María López",
+  periodLabel:  "2026-Q1 (enero – marzo)",
+  campus:       "Todos los campus",
+  totals: {
+    scope1:     705.17,
+    scope2:     2528.18,
+    scope3:     43.00,
+    total:      3276.35,
+    unit:       "kgCO₂e",
+    vsPrev:     -1.8,
+  },
+  breakdown: [
+    { label:"Electricidad",      value:2528.18, pct:77.2 },
+    { label:"Diésel",             value:408.43, pct:12.5 },
+    { label:"Gas natural",        value:86.10,  pct:2.6  },
+    { label:"Gasolina",           value:181.34, pct:5.5  },
+    { label:"Gas LP",             value:29.30,  pct:0.9  },
+    { label:"Otros (Scope 3)",   value:43.00,  pct:1.3  },
+  ],
+};
+
+// ─── Backups: list ──────────────────────────────────────────────────────
+export const backupList = [
+  { id:"bk-2026-04-11", name:"backup_auto_2026-04-11.tar.gz", type:"automatic", size:"412 MB", createdAt:"2026-04-11T03:00:00Z", durationSec:184, status:"completed", retention:"30d", checksumOk:true },
+  { id:"bk-2026-04-10", name:"backup_auto_2026-04-10.tar.gz", type:"automatic", size:"408 MB", createdAt:"2026-04-10T03:00:00Z", durationSec:179, status:"completed", retention:"30d", checksumOk:true },
+  { id:"bk-2026-04-09", name:"backup_auto_2026-04-09.tar.gz", type:"automatic", size:"405 MB", createdAt:"2026-04-09T03:00:00Z", durationSec:181, status:"completed", retention:"30d", checksumOk:true },
+  { id:"bk-2026-04-08", name:"backup_manual_pre-update.tar.gz", type:"manual", size:"398 MB", createdAt:"2026-04-08T19:30:00Z", durationSec:201, status:"completed", retention:"90d", checksumOk:true, note:"Antes de actualización 2.1" },
+  { id:"bk-2026-04-07", name:"backup_auto_2026-04-07.tar.gz", type:"automatic", size:"390 MB", createdAt:"2026-04-07T03:00:00Z", durationSec:172, status:"completed", retention:"30d", checksumOk:true },
+  { id:"bk-2026-04-01", name:"backup_quarter_2026-Q1.tar.gz", type:"manual",    size:"410 MB", createdAt:"2026-04-01T20:00:00Z", durationSec:212, status:"completed", retention:"perm", checksumOk:true, note:"Cierre 2026-Q1" },
+  { id:"bk-2026-03-15", name:"backup_auto_2026-03-15.tar.gz", type:"automatic", size:"380 MB", createdAt:"2026-03-15T03:00:00Z", durationSec:175, status:"completed", retention:"30d", checksumOk:true },
+  { id:"bk-2026-02-29", name:"backup_failed_2026-02-29",      type:"automatic", size:"—",      createdAt:"2026-02-29T03:00:00Z", durationSec:0,   status:"failed",    retention:"—",  checksumOk:false, note:"Disco lleno – espacio insuficiente" },
+];
+
+// ─── Backups: schedule ──────────────────────────────────────────────────
+export const backupSchedule = {
+  enabled:        true,
+  frequency:      "daily",    // daily | weekly | monthly
+  hour:           "03:00",
+  retentionDays:  30,
+  destination:    "s3://carbontrack-backups/auto",
+  encrypted:      true,
+  notifyOnFail:   true,
+  notifyOnSuccess:false,
+  lastBackupAt:   "2026-04-11T03:00:00Z",
+  nextBackupAt:   "2026-04-12T03:00:00Z",
+};
+
+// ─── System resources / health detail ───────────────────────────────────
+export const systemResources = {
+  storage: {
+    totalGB:    500,
+    usedGB:     186,
+    backupsGB:  42,
+    evidencesGB:54,
+    databaseGB: 28,
+    logsGB:     11,
+    otherGB:    51,
+  },
+  database: {
+    status:        "online",
+    size:          "28.4 GB",
+    connections:   12,
+    maxConnections:50,
+    uptime:        "32 d 14 h",
+    lastVacuum:    "2026-04-08T03:30:00Z",
+    slowQueries:   3,
+    indexHealth:   "good",
+  },
+  server: {
+    status:    "online",
+    cpu:       42,
+    ram:       63,
+    diskIo:    18,
+    uptime:    "32 d 14 h",
+    threads:   8,
+    nodeVer:   "20.11.1",
+    apiVersion:"2.1.0",
+  },
+  services: [
+    { id:"backend",   label:"Backend API",     status:"online",  uptime:"32d 14h", canRestart:true },
+    { id:"database",  label:"Base de datos",    status:"online",  uptime:"32d 14h", canRestart:false },
+    { id:"storage",   label:"Almacenamiento",   status:"online",  uptime:"32d 14h", canRestart:false },
+    { id:"queue",     label:"Cola de tareas",   status:"online",  uptime:"5d 02h",  canRestart:true },
+    { id:"email",     label:"Servicio correo",  status:"warning", uptime:"1d 04h",  canRestart:true },
+    { id:"ia",        label:"Motor IA",         status:"offline", uptime:"—",       canRestart:true },
+  ],
+};
+
+// ─── Maintenance: cleanup tasks ─────────────────────────────────────────
+export const cleanupTasks = [
+  { id:"ct-temp",     label:"Archivos temporales",       description:"Vista previa de reportes, descargas pendientes y caché temporal.",  size:"412 MB", lastRun:"2026-04-08T03:00:00Z", icon:"Trash2"    },
+  { id:"ct-sessions", label:"Sesiones expiradas",         description:"Sesiones inactivas con más de 30 días.",                            size:"24 KB",  lastRun:"2026-04-10T03:00:00Z", icon:"LogOut"     },
+  { id:"ct-logs",     label:"Logs antiguos",              description:"Bitácora del sistema con más de 180 días.",                         size:"1.2 GB", lastRun:"2026-03-15T03:00:00Z", icon:"FileText"   },
+  { id:"ct-orphans",  label:"Evidencias huérfanas",       description:"Archivos adjuntos sin registro asociado.",                          size:"86 MB",  lastRun:"2026-04-01T03:00:00Z", icon:"FileQuestion" },
+  { id:"ct-cache",    label:"Caché del sistema",          description:"Caché de cálculos de emisiones y agregados.",                       size:"180 MB", lastRun:"2026-04-09T03:00:00Z", icon:"Zap"        },
+  { id:"ct-notifs",   label:"Notificaciones leídas",      description:"Notificaciones marcadas como leídas hace más de 90 días.",          size:"4.5 MB", lastRun:"2026-04-05T03:00:00Z", icon:"Bell"       },
+];
+
+// ─── Maintenance: status ────────────────────────────────────────────────
+export const maintenanceStatus = {
+  maintenanceMode: false,
+  scheduledWindow: null, // { from, to, message }
+  lastReboot:      "2026-03-10T02:30:00Z",
+  pendingUpdates:  1,
+};
+
+/* ─── Help / Documentation ──────────────────────────────────────────── */
+
+// Quick guides
+export const helpQuickGuides = [
+  { id:"qg-1", title:"Capturar tu primer registro",  steps:5, time:"3 min", icon:"ClipboardEdit", level:"basic"      },
+  { id:"qg-2", title:"Adjuntar evidencias",           steps:4, time:"2 min", icon:"Paperclip",     level:"basic"      },
+  { id:"qg-3", title:"Validar registros pendientes",  steps:6, time:"5 min", icon:"CheckSquare",   level:"intermediate" },
+  { id:"qg-4", title:"Configurar un dispositivo IoT", steps:8, time:"10 min", icon:"Cpu",          level:"advanced"   },
+  { id:"qg-5", title:"Generar y exportar reportes",   steps:5, time:"4 min", icon:"FileBarChart",  level:"basic"      },
+  { id:"qg-6", title:"Crear y dar seguimiento a metas", steps:7, time:"7 min", icon:"Target",      level:"intermediate" },
+];
+
+// Manuals (links/sections)
+export const helpManuals = [
+  { id:"mn-admin", audience:"Administrador", title:"Manual del administrador",  description:"Configuración completa del sistema, seguridad, usuarios y mantenimiento.", pages:48, updatedAt:"2026-03-20", format:"pdf" },
+  { id:"mn-user",  audience:"Capturista",    title:"Manual del usuario",         description:"Captura de datos, registros, evidencias y consulta de tableros.",          pages:24, updatedAt:"2026-03-20", format:"pdf" },
+  { id:"mn-board", audience:"Directivo",     title:"Manual del directivo",       description:"Tableros ejecutivos, validación, metas y reportes de alto nivel.",         pages:18, updatedAt:"2026-03-20", format:"pdf" },
+  { id:"mn-iot",   audience:"Mantenimiento", title:"Guía técnica IoT",            description:"Instalación, calibración y diagnóstico de dispositivos.",                pages:32, updatedAt:"2026-02-10", format:"pdf" },
+];
+
+// FAQ
+export const helpFaq = [
+  { id:"faq-1", category:"Captura",   question:"¿Cómo capturo una lectura de electricidad?", answer:"Ve a Capturar → selecciona el área y dispositivo → ingresa la lectura del periodo, adjunta evidencia y guarda. Si tu rol lo permite, queda en estado pendiente para validación." },
+  { id:"faq-2", category:"Captura",   question:"¿Qué hago si el dispositivo no aparece?",     answer:"Verifica que estés en el campus correcto y que el dispositivo esté activo. Si persiste, contacta al administrador para revisar la configuración." },
+  { id:"faq-3", category:"Reportes",  question:"¿Por qué un reporte se queda en pendiente?",   answer:"Los reportes pesados se procesan en cola. Si tarda más de 5 minutos, revisa el estado en Soporte → Historial de exportaciones, o reintenta con un periodo más corto." },
+  { id:"faq-4", category:"Scopes",    question:"¿Qué diferencia hay entre Scope 1, 2 y 3?",    answer:"Scope 1: emisiones directas (combustibles propios). Scope 2: emisiones indirectas por electricidad comprada. Scope 3: otras emisiones indirectas (cadena de valor)." },
+  { id:"faq-5", category:"Factores",  question:"¿Qué pasa si un factor está vencido?",         answer:"Las nuevas capturas usan el factor más reciente vigente. Si no hay vigente, se bloquea el cálculo y el sistema genera una alerta crítica." },
+  { id:"faq-6", category:"Cuenta",    question:"¿Cómo cambio mi contraseña?",                  answer:"En tu perfil → Seguridad → Cambiar contraseña. La política mínima la define el administrador." },
+  { id:"faq-7", category:"IA",        question:"¿Puedo desactivar las recomendaciones IA?",    answer:"Sí, desde Soporte → Inteligencia artificial puedes activar/desactivar módulos individualmente. Los datos históricos se conservan." },
+  { id:"faq-8", category:"Soporte",   question:"¿A quién contacto si algo deja de funcionar?", answer:"Usa el botón Contactar soporte. Adjunta el módulo, fecha y captura del error si es posible." },
+];
+
+// Module explanations
+export const helpModules = [
+  { id:"hm-dashboard", icon:"LayoutDashboard", label:"Dashboard",     summary:"Indicadores clave, tendencias y alertas en tiempo real.",     deepLink:"/dashboard" },
+  { id:"hm-records",   icon:"Database",        label:"Registros",     summary:"Captura y gestión de lecturas históricas por área y scope.",   deepLink:"/registros" },
+  { id:"hm-emissions", icon:"Calculator",      label:"Emisiones",     summary:"Cálculo automático de emisiones a partir de consumo y factores.", deepLink:"/emisiones" },
+  { id:"hm-factors",   icon:"FlaskConical",    label:"Factores",      summary:"Catálogo de factores de emisión vigentes por país/región.",    deepLink:"/factores" },
+  { id:"hm-devices",   icon:"Cpu",             label:"Dispositivos",  summary:"Sensores IoT y medidores conectados al sistema.",              deepLink:"/dispositivos" },
+  { id:"hm-targets",   icon:"Target",          label:"Metas",         summary:"Definición y seguimiento de metas de reducción.",              deepLink:"/metas" },
+  { id:"hm-reports",   icon:"FileBarChart",    label:"Reportes",      summary:"Generación y exportación de reportes oficiales.",              deepLink:"/admin/avanzado?view=admin-reports" },
+  { id:"hm-ai",        icon:"Sparkles",        label:"Herramientas IA", summary:"Predicciones, anomalías y recomendaciones automáticas.",   deepLink:"/admin/avanzado?view=admin-ai" },
+];
+
+// Common errors
+export const helpCommonErrors = [
+  { id:"err-1", code:"ERR_FACTOR_EXPIRED", title:"Factor de emisión vencido",         description:"No se puede calcular emisiones con un factor vencido. Actualiza el factor y reintenta.",                action:"Ir a Factores" },
+  { id:"err-2", code:"ERR_PERIOD_CLOSED",  title:"Periodo cerrado",                    description:"No se permite capturar registros en un periodo cerrado. Si requieres ajuste, solicítalo al administrador.", action:"Ver periodos" },
+  { id:"err-3", code:"ERR_DEVICE_OFFLINE", title:"Dispositivo sin conexión",           description:"El dispositivo no ha enviado lectura en las últimas 24h. Verifica energía y red.",                       action:"Ver dispositivo" },
+  { id:"err-4", code:"ERR_FILE_TOO_LARGE", title:"Archivo demasiado grande",            description:"El tamaño máximo permitido es 10 MB. Comprime o divide la evidencia.",                                  action:"Reintentar" },
+  { id:"err-5", code:"ERR_PERMISSION",     title:"Permiso insuficiente",                description:"Tu rol no permite esta acción. Contacta a un administrador.",                                          action:"Ir a inicio" },
+];
+
+// Version / changelog
+export const helpVersion = {
+  current:    "2.1.0",
+  channel:    "production",
+  releasedAt: "2026-03-20",
+  buildHash:  "a7f3c2b",
+  apiVersion: "2.1.0",
+  dbVersion:  "27",
+};
+
+export const helpChangelog = [
+  { id:"v210", version:"2.1.0", date:"2026-03-20", changes:[
+    "Nuevo módulo Soporte: reportes, respaldos, ayuda e IA.",
+    "Mejoras de validación masiva de registros.",
+    "Nueva vista de huella por edificio.",
+    "Optimización de cálculo de emisiones (×3 más rápido).",
+  ]},
+  { id:"v201", version:"2.0.1", date:"2026-02-10", changes:[
+    "Corrección en exportación de reportes Scope 3.",
+    "Refresco automático de factores vencidos.",
+    "Fix: dispositivos sin lectura aparecían como activos.",
+  ]},
+  { id:"v200", version:"2.0.0", date:"2026-01-15", changes:[
+    "Rediseño completo del panel administrativo.",
+    "Sistema de roles y permisos granulares.",
+    "Soporte multi-campus y multi-edificio.",
+    "Integración inicial con motores IoT.",
+  ]},
+  { id:"v110", version:"1.1.0", date:"2025-10-05", changes:[
+    "Tableros de metas y acciones de reducción.",
+    "Nuevas notificaciones por correo.",
+  ]},
+];
+
+// Support contact
+export const helpSupportContact = {
+  email:   "soporte@carbontrack.app",
+  phone:   "+52 81 1234 5678",
+  hours:   "Lunes a viernes, 9:00 – 18:00 (CST)",
+  portal:  "https://soporte.carbontrack.app",
+  channels:[
+    { id:"email",  label:"Correo",       value:"soporte@carbontrack.app", icon:"Mail" },
+    { id:"phone",  label:"Teléfono",     value:"+52 81 1234 5678",         icon:"Phone" },
+    { id:"chat",   label:"Chat en vivo", value:"L–V 9–18 h",               icon:"MessageSquare" },
+    { id:"ticket", label:"Ticket",       value:"Crear ticket",             icon:"Ticket" },
+  ],
+};
+
+/* ─── Inteligencia artificial ──────────────────────────────────────── */
+
+// AI engine status
+export const aiEngineStatus = {
+  enabled:           true,
+  status:            "online",          // online | training | offline | error
+  modelName:         "carbontrack-forecast",
+  modelVersion:      "1.4.2",
+  releasedAt:        "2026-03-15",
+  lastTrainedAt:     "2026-04-02T03:00:00Z",
+  trainingDuration:  "1 h 24 min",
+  trainingDataset:   "registros 2024-2025 (12 480 muestras)",
+  nextRetrainAt:     "2026-05-02T03:00:00Z",
+  inferenceLatency:  "180 ms",
+  uptimePct:         99.6,
+  visibleTo:         ["admin","directivo"],   // role ids
+};
+
+// AI metrics
+export const aiMetrics = {
+  predictionsTotal:    1842,
+  predictionsThisMonth: 312,
+  anomaliesDetected:   47,
+  recommendationsCount:23,
+  averageAccuracy:     0.91,
+  meanAbsoluteError:   3.2,    // %
+  rmse:                4.8,    // %
+  driftScore:          0.04,
+  confidenceMean:      0.87,
+};
+
+// AI module toggles (which areas of the system use AI)
+export const aiModuleToggles = [
+  { id:"emissions-forecast", label:"Pronóstico de emisiones",    description:"Proyecciones de emisiones futuras a partir del histórico.", enabled:true,  icon:"TrendingUp" },
+  { id:"anomaly-detection",  label:"Detección de anomalías",     description:"Alertas automáticas cuando una lectura es atípica.",         enabled:true,  icon:"AlertTriangle" },
+  { id:"smart-recommendations",label:"Recomendaciones inteligentes",description:"Sugerencias para reducir emisiones y eficiencia.",       enabled:true,  icon:"Lightbulb" },
+  { id:"goal-risk",          label:"Riesgo de meta",              description:"Estima la probabilidad de cumplir cada meta activa.",        enabled:true,  icon:"Target" },
+  { id:"capture-assist",     label:"Asistencia de captura",       description:"Auto-completado y validación inteligente al capturar.",      enabled:false, icon:"ClipboardEdit" },
+  { id:"natural-language",   label:"Consulta en lenguaje natural", description:"Permite hacer preguntas en texto libre al sistema.",        enabled:false, icon:"MessageSquare" },
+];
+
+// AI predictions
+export const aiPredictions = [
+  { id:"pr1", target:"Edificio A – Rectoría",     scope:2, period:"2026-Q3", predictedKgCO2e:1320, confidence:0.92, deltaPct:-3.2, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr2", target:"Edificio B – Ciencias",     scope:2, period:"2026-Q3", predictedKgCO2e:2180, confidence:0.88, deltaPct:+1.4, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr3", target:"Nave Industrial",            scope:1, period:"2026-Q3", predictedKgCO2e:340,  confidence:0.83, deltaPct:+5.6, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr4", target:"Laboratorio de Química",    scope:1, period:"2026-Q3", predictedKgCO2e:92,   confidence:0.90, deltaPct:-2.1, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr5", target:"Campus Sur (consolidado)",   scope:0, period:"2026-Q3", predictedKgCO2e:540,  confidence:0.79, deltaPct:+0.6, generatedAt:"2026-04-10T10:00:00Z" },
+];
+
+// AI anomalies
+export const aiAnomalies = [
+  { id:"an1", target:"Sensor GLP Cafetería",       metric:"consumo",     observed:42.5, expected:18.2, deviation:"+133%", severity:"critical", ts:"2026-04-10T22:15:00Z", status:"open" },
+  { id:"an2", target:"Edificio C – Ingenierías",   metric:"electricidad",observed:1450, expected:920,  deviation:"+58%",  severity:"warning",  ts:"2026-04-09T16:40:00Z", status:"open" },
+  { id:"an3", target:"Taller de Mecánica",         metric:"diésel",      observed:65,   expected:32,   deviation:"+103%", severity:"warning",  ts:"2026-04-08T09:10:00Z", status:"reviewed" },
+  { id:"an4", target:"Edificio Principal Norte",   metric:"electricidad",observed:850,  expected:1540, deviation:"-45%",  severity:"info",     ts:"2026-04-07T19:00:00Z", status:"reviewed" },
+  { id:"an5", target:"Lab. Materiales (Norte)",    metric:"gas natural", observed:8.4,  expected:21.5, deviation:"-61%",  severity:"info",     ts:"2026-04-05T11:20:00Z", status:"resolved" },
+];
+
+// AI recommendations
+export const aiRecommendations = [
+  { id:"rc1", title:"Apagar HVAC fuera de horario en Edif. B",   estimatedSavingKgCO2e:120, scope:2, area:"Edificio B – Ciencias", confidence:0.87, status:"new",       ts:"2026-04-10T10:00:00Z" },
+  { id:"rc2", title:"Sustituir caldera Lab. Química por eléctrica", estimatedSavingKgCO2e:180, scope:1, area:"Laboratorio de Química", confidence:0.81, status:"in_review", ts:"2026-04-09T10:00:00Z" },
+  { id:"rc3", title:"Programar mantenimiento de iluminación – Edif. A", estimatedSavingKgCO2e:60, scope:2, area:"Edificio A – Rectoría", confidence:0.74, status:"applied",   ts:"2026-03-28T10:00:00Z" },
+  { id:"rc4", title:"Revisar fuga GLP – Cafetería Central",        estimatedSavingKgCO2e:95, scope:1, area:"Cafetería Central",     confidence:0.92, status:"new",       ts:"2026-04-10T22:30:00Z" },
+  { id:"rc5", title:"Instalar sensores presencia en aulas Norte",  estimatedSavingKgCO2e:75, scope:2, area:"Aulas Norte",           confidence:0.68, status:"new",       ts:"2026-04-08T10:00:00Z" },
+];
+
+// AI training history
+export const aiTrainingHistory = [
+  { id:"th1", ts:"2026-04-02T03:00:00Z", version:"1.4.2", samples:12480, durationMin:84, accuracy:0.91, rmse:4.8, status:"completed", triggeredBy:"Programado" },
+  { id:"th2", ts:"2026-03-15T03:00:00Z", version:"1.4.1", samples:11920, durationMin:79, accuracy:0.90, rmse:5.0, status:"completed", triggeredBy:"Manual"      },
+  { id:"th3", ts:"2026-02-15T03:00:00Z", version:"1.4.0", samples:11200, durationMin:81, accuracy:0.88, rmse:5.4, status:"completed", triggeredBy:"Programado" },
+  { id:"th4", ts:"2026-01-15T03:00:00Z", version:"1.3.5", samples:10540, durationMin:74, accuracy:0.87, rmse:5.7, status:"completed", triggeredBy:"Programado" },
+  { id:"th5", ts:"2025-12-15T03:00:00Z", version:"1.3.4", samples:9980,  durationMin:0,  accuracy:0,    rmse:0,   status:"failed",    triggeredBy:"Programado" },
+];
+
+// AI smart alerts
+export const aiSmartAlerts = [
+  { id:"sa1", title:"Tendencia ascendente Scope 2",          description:"Las emisiones eléctricas crecen 4.2% mensual los últimos 3 meses.", severity:"warning",  ts:"2026-04-10T08:00:00Z" },
+  { id:"sa2", title:"Meta de reducción en riesgo",            description:"La meta 'Reducir consumo de agua -8%' tiene 78% de probabilidad de NO cumplirse.", severity:"critical", ts:"2026-04-09T08:00:00Z" },
+  { id:"sa3", title:"Patrón inusual los fines de semana",     description:"Edificio C reporta consumos no esperados en sábados.", severity:"info",     ts:"2026-04-08T08:00:00Z" },
+];
+
+export const aiDataSources = [
+  { id:"records", label:"Registros validados", module:"Registros", variables:["consumo","unidad","scope","categoria","area"], period:"2024-Q1 a 2026-Q1", dataType:"real", status:"active", coverage:0.96 },
+  { id:"devices", label:"Lecturas IoT", module:"Dispositivos", variables:["lectura","latencia","estado","intervalo"], period:"ultimos 18 meses", dataType:"real", status:"active", coverage:0.88 },
+  { id:"factors", label:"Factores de emision", module:"Factores", variables:["factor","vigencia","region","unidad"], period:"catalogo vigente e historico", dataType:"real", status:"active", coverage:0.99 },
+  { id:"goals", label:"Metas y acciones", module:"Metas", variables:["meta","avance","fecha objetivo","impacto"], period:"2025 a 2026", dataType:"estimado", status:"active", coverage:0.82 },
+  { id:"calendar", label:"Calendario operativo", module:"Periodos", variables:["periodo","dias habiles","estacionalidad"], period:"2024 a 2026", dataType:"ambos", status:"active", coverage:0.91 },
+];
+
+export const aiDataQuality = {
+  completenessPct: 94,
+  missingRecords: 128,
+  outliers: 37,
+  historyQuality: "Alta",
+  validatedRowsPct: 91,
+  estimatedRowsPct: 7,
+  lastAuditAt: "2026-04-10T06:30:00Z",
+  checks: [
+    { id:"complete", label:"Datos completos", value:94, status:"good" },
+    { id:"fresh", label:"Actualizacion reciente", value:89, status:"good" },
+    { id:"consistent", label:"Consistencia de unidades", value:96, status:"good" },
+    { id:"outliers", label:"Atipicos pendientes", value:76, status:"warning" },
+  ],
+};
+
+export const aiModelObjectives = [
+  { id:"predict", label:"Prediccion de emisiones", description:"Proyecta emisiones por scope, area y periodo.", enabled:true },
+  { id:"anomaly", label:"Deteccion de anomalias", description:"Identifica consumos fuera del comportamiento esperado.", enabled:true },
+  { id:"goals", label:"Apoyo a metas", description:"Evalua riesgo de cumplimiento y acciones con mayor impacto.", enabled:true },
+  { id:"consumption", label:"Analisis de consumo", description:"Explica variaciones por categoria, area y estacionalidad.", enabled:true },
+  { id:"operations", label:"Recomendaciones operativas", description:"Sugiere acciones de ahorro revisables por analistas.", enabled:true },
+];
+
+export const aiPerformanceHistory = [
+  { id:"ph1", version:"1.4.2", accuracy:0.91, precision:0.89, recall:0.84, mae:3.2, rmse:4.8, drift:0.04, period:"2026-Q1" },
+  { id:"ph2", version:"1.4.1", accuracy:0.90, precision:0.87, recall:0.82, mae:3.5, rmse:5.0, drift:0.05, period:"2025-Q4" },
+  { id:"ph3", version:"1.4.0", accuracy:0.88, precision:0.84, recall:0.79, mae:3.9, rmse:5.4, drift:0.08, period:"2025-Q3" },
+  { id:"ph4", version:"1.3.5", accuracy:0.87, precision:0.82, recall:0.77, mae:4.1, rmse:5.7, drift:0.10, period:"2025-Q2" },
+];
+
+export const aiModelVersions = [
+  { id:"mv1", version:"1.4.2", date:"2026-04-02", change:"+1.1% accuracy", reason:"Se agregaron lecturas IoT validadas y normalizacion de periodos.", current:true },
+  { id:"mv2", version:"1.4.1", date:"2026-03-15", change:"+0.8% recall", reason:"Ajuste de umbrales para anomalias de combustible.", current:false },
+  { id:"mv3", version:"1.4.0", date:"2026-02-15", change:"+2.0% precision", reason:"Nuevo set de variables por area y categoria.", current:false },
+  { id:"mv4", version:"1.3.5", date:"2026-01-15", change:"base", reason:"Version inicial con prediccion por scope.", current:false },
+];
+
+export const aiTraceabilityItems = [
+  { id:"tr1", result:"Meta de reduccion en riesgo", sourceModule:"Metas", period:"2026-Q2", reviewedData:"metas activas, consumos Q1, avance mensual", topVariables:["avance real","consumo electrico","dias habiles"], explanation:"El avance de reduccion esta por debajo de la tendencia necesaria y el consumo electrico aumento en los ultimos dos cierres." },
+  { id:"tr2", result:"Anomalia GLP Cafeteria", sourceModule:"Dispositivos", period:"Abr 2026", reviewedData:"lecturas GLP, historial cafeteria, factores vigentes", topVariables:["consumo observado","promedio historico","horario"], explanation:"La lectura supero mas del doble el patron esperado para ese horario y area." },
+  { id:"tr3", result:"Recomendacion HVAC Edif. B", sourceModule:"Registros", period:"2026-Q1", reviewedData:"electricidad, horarios de uso, tendencias por edificio", topVariables:["consumo nocturno","ocupacion","temperatura"], explanation:"Se detecto consumo sostenido fuera de horario con baja ocupacion registrada." },
+];
+
+export const aiPermissionsMatrix = [
+  { id:"view", action:"Ver predicciones", admin:true, directivo:true, operativo:false, consulta:false },
+  { id:"retrain", action:"Reentrenar modelo", admin:true, directivo:false, operativo:false, consulta:false },
+  { id:"approve", action:"Aprobar recomendaciones", admin:true, directivo:true, operativo:false, consulta:false },
+  { id:"toggle", action:"Apagar modulo IA", admin:true, directivo:false, operativo:false, consulta:false },
+  { id:"audit", action:"Ver trazabilidad", admin:true, directivo:true, operativo:true, consulta:false },
+];
+
+export const aiSecurityLimits = [
+  { id:"read", label:"Modo de acceso", value:"Solo lectura sobre datos operativos; genera sugerencias, no modifica registros." },
+  { id:"allowed", label:"Datos permitidos", value:"Registros, factores, metas, periodos, dispositivos y bitacora tecnica." },
+  { id:"blocked", label:"Datos restringidos", value:"Contrasenas, tokens, datos personales sensibles y archivos privados no asociados." },
+  { id:"scope", label:"Limites de consulta", value:"Respeta rol, campus, area asignada y periodo disponible para el usuario." },
+  { id:"log", label:"Registro de uso", value:"Cada consulta, recomendacion y reentrenamiento queda en bitacora administrativa." },
+];
+
+export const aiUsageLog = [
+  { id:"ul1", ts:"2026-04-11T09:20:00Z", user:"Sergio Arellano", action:"Reviso anomalia", module:"Anomalias", outcome:"marcada como util" },
+  { id:"ul2", ts:"2026-04-10T16:45:00Z", user:"Ana Torres", action:"Aprobo recomendacion", module:"Recomendaciones", outcome:"enviada a metas" },
+  { id:"ul3", ts:"2026-04-10T08:00:00Z", user:"Sistema", action:"Genero predicciones", module:"Predicciones", outcome:"5 resultados" },
+  { id:"ul4", ts:"2026-04-02T03:00:00Z", user:"Sistema", action:"Entreno modelo", module:"Entrenamiento", outcome:"exitoso" },
 ];
