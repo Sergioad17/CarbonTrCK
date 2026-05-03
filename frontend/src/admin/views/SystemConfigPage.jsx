@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { SlidersHorizontal } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import {
@@ -9,26 +9,116 @@ import {
   AdminNumberField,
   AdminChipList,
 } from "../components/AdminFormSection";
-import { systemConfig } from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { fetchAdminGovernmentSettings, saveAdminGovernmentSettings } from "../../api/admin";
+
+const fb = "var(--eco-font-body)";
+
+const DEFAULT_SYSTEM_FORM = {
+  systemName: "",
+  version: "",
+  environment: "production",
+  language: "es-MX",
+  dateFormat: "DD/MM/YYYY",
+  numberFormat: "1,234.56",
+  timezone: "America/Mexico_City",
+  systemEmail: "",
+  notificationsEnabled: true,
+  emailNotifications: true,
+  pushNotifications: false,
+  logsEnabled: true,
+  logLevel: "info",
+  maxUploadSize: 10,
+  allowedFileTypes: ["pdf", "xlsx", "csv", "png", "jpg"],
+  maxAttachmentSize: 5,
+  primaryColor: "#22C55E",
+  compactMode: false,
+  showTips: true,
+};
+
+function normalizeSystemForm(input = {}) {
+  const allowedFileTypes = Array.isArray(input.allowedFileTypes)
+    ? input.allowedFileTypes.map((item) => String(item).replace(/^\./, "").trim().toLowerCase()).filter(Boolean)
+    : DEFAULT_SYSTEM_FORM.allowedFileTypes;
+
+  return {
+    ...DEFAULT_SYSTEM_FORM,
+    ...input,
+    version: String(input.version || DEFAULT_SYSTEM_FORM.version).trim() || DEFAULT_SYSTEM_FORM.version,
+    allowedFileTypes,
+    maxUploadSize: Number.isFinite(Number(input.maxUploadSize)) ? Number(input.maxUploadSize) : DEFAULT_SYSTEM_FORM.maxUploadSize,
+    maxAttachmentSize: Number.isFinite(Number(input.maxAttachmentSize)) ? Number(input.maxAttachmentSize) : DEFAULT_SYSTEM_FORM.maxAttachmentSize,
+    notificationsEnabled: typeof input.notificationsEnabled === "boolean" ? input.notificationsEnabled : DEFAULT_SYSTEM_FORM.notificationsEnabled,
+    emailNotifications: typeof input.emailNotifications === "boolean" ? input.emailNotifications : DEFAULT_SYSTEM_FORM.emailNotifications,
+    pushNotifications: typeof input.pushNotifications === "boolean" ? input.pushNotifications : DEFAULT_SYSTEM_FORM.pushNotifications,
+    logsEnabled: typeof input.logsEnabled === "boolean" ? input.logsEnabled : DEFAULT_SYSTEM_FORM.logsEnabled,
+    compactMode: typeof input.compactMode === "boolean" ? input.compactMode : DEFAULT_SYSTEM_FORM.compactMode,
+    showTips: typeof input.showTips === "boolean" ? input.showTips : DEFAULT_SYSTEM_FORM.showTips,
+  };
+}
 
 export default function SystemConfigPage() {
-  const [form, setForm] = React.useState({ ...systemConfig });
+  const [form, setForm] = React.useState(null);
+  const [settings, setSettings] = React.useState(null);
   const [dirty, setDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [status, setStatus] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchAdminGovernmentSettings()
+      .then((data) => {
+        if (cancelled) return;
+        setSettings(data);
+        setForm(normalizeSystemForm(data?.system || {}));
+        setDirty(false);
+        setStatus(null);
+      })
+      .catch((error) => {
+        console.error("admin_system_load_failed", error);
+        setStatus({ type: "error", text: "No se pudo cargar la configuración del sistema." });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   function update(key, val) {
     setForm(prev => ({ ...prev, [key]: val }));
     setDirty(true);
+    setStatus(null);
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
-    setTimeout(() => { setSaving(false); setDirty(false); }, 1200);
+    try {
+      const saved = await saveAdminGovernmentSettings({
+        ...(settings || {}),
+        system: normalizeSystemForm(form),
+      });
+      setSettings(saved);
+      setForm(normalizeSystemForm(saved?.system || {}));
+      setDirty(false);
+      setStatus({ type: "success", text: "Configuración del sistema guardada." });
+    } catch (error) {
+      console.error("admin_system_save_failed", error);
+      setStatus({ type: "error", text: "No se pudo guardar. Revisa la conexión con el backend." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleRestore() {
-    setForm({ ...systemConfig });
+    setForm(normalizeSystemForm(settings?.system || {}));
     setDirty(false);
+    setStatus(null);
+  }
+
+  if (loading || !form) {
+    return <AdminLoadingScreen />;
   }
 
   return (
@@ -43,12 +133,27 @@ export default function SystemConfigPage() {
         onRestore={dirty ? handleRestore : undefined}
         saving={saving}
       />
+      {status && (
+        <div style={{
+          marginBottom: 14,
+          padding: "10px 14px",
+          borderRadius: 8,
+          border: status.type === "error" ? "1px solid rgba(239,68,68,.18)" : "1px solid rgba(34,197,94,.18)",
+          background: status.type === "error" ? "rgba(239,68,68,.06)" : "rgba(34,197,94,.06)",
+          fontFamily: fb,
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: status.type === "error" ? "var(--eco-danger, #DC2626)" : "var(--eco-success, #16A34A)",
+        }}>
+          {status.text}
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {/* ── General ────────────────────────────────────────────── */}
+        {/* -- General ---------------------------------------------- */}
         <AdminFormSection title="General" description="Identificación y estado del sistema" columns={2}>
           <AdminTextField label="Nombre del sistema" value={form.systemName} onChange={v => update("systemName", v)} />
-          <AdminTextField label="Versión" value={form.version} onChange={v => update("version", v)} disabled />
+          <AdminTextField label="Versión" value={form.version} onChange={v => update("version", v)} />
           <AdminSelectField
             label="Ambiente"
             value={form.environment}
@@ -62,7 +167,7 @@ export default function SystemConfigPage() {
           <AdminTextField label="Correo del sistema" value={form.systemEmail} onChange={v => update("systemEmail", v)} type="email" />
         </AdminFormSection>
 
-        {/* ── Regionalización ────────────────────────────────────── */}
+        {/* -- Regionalización -------------------------------------- */}
         <AdminFormSection title="Regionalización" description="Idioma, formatos y zona horaria" columns={2}>
           <AdminSelectField
             label="Idioma"
@@ -106,7 +211,7 @@ export default function SystemConfigPage() {
           />
         </AdminFormSection>
 
-        {/* ── Notificaciones ─────────────────────────────────────── */}
+        {/* -- Notificaciones --------------------------------------- */}
         <AdminFormSection title="Notificaciones" description="Canales y preferencias de notificación">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <AdminToggleField
@@ -132,7 +237,7 @@ export default function SystemConfigPage() {
           </div>
         </AdminFormSection>
 
-        {/* ── Logs ────────────────────────────────────────────────── */}
+        {/* -- Logs -------------------------------------------------- */}
         <AdminFormSection title="Registro de actividad" description="Configuración de logging y auditoría" columns={2}>
           <AdminToggleField label="Logs habilitados" checked={form.logsEnabled} onChange={v => update("logsEnabled", v)} description="Registrar actividad del sistema para auditoría" />
           <AdminSelectField
@@ -149,7 +254,7 @@ export default function SystemConfigPage() {
           />
         </AdminFormSection>
 
-        {/* ── Archivos ────────────────────────────────────────────── */}
+        {/* -- Archivos ---------------------------------------------- */}
         <AdminFormSection title="Archivos y cargas" description="Límites y tipos de archivos permitidos" columns={2}>
           <AdminNumberField
             label="Tamaño máximo de carga"
@@ -172,7 +277,7 @@ export default function SystemConfigPage() {
           </div>
         </AdminFormSection>
 
-        {/* ── Personalización ─────────────────────────────────────── */}
+        {/* -- Personalización --------------------------------------- */}
         <AdminFormSection title="Personalización" description="Ajustes visuales y de experiencia">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <AdminToggleField

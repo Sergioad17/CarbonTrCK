@@ -8,7 +8,6 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
-import AdminTabs from "../components/AdminTabs";
 import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
@@ -20,7 +19,7 @@ import {
   aiAnomalies, aiRecommendations, aiTrainingHistory, aiSmartAlerts,
   aiDataSources, aiDataQuality, aiModelObjectives, aiPerformanceHistory,
   aiModelVersions, aiTraceabilityItems, aiPermissionsMatrix,
-  aiSecurityLimits, aiUsageLog,
+  aiUsageLog,
 } from "../mocks/adminMocks";
 
 const fb = "var(--eco-font-body)";
@@ -86,6 +85,34 @@ const DATA_MODE_OPTIONS = [
   { id: "both", label: "Reales y estimados" },
 ];
 
+const ACCESS_MODE_OPTIONS = [
+  { id: "read-only", label: "Solo lectura" },
+  { id: "suggestions", label: "Lectura + sugerencias" },
+];
+
+const ALLOWED_DATA_OPTIONS = [
+  { id: "records", label: "Registros" },
+  { id: "factors", label: "Factores" },
+  { id: "goals", label: "Metas" },
+  { id: "periods", label: "Periodos" },
+  { id: "devices", label: "Dispositivos" },
+  { id: "audit", label: "Bitácora técnica" },
+];
+
+const RESTRICTED_DATA_OPTIONS = [
+  { id: "passwords", label: "Contraseñas" },
+  { id: "tokens", label: "Tokens" },
+  { id: "sensitive-personal", label: "Datos sensibles" },
+  { id: "private-files", label: "Archivos privados" },
+  { id: "raw-secrets", label: "Secretos técnicos" },
+];
+
+const USAGE_LIMIT_OPTIONS = [
+  { id: "role-area-period", label: "Rol, área y periodo" },
+  { id: "role-campus-period", label: "Rol, campus y periodo" },
+  { id: "admin-only", label: "Solo administradores" },
+];
+
 const MODEL_OPTIONS = [
   { id: "carbontrack-forecast", label: "CarbonTrack Forecast v1.4.2" },
   { id: "carbontrack-anomaly", label: "CarbonTrack Anomaly v1.2.0" },
@@ -98,6 +125,39 @@ const RECOMMENDATION_TYPE_OPTIONS = [
   { id: "goals", label: "Metas" },
   { id: "operations", label: "Operación" },
   { id: "devices", label: "Dispositivos" },
+];
+
+const AI_TAB_META = [
+  { id: "overview", label: "Resumen", group: "General", icon: Sparkles, hint: "Estado y KPIs" },
+  { id: "data", label: "Datos", group: "Preparación", icon: Database, hint: "Origen y calidad" },
+  { id: "performance", label: "Desempeño", group: "Modelo", icon: Gauge, hint: "Métricas y versiones" },
+  { id: "modules", label: "Módulos IA", group: "Control", icon: Cpu, hint: "Funciones activas" },
+  { id: "predictions", label: "Predicciones", group: "Resultados", icon: TrendingUp, hint: "Pronósticos" },
+  { id: "anomalies", label: "Anomalías", group: "Resultados", icon: AlertTriangle, hint: "Detecciones" },
+  { id: "recommendations", label: "Recomendaciones", group: "Resultados", icon: Lightbulb, hint: "Acciones sugeridas" },
+  { id: "alerts", label: "Alertas IA", group: "Resultados", icon: Bell, hint: "Riesgos activos" },
+  { id: "training", label: "Entrenamiento", group: "Modelo", icon: RefreshCw, hint: "Control e historial" },
+  { id: "governance", label: "Gobierno", group: "Seguridad", icon: ShieldCheck, hint: "Auditoría y trazabilidad" },
+  { id: "config", label: "Configuración", group: "Control", icon: SlidersHorizontal, hint: "Políticas editables" },
+];
+
+const APPROVAL_POLICY_OPTIONS = [
+  { id: "manual", label: "Revisión manual" },
+  { id: "high-confidence", label: "Auto si confianza alta" },
+  { id: "advisory-only", label: "Solo informativo" },
+];
+
+const NOTIFICATION_CHANNEL_OPTIONS = [
+  { id: "inapp", label: "En app" },
+  { id: "email", label: "Correo" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "audit", label: "Bitácora" },
+];
+
+const EXPLANATION_LEVEL_OPTIONS = [
+  { id: "summary", label: "Resumen" },
+  { id: "standard", label: "Estándar" },
+  { id: "detailed", label: "Detallado" },
 ];
 
 function fmtDate(ts) {
@@ -125,6 +185,18 @@ export default function AIControlPage() {
     scheduleTime: "03:00",
     selectedModel: "carbontrack-forecast",
     usageLimit: "role-area-period",
+    accessMode: "suggestions",
+    allowedData: ["records", "factors", "goals", "periods", "devices", "audit"],
+    restrictedData: ["passwords", "tokens", "sensitive-personal", "private-files"],
+    usageLogging: true,
+    minConfidence: 78,
+    anomalyThreshold: 65,
+    approvalPolicy: "manual",
+    notificationChannels: ["inapp", "email", "dashboard", "audit"],
+    dataFreshnessHours: 24,
+    retentionMonths: 24,
+    explanationLevel: "standard",
+    fallbackVersion: "1.4.1",
   });
   const [retraining, setRetraining] = React.useState(false);
   const [confirm, setConfirm] = React.useState(null);
@@ -193,6 +265,35 @@ export default function AIControlPage() {
   function updateConfig(key, value) {
     setAiConfig(prev => ({ ...prev, [key]: value }));
   }
+
+  const securityPolicySummary = React.useMemo(() => {
+    const accessModeLabel = ACCESS_MODE_OPTIONS.find(o => o.id === aiConfig.accessMode)?.label || "Solo lectura";
+    const allowed = ALLOWED_DATA_OPTIONS
+      .filter(o => aiConfig.allowedData.includes(o.id))
+      .map(o => o.label)
+      .join(", ");
+    const restricted = RESTRICTED_DATA_OPTIONS
+      .filter(o => aiConfig.restrictedData.includes(o.id))
+      .map(o => o.label)
+      .join(", ");
+    const usageLimitLabel = USAGE_LIMIT_OPTIONS.find(o => o.id === aiConfig.usageLimit)?.label || "Rol, área y periodo";
+
+    return [
+      {
+        id: "read",
+        label: "Modo de acceso",
+        value: aiConfig.accessMode === "read-only"
+          ? `${accessModeLabel} sobre datos operativos; no genera nuevas sugerencias.`
+          : `${accessModeLabel}; consulta datos operativos y no modifica registros.`,
+      },
+      { id: "allowed", label: "Datos permitidos", value: allowed || "Sin fuentes permitidas configuradas." },
+      { id: "blocked", label: "Datos restringidos", value: restricted || "Sin restricciones configuradas." },
+      { id: "scope", label: "Límites de consulta", value: `Respeta ${usageLimitLabel.toLowerCase()} disponible para el usuario.` },
+      { id: "log", label: "Registro de uso", value: aiConfig.usageLogging ? "Cada consulta, recomendación y reentrenamiento queda en bitácora administrativa." : "Registro de uso desactivado." },
+      { id: "freshness", label: "Frescura mínima", value: `Datos con actualización máxima de ${aiConfig.dataFreshnessHours} h para nuevas inferencias.` },
+      { id: "retention", label: "Retención", value: `Evidencia y explicaciones IA conservadas ${aiConfig.retentionMonths} meses.` },
+    ];
+  }, [aiConfig]);
 
   // ── Predictions table ─────────────────────────────────────────
   const predictionColumns = [
@@ -356,20 +457,18 @@ export default function AIControlPage() {
         }} />
       </div>
 
-      <AdminTabs
-        tabs={[
-          { id: "overview",       label: "Resumen" },
-          { id: "data",           label: "Datos" },
-          { id: "performance",    label: "Desempeño" },
-          { id: "modules",        label: "Módulos IA",      count: modules.length },
-          { id: "predictions",    label: "Predicciones",    count: aiPredictions.length },
-          { id: "anomalies",      label: "Anomalías",       count: anomalies.length },
-          { id: "recommendations",label: "Recomendaciones", count: recommendations.length },
-          { id: "alerts",         label: "Alertas IA",      count: aiSmartAlerts.length },
-          { id: "training",       label: "Entrenamiento",   count: aiTrainingHistory.length },
-          { id: "governance",     label: "Gobierno" },
-          { id: "config",         label: "Configuración" },
-        ]}
+      <AITabNav
+        tabs={AI_TAB_META.map(item => ({
+          ...item,
+          count:
+            item.id === "modules" ? modules.length
+            : item.id === "predictions" ? aiPredictions.length
+            : item.id === "anomalies" ? anomalies.length
+            : item.id === "recommendations" ? recommendations.length
+            : item.id === "alerts" ? aiSmartAlerts.length
+            : item.id === "training" ? aiTrainingHistory.length
+            : undefined,
+        }))}
         activeTab={tab}
         onChange={setTab}
       />
@@ -831,7 +930,7 @@ export default function AIControlPage() {
 
           <SectionCard title="Seguridad y límites" icon={Lock}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
-              {aiSecurityLimits.map(limit => (
+              {securityPolicySummary.map(limit => (
                 <Field key={limit.id} label={limit.label} value={limit.value} />
               ))}
             </div>
@@ -948,6 +1047,18 @@ export default function AIControlPage() {
                 </select>
               </EditablePanel>
 
+              <EditablePanel title="Versión de respaldo" hint="Versión usada si el modelo activo falla o se desactiva.">
+                <select
+                  value={aiConfig.fallbackVersion}
+                  onChange={e => updateConfig("fallbackVersion", e.target.value)}
+                  style={selectStyle}
+                >
+                  {aiModelVersions.filter(v => !v.current).map(v => (
+                    <option key={v.id} value={v.version}>v{v.version} · {v.date}</option>
+                  ))}
+                </select>
+              </EditablePanel>
+
               <EditablePanel title="Tipos de recomendaciones" hint="Controla qué nuevas sugerencias puede generar la IA.">
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {RECOMMENDATION_TYPE_OPTIONS.map(opt => (
@@ -955,6 +1066,52 @@ export default function AIControlPage() {
                       key={opt.id}
                       active={aiConfig.recommendationTypes.includes(opt.id)}
                       onClick={() => toggleConfigList("recommendationTypes", opt.id)}
+                    >
+                      {opt.label}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </EditablePanel>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Umbrales, aprobación y monitoreo" icon={Gauge}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+              <EditablePanel title="Confianza mínima" hint="Oculta o marca como baja confianza resultados debajo del umbral.">
+                <RangeControl
+                  value={aiConfig.minConfidence}
+                  onChange={value => updateConfig("minConfidence", value)}
+                  min={50}
+                  max={95}
+                  suffix="%"
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Umbral de anomalía" hint="Controla qué tan fuerte debe ser una desviación para alertar.">
+                <RangeControl
+                  value={aiConfig.anomalyThreshold}
+                  onChange={value => updateConfig("anomalyThreshold", value)}
+                  min={30}
+                  max={95}
+                  suffix="%"
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Política de aprobación" hint="Define si las recomendaciones requieren revisión humana.">
+                <SegmentGroup
+                  options={APPROVAL_POLICY_OPTIONS}
+                  value={aiConfig.approvalPolicy}
+                  onChange={value => updateConfig("approvalPolicy", value)}
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Canales de notificación" hint="Dónde se anuncian anomalías, riesgos o recomendaciones.">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {NOTIFICATION_CHANNEL_OPTIONS.map(opt => (
+                    <ToggleChip
+                      key={opt.id}
+                      active={aiConfig.notificationChannels.includes(opt.id)}
+                      onClick={() => toggleConfigList("notificationChannels", opt.id)}
                     >
                       {opt.label}
                     </ToggleChip>
@@ -995,17 +1152,100 @@ export default function AIControlPage() {
 
           <SectionCard title="Límites de uso y visibilidad" icon={Lock}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+              <EditablePanel title="Modo de acceso" hint="Define si la IA solo consulta o también genera sugerencias.">
+                <SegmentGroup
+                  options={ACCESS_MODE_OPTIONS}
+                  value={aiConfig.accessMode}
+                  onChange={value => updateConfig("accessMode", value)}
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Datos permitidos" hint="Fuentes que la IA puede consultar para nuevos análisis.">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {ALLOWED_DATA_OPTIONS.map(opt => (
+                    <ToggleChip
+                      key={opt.id}
+                      active={aiConfig.allowedData.includes(opt.id)}
+                      onClick={() => toggleConfigList("allowedData", opt.id)}
+                    >
+                      {opt.label}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </EditablePanel>
+
+              <EditablePanel title="Datos restringidos" hint="Categorías que la IA no debe consultar.">
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {RESTRICTED_DATA_OPTIONS.map(opt => (
+                    <ToggleChip
+                      key={opt.id}
+                      active={aiConfig.restrictedData.includes(opt.id)}
+                      onClick={() => toggleConfigList("restrictedData", opt.id)}
+                    >
+                      {opt.label}
+                    </ToggleChip>
+                  ))}
+                </div>
+              </EditablePanel>
+
               <EditablePanel title="Límite aplicado a consultas" hint="Controla el alcance de nuevas consultas IA.">
                 <select
                   value={aiConfig.usageLimit}
                   onChange={e => updateConfig("usageLimit", e.target.value)}
                   style={selectStyle}
                 >
-                  <option value="role-area-period">Rol, área y periodo</option>
-                  <option value="role-campus-period">Rol, campus y periodo</option>
-                  <option value="admin-only">Solo administradores</option>
+                  {USAGE_LIMIT_OPTIONS.map(option => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
                 </select>
               </EditablePanel>
+
+              <EditablePanel title="Registro de uso" hint="Recomendado como obligatorio para auditoría y trazabilidad.">
+                <button
+                  type="button"
+                  onClick={() => updateConfig("usageLogging", !aiConfig.usageLogging)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                    padding: "10px 12px", borderRadius: 9,
+                    border: "1px solid var(--eco-border)",
+                    background: aiConfig.usageLogging ? "rgba(34,197,94,.10)" : "var(--eco-card)",
+                    color: "var(--eco-text)", cursor: "pointer",
+                    fontFamily: fb, fontSize: 12.5, fontWeight: 700,
+                  }}
+                >
+                  <span>{aiConfig.usageLogging ? "Activo" : "Inactivo"}</span>
+                  <AdminStatusBadge variant={aiConfig.usageLogging ? "success" : "warning"} label={aiConfig.usageLogging ? "Auditable" : "Sin auditoría"} />
+                </button>
+              </EditablePanel>
+
+              <EditablePanel title="Frescura de datos" hint="Antigüedad máxima permitida antes de advertir baja confiabilidad.">
+                <RangeControl
+                  value={aiConfig.dataFreshnessHours}
+                  onChange={value => updateConfig("dataFreshnessHours", value)}
+                  min={6}
+                  max={72}
+                  suffix=" h"
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Retención de evidencia IA" hint="Tiempo de conservación de explicaciones, revisiones y auditoría.">
+                <RangeControl
+                  value={aiConfig.retentionMonths}
+                  onChange={value => updateConfig("retentionMonths", value)}
+                  min={6}
+                  max={60}
+                  suffix=" meses"
+                />
+              </EditablePanel>
+
+              <EditablePanel title="Nivel de explicación" hint="Detalle mostrado en trazabilidad y revisión humana.">
+                <SegmentGroup
+                  options={EXPLANATION_LEVEL_OPTIONS}
+                  value={aiConfig.explanationLevel}
+                  onChange={value => updateConfig("explanationLevel", value)}
+                />
+              </EditablePanel>
+
               <ReadOnlyNotice
                 title="Resultados protegidos"
                 text="Predicciones, métricas, versiones, bitácora e historial no se editan aquí. Solo se consultan en Datos, Desempeño, Entrenamiento y Gobierno."
@@ -1027,6 +1267,15 @@ export default function AIControlPage() {
       <style>{`
         @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
         .spin { animation: spin 1.2s linear infinite; }
+        .ai-tab-card:hover .ai-tab-tooltip,
+        .ai-tab-card:focus-visible .ai-tab-tooltip {
+          opacity: 1 !important;
+          transform: translate(-50%, 0) scale(1) !important;
+        }
+        .ai-tab-card:hover,
+        .ai-tab-card:focus-visible {
+          z-index: 5;
+        }
       `}</style>
     </div>
   );
@@ -1089,6 +1338,147 @@ function SectionCard({ title, icon: Icon, children }) {
         }}>{title}</span>
       </div>
       <div style={{ padding: "16px 20px" }}>{children}</div>
+    </div>
+  );
+}
+
+function AITabNav({ tabs = [], activeTab, onChange }) {
+  return (
+    <div style={{
+      background: "var(--eco-card)",
+      border: "1px solid var(--eco-border)",
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 18,
+      boxShadow: "var(--eco-shadow-sm)",
+    }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(138px, 1fr))",
+        gap: 8,
+      }}>
+        {tabs.map(tab => {
+          const active = tab.id === activeTab;
+          const Icon = tab.icon || Sparkles;
+          return (
+            <button
+              key={tab.id}
+              className="ai-tab-card"
+              onClick={() => onChange?.(tab.id)}
+              style={{
+                minHeight: 64,
+                padding: "10px 11px",
+                borderRadius: 10,
+                border: `1px solid ${active ? "var(--eco-primary-400)" : "var(--eco-border)"}`,
+                background: active ? "rgba(34,197,94,.10)" : "var(--eco-card-muted, #F8FAFC)",
+                color: active ? "var(--eco-primary-700, #15803D)" : "var(--eco-text)",
+                cursor: "pointer",
+                display: "grid",
+                gridTemplateColumns: "auto 1fr auto",
+                alignItems: "center",
+                gap: 8,
+                textAlign: "left",
+                transition: "border-color .15s, background .15s, transform .15s",
+                boxShadow: active ? "0 0 0 1px rgba(34,197,94,.08)" : "none",
+                position: "relative",
+              }}
+              onMouseEnter={e => {
+                if (!active) {
+                  e.currentTarget.style.borderColor = "var(--eco-primary-300)";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }
+              }}
+              onMouseLeave={e => {
+                if (!active) {
+                  e.currentTarget.style.borderColor = "var(--eco-border)";
+                  e.currentTarget.style.transform = "none";
+                }
+              }}
+            >
+              <span style={{
+                width: 30, height: 30, borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: active ? "rgba(34,197,94,.14)" : "var(--eco-card)",
+                border: "1px solid var(--eco-border)",
+                flexShrink: 0,
+              }}>
+                <Icon size={15} color={active ? "var(--eco-primary-600)" : "var(--eco-text-soft)"} />
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{
+                  display: "block",
+                  fontFamily: fb,
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}>
+                  {tab.label}
+                </span>
+                <span style={{
+                  display: "block",
+                  fontFamily: fb,
+                  fontSize: 10.5,
+                  color: active ? "var(--eco-primary-700, #15803D)" : "var(--eco-text-soft)",
+                  marginTop: 3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}>
+                  {tab.group} · {tab.hint}
+                </span>
+              </span>
+              {tab.count != null && (
+                <span style={{
+                  minWidth: 22,
+                  height: 22,
+                  padding: "0 7px",
+                  borderRadius: 999,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: active ? "var(--eco-primary-500)" : "var(--eco-card)",
+                  color: active ? "#fff" : "var(--eco-text-soft)",
+                  border: `1px solid ${active ? "var(--eco-primary-500)" : "var(--eco-border)"}`,
+                  fontFamily: fm,
+                  fontSize: 10.5,
+                  fontWeight: 800,
+                }}>
+                  {tab.count}
+                </span>
+              )}
+              <span className="ai-tab-tooltip" style={{
+                position: "absolute",
+                left: "50%",
+                bottom: "calc(100% + 8px)",
+                zIndex: 20,
+                width: "max-content",
+                maxWidth: 190,
+                padding: "7px 10px",
+                borderRadius: 8,
+                background: "var(--eco-card)",
+                border: "1px solid var(--eco-border)",
+                boxShadow: "var(--eco-shadow-md)",
+                color: "var(--eco-text)",
+                fontFamily: fb,
+                fontSize: 12,
+                fontWeight: 800,
+                lineHeight: 1.25,
+                whiteSpace: "normal",
+                textAlign: "center",
+                pointerEvents: "none",
+                opacity: 0,
+                transform: "translate(-50%, 4px) scale(.98)",
+                transition: "opacity .16s ease, transform .16s ease",
+              }}>
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

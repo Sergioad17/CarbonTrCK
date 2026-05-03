@@ -16,7 +16,7 @@ import {
   Eye, Menu,
   LogOut, User, Settings,
   Users, Database, FileText,
-  HelpCircle
+  HelpCircle, BrainCircuit
 } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RPieChart,
@@ -39,6 +39,7 @@ import SettingsPage from './SettingsPage'
 import ProfilePage from './ProfilePage'
 import NotificationsBell from '../components/NotificationsBell'
 import AdminPanel from '../admin/AdminPanel'
+import DiagnosticoInteligentePage from './DiagnosticoInteligentePage'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import { createEmissionRecord } from "../api/records"
 import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
@@ -185,6 +186,13 @@ const navItems = [{
   icon: LayoutDashboard
 },
 {
+  id: "diagnostico",
+  label: "Diagnóstico Inteligente",
+  icon: BrainCircuit,
+  aiTheme: true,
+  aiBadge: "IA"
+},
+{
   id: "emissions",
   label: "Emisiones",
   icon: Leaf
@@ -268,6 +276,7 @@ const navItems = [{
 
 const NAV_TO_PATH = {
   dashboard: "/",
+  diagnostico: "/diagnostico-inteligente",
   emissions: "/emisiones",
   scope2: "/scope/electricidad",
   scope1: "/scope/combustible",
@@ -339,6 +348,7 @@ function navFromPath(pathname) {
   if (pathname?.startsWith("/catalogos/equipos")) return "equipment";
   if (pathname?.startsWith("/catalogos/dispositivos")) return "devices";
   if (pathname?.startsWith("/admin/avanzado")) return "advanced";
+  if (pathname?.startsWith("/diagnostico-inteligente")) return "diagnostico";
   if (pathname?.startsWith("/admin/usuarios")) return "users";
   if (pathname?.startsWith("/configuracion")) return "settings";
   return "dashboard";
@@ -473,11 +483,23 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
     const act = isActive(it);
     const has = it.children?.length;
     const exp = expanded.includes(it.id);
+    const ai = !!it.aiTheme;
+
+    /* AI items override the green active accent with purple */
+    const activeBg     = ai ? "rgba(139,92,246,0.18)"  : "rgba(34,197,94,0.12)";
+    const activeColor  = ai ? "#c4b5fd"                : "#4ADE80";
+    const accentColor  = ai ? "#8b5cf6"                : "#4ADE80";
+    const activeShadow = ai ? "inset 0 0 16px rgba(139,92,246,0.25)" : "none";
+    const idleColor    = ai ? "#a78bfa"                : "rgba(255,255,255,0.5)";
+    const hoverColor   = ai ? "#c4b5fd"                : "rgba(255,255,255,0.85)";
+    const hoverBg      = ai ? "rgba(139,92,246,0.10)"  : "rgba(255,255,255,0.06)";
+
     return (<div key={it.id}>
       <button onClick={() => {
         if (has && !collapsed) toggle(it.id);
         else onNav?.(it.id)
       }} title={collapsed ? it.label : undefined}
+        aria-current={act ? "page" : undefined}
         style={{
           width: "100%",
           display: "flex",
@@ -486,28 +508,29 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
           padding: collapsed ? "10px 0" : `8px ${depth ? 16 : 12}px 8px ${depth ? 38 : 12}px`,
           justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: "var(--eco-radius-md)",
-          background: act ? "rgba(34,197,94,0.12)" : "transparent",
+          background: act ? activeBg : "transparent",
           border: "none",
           cursor: "pointer",
           outline: "none",
-          color: act ? "#4ADE80" : "rgba(255,255,255,0.5)",
+          color: act ? activeColor : idleColor,
           fontFamily: fb,
           fontSize: depth ? 13 : 14,
           fontWeight: act ? 600 : 400,
           transition: "all 150ms",
           position: "relative",
-          margin: "1px 8px"
+          margin: "1px 8px",
+          boxShadow: act ? activeShadow : "none"
         }}
         onMouseEnter={e => {
           if (!act) {
-            e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-            e.currentTarget.style.color = "rgba(255,255,255,0.85)"
+            e.currentTarget.style.background = hoverBg;
+            e.currentTarget.style.color = hoverColor
           }
         }}
         onMouseLeave={e => {
           if (!act) {
             e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "rgba(255,255,255,0.5)"
+            e.currentTarget.style.color = idleColor
           }
         }}>
         {act && !has &&
@@ -521,11 +544,12 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
               width: collapsed ? 16 : 3,
               height: collapsed ? 3 : 18,
               borderRadius: 2,
-              background: "#4ADE80"
+              background: accentColor,
+              boxShadow: ai ? "0 0 10px rgba(139,92,246,0.6)" : "none"
             }} />}
         <Icon
           size={depth ? 15 : 18}
-          style={{ flexShrink: 0 }} />
+          style={{ flexShrink: 0, color: ai ? accentColor : undefined }} />
         {!collapsed && <>
           <span
             style={{
@@ -554,6 +578,24 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
                 padding: "0 5px"
               }}>
               {it.badge}
+            </span>
+          }{
+            it.aiBadge &&
+            <span
+              aria-hidden="true"
+              style={{
+                padding: "1px 7px",
+                borderRadius: 999,
+                background: act ? "#8b5cf6" : "rgba(139,92,246,0.18)",
+                color: act ? "#fff" : "#c4b5fd",
+                fontFamily: fd,
+                fontSize: 9,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                border: "1px solid rgba(139,92,246,0.45)",
+                flexShrink: 0
+              }}>
+              {it.aiBadge}
             </span>
           }{
             it.tag &&
@@ -1846,6 +1888,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               >
                 {activeNav === "emissions"
                   ? <><Leaf size={13} /> Emisiones</>
+                  : activeNav === "diagnostico"
+                  ? <><BrainCircuit size={13} color="#8b5cf6" /> Diagnóstico Inteligente</>
                   : activeNav === "profile"
                   ? <><User size={13} /> Mi perfil</>
                   : activeNav === "scope2"
@@ -2057,7 +2101,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           style={{
             flex: 1,
             overflow: "auto",
-            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" || activeNav === "advanced" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
+            padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" || activeNav === "advanced" || activeNav === "diagnostico" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}
         >
           {activeNav === "emissions" ? (
@@ -2099,6 +2143,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             <ProfilePage user={user} onLogout={handleLogout} onUserChange={onUserChange} />
           ) : activeNav === "advanced" ? (
             <AdminPanel />
+          ) : activeNav === "diagnostico" ? (
+            <DiagnosticoInteligentePage />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />

@@ -73,6 +73,7 @@ export default function AdminDataTable({
                     cursor: sortable ? "pointer" : "default",
                     userSelect: "none", whiteSpace: "nowrap",
                     width: col.width,
+                    minWidth: col.minWidth,
                     borderBottom: "1px solid var(--eco-border, #E2E8F0)",
                   }}
                 >
@@ -117,7 +118,7 @@ export default function AdminDataTable({
                     textAlign: col.align || "left",
                     fontFamily: col.mono ? fm : fb,
                     fontSize: 13, whiteSpace: col.nowrap ? "nowrap" : undefined,
-                    maxWidth: col.maxWidth, overflow: "hidden", textOverflow: "ellipsis",
+                    maxWidth: col.maxWidth, minWidth: col.minWidth, overflow: "hidden", textOverflow: "ellipsis",
                   }}>
                     {col.render ? col.render(row[col.key], row) : row[col.key]}
                   </td>

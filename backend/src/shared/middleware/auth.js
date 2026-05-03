@@ -1,6 +1,8 @@
 import { AppError } from "../errors/app-error.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { getUserAuthorizationContext } from "../../domains/users/users.repository.js";
+import { getSecurityConfigForOrganization } from "../../domains/admin/admin.repository.js";
+import { query } from "../db/pool.js";
 
 export async function requireAuth(request, _response, next) {
   try {
@@ -32,6 +34,55 @@ export async function requireAuth(request, _response, next) {
         code: "USER_INACTIVE",
         message: "This user is inactive.",
       });
+    }
+
+    if (payload.sid) {
+      const securityConfig = await getSecurityConfigForOrganization(actor.organizationId);
+      const timeoutWindow = `${securityConfig.sessionTimeout} minutes`;
+      const sessionResult = await query(
+        `
+          SELECT id
+          FROM auth_sessions
+          WHERE id = $1
+            AND organization_id = $2
+            AND user_id = $3
+            AND revoked_at IS NULL
+            AND expires_at > now()
+            AND COALESCE(last_used_at, created_at) >= now() - $4::interval
+          LIMIT 1
+        `,
+        [payload.sid, actor.organizationId, actor.id, timeoutWindow],
+      );
+
+      if (sessionResult.rowCount < 1) {
+        await query(
+          `
+            UPDATE auth_sessions
+            SET revoked_at = COALESCE(revoked_at, now())
+            WHERE id = $1
+              AND organization_id = $2
+              AND user_id = $3
+          `,
+          [payload.sid, actor.organizationId, actor.id],
+        );
+        throw new AppError({
+          statusCode: 401,
+          code: "SESSION_EXPIRED",
+          message: "This session has expired due to inactivity.",
+        });
+      }
+
+      await query(
+        `
+          UPDATE auth_sessions
+          SET last_used_at = now()
+          WHERE id = $1
+            AND organization_id = $2
+            AND user_id = $3
+            AND revoked_at IS NULL
+        `,
+        [payload.sid, actor.organizationId, actor.id],
+      );
     }
 
     request.user = actor;

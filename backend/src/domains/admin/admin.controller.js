@@ -1,0 +1,46 @@
+import {
+  getAdminGovernmentSettingsService,
+  getAdminHomeSummaryService,
+  listActiveSessionsService,
+  listAuditEventsService,
+  revokeSessionService,
+  upsertAdminGovernmentSettingsService,
+} from "./admin.service.js";
+
+function auditContextFromRequest(request) {
+  return { ipAddress: request.ip, userAgent: request.headers["user-agent"] || null };
+}
+
+export async function getAdminGovernmentSettingsController(request, response) {
+  response.json({
+    settings: await getAdminGovernmentSettingsService(request.user, auditContextFromRequest(request)),
+  });
+}
+
+export async function getAdminHomeSummaryController(request, response) {
+  response.json({ summary: await getAdminHomeSummaryService(request.user) });
+}
+
+export async function upsertAdminGovernmentSettingsController(request, response) {
+  response.json({
+    settings: await upsertAdminGovernmentSettingsService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function listActiveSessionsController(request, response) {
+  response.json({
+    sessions: await listActiveSessionsService(request.user, {
+      currentSessionId: request.auth?.sessionId || null,
+    }),
+  });
+}
+
+export async function revokeSessionController(request, response) {
+  response.json({
+    result: await revokeSessionService(request.user, request.params.id, auditContextFromRequest(request)),
+  });
+}
+
+export async function listAuditEventsController(request, response) {
+  response.json({ events: await listAuditEventsService(request.user, request.query) });
+}

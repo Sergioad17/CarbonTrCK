@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Landmark, Upload, ImageIcon, Trash2, CheckCircle } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import {
@@ -7,12 +7,20 @@ import {
   AdminSelectField,
   AdminToggleField,
 } from "../components/AdminFormSection";
-import { institutionalConfig } from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { fetchAdminGovernmentSettings, saveAdminGovernmentSettings } from "../../api/admin";
 
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
 
-const COUNTRIES = ["México", "Colombia", "Chile", "Argentina", "España", "Estados Unidos"];
+const COUNTRIES = [
+  { value: "Mexico", label: "México" },
+  { value: "Colombia", label: "Colombia" },
+  { value: "Chile", label: "Chile" },
+  { value: "Argentina", label: "Argentina" },
+  { value: "Espana", label: "España" },
+  { value: "Estados Unidos", label: "Estados Unidos" },
+];
 const TIMEZONES = [
   { value: "America/Monterrey",   label: "America/Monterrey (UTC-6)" },
   { value: "America/Mexico_City", label: "America/Ciudad de México (UTC-6)" },
@@ -22,14 +30,14 @@ const TIMEZONES = [
   { value: "America/Santiago",    label: "America/Santiago (UTC-3)" },
 ];
 const CURRENCIES = [
-  { value: "MXN", label: "MXN – Peso mexicano" },
-  { value: "USD", label: "USD – Dólar estadounidense" },
-  { value: "EUR", label: "EUR – Euro" },
-  { value: "COP", label: "COP – Peso colombiano" },
+  { value: "MXN", label: "MXN - Peso mexicano" },
+  { value: "USD", label: "USD - Dólar estadounidense" },
+  { value: "EUR", label: "EUR - Euro" },
+  { value: "COP", label: "COP - Peso colombiano" },
 ];
 const UNITS = [
-  { value: "tCO₂e", label: "tCO₂e – Toneladas de CO₂ equivalente" },
-  { value: "kgCO₂e", label: "kgCO₂e – Kilogramos de CO₂ equivalente" },
+  { value: "tCO2e", label: "tCO2e - Toneladas de CO2 equivalente" },
+  { value: "kgCO2e", label: "kgCO2e - Kilogramos de CO2 equivalente" },
 ];
 const PERIODS = [
   { value: "monthly",   label: "Mensual" },
@@ -38,7 +46,62 @@ const PERIODS = [
   { value: "annual",    label: "Anual" },
 ];
 
-/* ── Logo Upload Field ─────────────────────────────────────────────────── */
+const DEFAULT_INSTITUTIONAL_FORM = {
+  name: "",
+  acronym: "",
+  logo: null,
+  logoName: null,
+  logoSize: null,
+  _logoName: null,
+  _logoSize: null,
+  headquarters: "",
+  description: "",
+  country: "Mexico",
+  state: "",
+  city: "",
+  timezone: "America/Mexico_City",
+  currency: "MXN",
+  baseUnit: "tCO2e",
+  defaultPeriod: "quarterly",
+  adminEmail: "",
+  phone: "",
+  responsiblePerson: "",
+  usesCampuses: false,
+  usesAreas: true,
+  usesDepartments: false,
+  usesBuildings: false,
+  activeScopes: [1, 2],
+};
+
+function normalizeInstitutionalForm(input = {}) {
+  const countryMap = {
+    "México": "Mexico",
+    "España": "Espana",
+  };
+  const unitMap = {
+    "tCO2e": "tCO2e",
+    "kgCO2e": "kgCO2e",
+  };
+
+  return {
+    ...DEFAULT_INSTITUTIONAL_FORM,
+    ...input,
+    country: countryMap[input.country] || input.country || "Mexico",
+    baseUnit: unitMap[input.baseUnit] || input.baseUnit || "tCO2e",
+    activeScopes: Array.isArray(input.activeScopes) ? input.activeScopes : [1, 2],
+  };
+}
+
+function buildInstitutionalPayload(form) {
+  const { _logoName, _logoSize, ...rest } = normalizeInstitutionalForm(form);
+  return {
+    ...rest,
+    logoName: _logoName || form.logoName || null,
+    logoSize: _logoSize || form.logoSize || null,
+  };
+}
+
+/* -- Logo Upload Field --------------------------------------------------- */
 function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
   const inputRef = React.useRef(null);
   const [dragging, setDragging] = React.useState(false);
@@ -77,7 +140,7 @@ function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
       </span>
 
       {logo ? (
-        /* ── Preview state ── */
+        /* -- Preview state -- */
         <div style={{
           display: "flex", alignItems: "center", gap: 18,
           padding: "18px 22px",
@@ -109,7 +172,7 @@ function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
                 fontFamily: fm, fontSize: 11.5, color: "var(--eco-text-soft, #94A3B8)",
                 marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
-                {logoName}{logoSize ? ` · ${fmtSize(logoSize)}` : ""}
+                {logoName}{logoSize ? ` - ${fmtSize(logoSize)}` : ""}
               </div>
             )}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
@@ -145,7 +208,7 @@ function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
           </div>
         </div>
       ) : (
-        /* ── Dropzone state ── */
+        /* -- Dropzone state -- */
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -181,7 +244,7 @@ function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
               fontFamily: fb, fontSize: 11.5, color: "var(--eco-text-soft, #94A3B8)",
               marginTop: 4,
             }}>
-              PNG o JPG · Máximo 2 MB · 256×256 px recomendado
+              PNG o JPG - Máximo 2 MB - 256x256 px recomendado
             </div>
           </div>
         </div>
@@ -199,26 +262,80 @@ function LogoUploadField({ logo, logoName, logoSize, onUpload, onRemove }) {
 }
 
 export default function InstitutionalConfigPage() {
-  const [form, setForm] = React.useState({ ...institutionalConfig });
+  const [form, setForm] = React.useState(null);
+  const [settings, setSettings] = React.useState(null);
   const [dirty, setDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [status, setStatus] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchAdminGovernmentSettings()
+      .then((data) => {
+        if (cancelled) return;
+        setSettings(data);
+        setForm(normalizeInstitutionalForm({
+          ...(data?.institutional || {}),
+          _logoName: data?.institutional?.logoName || data?.institutional?._logoName || null,
+          _logoSize: data?.institutional?.logoSize || data?.institutional?._logoSize || null,
+        }));
+        setDirty(false);
+        setStatus(null);
+      })
+      .catch((error) => {
+        console.error("admin_institutional_load_failed", error);
+        setStatus({ type: "error", text: "No se pudo cargar la configuración institucional." });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   function update(key, val) {
     setForm(prev => ({ ...prev, [key]: val }));
     setDirty(true);
+    setStatus(null);
   }
 
-  function handleSave() {
+  async function handleSave() {
     setSaving(true);
-    setTimeout(() => {
+    try {
+      const payload = {
+        ...(settings || {}),
+        institutional: buildInstitutionalPayload(form),
+      };
+      const saved = await saveAdminGovernmentSettings(payload);
+      setSettings(saved);
+      setForm(normalizeInstitutionalForm({
+        ...(saved?.institutional || {}),
+        _logoName: saved?.institutional?.logoName || null,
+        _logoSize: saved?.institutional?.logoSize || null,
+      }));
       setSaving(false);
       setDirty(false);
-    }, 1200);
+      setStatus({ type: "success", text: "Configuración institucional guardada." });
+    } catch (error) {
+      console.error("admin_institutional_save_failed", error);
+      setStatus({ type: "error", text: "No se pudo guardar. Revisa la conexión con el backend." });
+      setSaving(false);
+    }
   }
 
   function handleRestore() {
-    setForm({ ...institutionalConfig });
+    setForm(normalizeInstitutionalForm({
+      ...(settings?.institutional || {}),
+      _logoName: settings?.institutional?.logoName || null,
+      _logoSize: settings?.institutional?.logoSize || null,
+    }));
     setDirty(false);
+    setStatus(null);
+  }
+
+  if (loading || !form) {
+    return <AdminLoadingScreen />;
   }
 
   return (
@@ -233,9 +350,24 @@ export default function InstitutionalConfigPage() {
         onRestore={dirty ? handleRestore : undefined}
         saving={saving}
       />
+      {status && (
+        <div style={{
+          marginBottom: 14,
+          padding: "10px 14px",
+          borderRadius: 8,
+          border: status.type === "error" ? "1px solid rgba(239,68,68,.18)" : "1px solid rgba(34,197,94,.18)",
+          background: status.type === "error" ? "rgba(239,68,68,.06)" : "rgba(34,197,94,.06)",
+          fontFamily: fb,
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: status.type === "error" ? "var(--eco-danger, #DC2626)" : "var(--eco-success, #16A34A)",
+        }}>
+          {status.text}
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-        {/* ── Identidad ──────────────────────────────────────────── */}
+        {/* -- Identidad -------------------------------------------- */}
         <AdminFormSection title="Identidad" description="Nombre, logo y datos de identificación de la institución" columns={2}>
           <AdminTextField label="Nombre de la institución" value={form.name} onChange={v => update("name", v)} required />
           <AdminTextField label="Siglas" value={form.acronym} onChange={v => update("acronym", v)} />
@@ -258,7 +390,7 @@ export default function InstitutionalConfigPage() {
           />
         </AdminFormSection>
 
-        {/* ── Ubicación ──────────────────────────────────────────── */}
+        {/* -- Ubicación -------------------------------------------- */}
         <AdminFormSection title="Ubicación" description="Localización física y sede principal" columns={2}>
           <AdminTextField label="Sede principal" value={form.headquarters} onChange={v => update("headquarters", v)} />
           <AdminSelectField label="País" value={form.country} onChange={v => update("country", v)} options={COUNTRIES} />
@@ -266,7 +398,7 @@ export default function InstitutionalConfigPage() {
           <AdminTextField label="Ciudad" value={form.city} onChange={v => update("city", v)} />
         </AdminFormSection>
 
-        {/* ── Parámetros operativos ──────────────────────────────── */}
+        {/* -- Parámetros operativos -------------------------------- */}
         <AdminFormSection title="Parámetros operativos" description="Unidades, periodos y preferencias de medición" columns={2}>
           <AdminSelectField label="Zona horaria" value={form.timezone} onChange={v => update("timezone", v)} options={TIMEZONES} />
           <AdminSelectField label="Moneda" value={form.currency} onChange={v => update("currency", v)} options={CURRENCIES} />
@@ -274,14 +406,14 @@ export default function InstitutionalConfigPage() {
           <AdminSelectField label="Periodo operativo por defecto" value={form.defaultPeriod} onChange={v => update("defaultPeriod", v)} options={PERIODS} />
         </AdminFormSection>
 
-        {/* ── Contacto ───────────────────────────────────────────── */}
+        {/* -- Contacto --------------------------------------------- */}
         <AdminFormSection title="Contacto" description="Datos de comunicación y responsable institucional" columns={2}>
           <AdminTextField label="Correo administrativo" value={form.adminEmail} onChange={v => update("adminEmail", v)} type="email" required />
           <AdminTextField label="Teléfono" value={form.phone} onChange={v => update("phone", v)} />
           <AdminTextField label="Responsable principal" value={form.responsiblePerson} onChange={v => update("responsiblePerson", v)} required />
         </AdminFormSection>
 
-        {/* ── Estructura organizacional ───────────────────────────── */}
+        {/* -- Estructura organizacional ----------------------------- */}
         <AdminFormSection title="Estructura organizacional" description="Define cómo se organiza la institución para la captura de datos">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <AdminToggleField label="Trabaja por campus" checked={form.usesCampuses} onChange={v => update("usesCampuses", v)} description="Permite agrupar áreas por campus o sedes" />
@@ -291,11 +423,11 @@ export default function InstitutionalConfigPage() {
           </div>
         </AdminFormSection>
 
-        {/* ── Scopes activos ─────────────────────────────────────── */}
+        {/* -- Scopes activos --------------------------------------- */}
         <AdminFormSection title="Scopes activos" description="Alcances de emisiones que la institución mide actualmente">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <AdminToggleField
-              label="Scope 1 – Emisiones directas"
+              label="Scope 1 - Emisiones directas"
               checked={form.activeScopes.includes(1)}
               onChange={v => {
                 const scopes = v ? [...form.activeScopes, 1] : form.activeScopes.filter(s => s !== 1);
@@ -304,7 +436,7 @@ export default function InstitutionalConfigPage() {
               description="Combustión estacionaria, móvil, fugitiva"
             />
             <AdminToggleField
-              label="Scope 2 – Emisiones indirectas por energía"
+              label="Scope 2 - Emisiones indirectas por energía"
               checked={form.activeScopes.includes(2)}
               onChange={v => {
                 const scopes = v ? [...form.activeScopes, 2] : form.activeScopes.filter(s => s !== 2);
@@ -313,7 +445,7 @@ export default function InstitutionalConfigPage() {
               description="Consumo de electricidad comprada"
             />
             <AdminToggleField
-              label="Scope 3 – Otras emisiones indirectas"
+              label="Scope 3 - Otras emisiones indirectas"
               checked={form.activeScopes.includes(3)}
               onChange={v => {
                 const scopes = v ? [...form.activeScopes, 3] : form.activeScopes.filter(s => s !== 3);

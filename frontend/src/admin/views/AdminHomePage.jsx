@@ -1,9 +1,9 @@
-import React from "react";
+﻿import React from "react";
 import {
   LayoutDashboard, Users, UserCheck, UserX, Building2,
   CalendarClock, ClipboardList, ClipboardCheck, Target, AlertTriangle,
   Wifi, ArrowRight, UserPlus, CalendarPlus, DatabaseBackup,
-  FileDown, ScrollText, Activity, Zap, Lock,
+  FileDown, ScrollText, Activity, Zap, Lock, Database, FlaskConical,
 } from "lucide-react";
 import { useAdminNavigate } from "../AdminContext";
 import AdminPageHeader from "../layout/AdminPageHeader";
@@ -11,14 +11,8 @@ import AdminStatCard from "../components/AdminStatCard";
 import AdminHealthCard from "../components/AdminHealthCard";
 import AdminTimeline from "../components/AdminTimeline";
 import AdminStatusBadge from "../components/AdminStatusBadge";
-import {
-  overviewKpis as kpi,
-  serviceHealth,
-  systemAlerts,
-  recentActivity,
-  pendingTasks,
-  quickActions,
-} from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { fetchAdminHomeSummary } from "../../api/admin";
 
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
@@ -28,9 +22,22 @@ const PRIORITY_MAP = { high: "error", medium: "warning", low: "info" };
 
 const QA_ICON_MAP = {
   UserPlus, CalendarPlus, DatabaseBackup, FileDown, ScrollText, Activity,
+  Database, FlaskConical, Target,
 };
 
-/* ─── Quick Action Button ──────────────────────────────────────────────── */
+const quickActions = [
+  { id: "new-user", label: "Nuevo usuario", icon: "UserPlus", viewId: "admin-users", available: true },
+  { id: "new-period", label: "Abrir periodo", icon: "CalendarPlus", viewId: "admin-periods", available: true },
+  { id: "factors", label: "Factores", icon: "FlaskConical", viewId: "admin-factors", available: true },
+  { id: "records", label: "Registros", icon: "Database", viewId: "admin-records", available: true },
+  { id: "targets", label: "Metas", icon: "Target", viewId: "admin-targets", available: true },
+  { id: "run-backup", label: "Ejecutar respaldo", icon: "DatabaseBackup", viewId: "admin-backups", available: true },
+  { id: "export-report", label: "Exportar reporte", icon: "FileDown", viewId: "admin-reports", available: true },
+  { id: "view-audit", label: "Ver bitácora", icon: "ScrollText", viewId: "admin-audit", available: true },
+  { id: "check-health", label: "Estado de servicios", icon: "Activity", viewId: null, available: true, scrollTo: "admin-health-card" },
+];
+
+/* --- Quick Action Button ------------------------------------------------ */
 function QuickActionButton({ item, onAction }) {
   const [hovered, setHovered] = React.useState(false);
   const Icon = QA_ICON_MAP[item.icon] || Zap;
@@ -98,7 +105,7 @@ function QuickActionButton({ item, onAction }) {
   );
 }
 
-/* ─── "Coming soon" toast ──────────────────────────────────────────────── */
+/* --- "Coming soon" toast ------------------------------------------------ */
 function ComingSoonToast({ label, onClose }) {
   React.useEffect(() => {
     const t = setTimeout(onClose, 2800);
@@ -122,7 +129,7 @@ function ComingSoonToast({ label, onClose }) {
           fontFamily: fb, fontSize: 13, fontWeight: 600,
           color: "var(--eco-text, #1E293B)",
         }}>
-          {label} — Próximamente
+          {label} - Próximamente
         </div>
         <div style={{
           fontFamily: fb, fontSize: 11.5,
@@ -135,20 +142,53 @@ function ComingSoonToast({ label, onClose }) {
   );
 }
 
-/* ─── Main Page ────────────────────────────────────────────────────────── */
+/* --- Main Page ---------------------------------------------------------- */
 export default function AdminHomePage() {
   const adminNavigate = useAdminNavigate();
   const [toast, setToast] = React.useState(null);
-  const criticalCount = systemAlerts.filter(a => a.severity === "critical" && !a.read).length;
+  const [summary, setSummary] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchAdminHomeSummary()
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.overviewKpis && Array.isArray(data?.serviceHealth) && Array.isArray(data?.systemAlerts)) {
+          setSummary({
+            overviewKpis: data.overviewKpis,
+            serviceHealth: data.serviceHealth,
+            systemAlerts: data.systemAlerts,
+            recentActivity: Array.isArray(data.recentActivity) ? data.recentActivity : [],
+            pendingTasks: Array.isArray(data.pendingTasks) ? data.pendingTasks : [],
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("admin_home_load_failed", error);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading || !summary) {
+    return <AdminLoadingScreen />;
+  }
+
+  const kpi = summary.overviewKpis;
+  const criticalCount = summary.systemAlerts.filter(a => a.severity === "critical" && !a.read).length;
 
   function handleQuickAction(item) {
-    /* Available actions with a target viewId → navigate there */
+    /* Available actions with a target viewId -> navigate there */
     if (item.available && item.viewId) {
       adminNavigate(item.viewId);
       return;
     }
 
-    /* Available action with scrollTo → smooth-scroll within this page */
+    /* Available action with scrollTo -> smooth-scroll within this page */
     if (item.available && item.scrollTo) {
       const el = document.getElementById(item.scrollTo);
       if (el) {
@@ -160,7 +200,7 @@ export default function AdminHomePage() {
       return;
     }
 
-    /* Unavailable actions → show coming-soon toast */
+    /* Unavailable actions -> show coming-soon toast */
     setToast(item.label);
   }
 
@@ -172,8 +212,7 @@ export default function AdminHomePage() {
         icon={LayoutDashboard}
         breadcrumb={["Inicio"]}
       />
-
-      {/* ── Critical banner ─────────────────────────────────────── */}
+      {/* -- Critical banner --------------------------------------- */}
       {criticalCount > 0 && (
         <div style={{
           display: "flex", alignItems: "center", gap: 12,
@@ -199,7 +238,7 @@ export default function AdminHomePage() {
         </div>
       )}
 
-      {/* ── KPI Grid ──────────────────────────────────────────────── */}
+      {/* -- KPI Grid ------------------------------------------------ */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
@@ -217,7 +256,7 @@ export default function AdminHomePage() {
         <AdminStatCard label="Dispositivos conectados" value={kpi.devicesConnected} icon={Wifi}          accentColor="var(--eco-primary-500, #22C55E)" subtitle={`${kpi.devicesOffline} sin conexión`} />
       </div>
 
-      {/* ── Quick Actions ─────────────────────────────────────────── */}
+      {/* -- Quick Actions ------------------------------------------- */}
       <div style={{
         background: "var(--eco-card, #fff)",
         border: "1px solid var(--eco-border, #E2E8F0)",
@@ -247,14 +286,14 @@ export default function AdminHomePage() {
         </div>
       </div>
 
-      {/* ── Two-column: Health + Alerts ──────────────────────────── */}
+      {/* -- Two-column: Health + Alerts ---------------------------- */}
       <div className="admin-home-grid-2col" style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
         gap: 16, marginBottom: 22,
       }}>
         <div id="admin-health-card" style={{ transition: "box-shadow .4s ease", borderRadius: 12 }}>
-          <AdminHealthCard services={serviceHealth} />
+          <AdminHealthCard services={summary.serviceHealth} />
         </div>
 
         {/* Alerts panel */}
@@ -283,15 +322,15 @@ export default function AdminHomePage() {
               background: "var(--eco-danger-bg, rgba(239,68,68,.08))",
               color: "var(--eco-danger, #DC2626)",
             }}>
-              {systemAlerts.filter(a => !a.read).length} nuevas
+              {summary.systemAlerts.filter(a => !a.read).length} nuevas
             </span>
           </div>
           <div style={{ maxHeight: 260, overflowY: "auto" }}>
-            {systemAlerts.map((alert, i) => (
+            {summary.systemAlerts.map((alert, i) => (
               <div key={alert.id} style={{
                 display: "flex", alignItems: "center", gap: 12,
                 padding: "11px 20px",
-                borderBottom: i < systemAlerts.length - 1 ? "1px solid var(--eco-border, #E2E8F0)" : "none",
+                borderBottom: i < summary.systemAlerts.length - 1 ? "1px solid var(--eco-border, #E2E8F0)" : "none",
                 opacity: alert.read ? .65 : 1,
                 transition: "background .12s",
                 borderLeft: !alert.read && alert.severity === "critical"
@@ -328,13 +367,13 @@ export default function AdminHomePage() {
         </div>
       </div>
 
-      {/* ── Two-column: Activity + Tasks ─────────────────────────── */}
+      {/* -- Two-column: Activity + Tasks --------------------------- */}
       <div className="admin-home-grid-2col" style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
         gap: 16, marginBottom: 22,
       }}>
-        <AdminTimeline items={recentActivity} />
+        <AdminTimeline items={summary.recentActivity} />
 
         {/* Pending tasks */}
         <div style={{
@@ -357,13 +396,13 @@ export default function AdminHomePage() {
             </span>
           </div>
           <div>
-            {pendingTasks.map((task, i) => {
+            {summary.pendingTasks.map((task, i) => {
               const isOverdue = new Date(task.dueDate) < new Date();
               return (
                 <div key={task.id} style={{
                   display: "flex", alignItems: "center", gap: 12,
                   padding: "12px 20px",
-                  borderBottom: i < pendingTasks.length - 1 ? "1px solid var(--eco-border, #E2E8F0)" : "none",
+                  borderBottom: i < summary.pendingTasks.length - 1 ? "1px solid var(--eco-border, #E2E8F0)" : "none",
                   transition: "background .12s",
                   borderLeft: task.priority === "high"
                     ? "3px solid var(--eco-danger, #DC2626)" : "3px solid transparent",
@@ -385,7 +424,7 @@ export default function AdminHomePage() {
                       fontWeight: isOverdue ? 600 : 400,
                       marginTop: 1,
                     }}>
-                      {task.assignee} · {isOverdue ? "Vencida" : "Vence"} {new Date(task.dueDate).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}
+                      {task.assignee} - {isOverdue ? "Vencida" : "Vence"} {new Date(task.dueDate).toLocaleDateString("es-MX", { day: "2-digit", month: "short" })}
                     </div>
                   </div>
                   <ArrowRight size={14} color="var(--eco-text-soft, #CBD5E1)" />
@@ -396,7 +435,7 @@ export default function AdminHomePage() {
         </div>
       </div>
 
-      {/* ── Coming-soon toast ─────────────────────────────────────── */}
+      {/* -- Coming-soon toast --------------------------------------- */}
       {toast && <ComingSoonToast label={toast} onClose={() => setToast(null)} />}
     </>
   );

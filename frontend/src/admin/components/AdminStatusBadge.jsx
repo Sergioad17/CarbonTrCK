@@ -4,18 +4,18 @@ const fm = "var(--eco-font-mono)";
 const fd = "var(--eco-font-display)";
 
 const BADGE_STYLES = {
-  success:  { bg: "var(--eco-success-bg, rgba(34,197,94,.10))",  text: "var(--eco-success, #16A34A)", border: "rgba(34,197,94,.20)"  },
-  warning:  { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))",  text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)"  },
-  error:    { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))",   text: "var(--eco-danger, #DC2626)",  border: "rgba(239,68,68,.20)"  },
-  info:     { bg: "var(--eco-info-bg, rgba(37,99,235,.10))",     text: "var(--eco-info, #2563EB)",    border: "rgba(37,99,235,.20)"  },
-  neutral:  { bg: "var(--eco-card-muted, #F1F5F9)",              text: "var(--eco-text-soft, #64748B)", border: "var(--eco-border, #E2E8F0)" },
-  online:   { bg: "var(--eco-success-bg, rgba(34,197,94,.10))",  text: "var(--eco-success, #16A34A)", border: "rgba(34,197,94,.20)"  },
-  offline:  { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))",   text: "var(--eco-danger, #DC2626)",  border: "rgba(239,68,68,.20)"  },
-  critical: { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))",   text: "var(--eco-danger, #DC2626)",  border: "rgba(239,68,68,.20)"  },
-  high:     { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))",   text: "var(--eco-danger, #DC2626)",  border: "rgba(239,68,68,.20)"  },
-  medium:   { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))",  text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)"  },
-  low:      { bg: "var(--eco-info-bg, rgba(37,99,235,.10))",     text: "var(--eco-info, #2563EB)",    border: "rgba(37,99,235,.20)"  },
-  pending:  { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))",  text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)"  },
+  success: { bg: "var(--eco-success-bg, rgba(34,197,94,.10))", text: "var(--eco-success, #16A34A)", border: "rgba(34,197,94,.20)" },
+  warning: { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))", text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)" },
+  error: { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))", text: "var(--eco-danger, #DC2626)", border: "rgba(239,68,68,.20)" },
+  info: { bg: "var(--eco-info-bg, rgba(37,99,235,.10))", text: "var(--eco-info, #2563EB)", border: "rgba(37,99,235,.20)" },
+  neutral: { bg: "var(--eco-card-muted, #F1F5F9)", text: "var(--eco-text-soft, #64748B)", border: "var(--eco-border, #E2E8F0)" },
+  online: { bg: "var(--eco-success-bg, rgba(34,197,94,.10))", text: "var(--eco-success, #16A34A)", border: "rgba(34,197,94,.20)" },
+  offline: { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))", text: "var(--eco-danger, #DC2626)", border: "rgba(239,68,68,.20)" },
+  critical: { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))", text: "var(--eco-danger, #DC2626)", border: "rgba(239,68,68,.20)" },
+  high: { bg: "var(--eco-danger-bg, rgba(239,68,68,.10))", text: "var(--eco-danger, #DC2626)", border: "rgba(239,68,68,.20)" },
+  medium: { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))", text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)" },
+  low: { bg: "var(--eco-info-bg, rgba(37,99,235,.10))", text: "var(--eco-info, #2563EB)", border: "rgba(37,99,235,.20)" },
+  pending: { bg: "var(--eco-warning-bg, rgba(234,179,8,.10))", text: "var(--eco-warning, #CA8A04)", border: "rgba(234,179,8,.20)" },
 };
 
 const LABELS = {

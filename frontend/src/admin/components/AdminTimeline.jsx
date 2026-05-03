@@ -48,6 +48,17 @@ export default function AdminTimeline({ items = [], maxItems = 8, title = "Activ
       </div>
 
       <div style={{ padding: "8px 0" }}>
+        {visible.length === 0 && (
+          <div style={{
+            padding: "28px 20px",
+            fontFamily: fb,
+            fontSize: 13,
+            color: "var(--eco-text-soft, #64748B)",
+            textAlign: "center",
+          }}>
+            Sin actividad reciente
+          </div>
+        )}
         {visible.map((item, i) => {
           const Icon = ICON_MAP[item.icon] || ICON_MAP.default;
           return (

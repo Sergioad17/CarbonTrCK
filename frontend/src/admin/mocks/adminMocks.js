@@ -1,172 +1,10 @@
-/* ─── CarbonTrack Admin – Centralized Mock Data ─────────────────────────
+﻿/* --- CarbonTrack Admin - Centralized Mock Data -------------------------
    All shapes mirror future API contracts.
    Replace each export with a real fetch when backend is ready.
-   ──────────────────────────────────────────────────────────────────────── */
+   ------------------------------------------------------------------------ */
 
-// ─── Overview KPIs ──────────────────────────────────────────────────────
-export const overviewKpis = {
-  totalUsers:        24,
-  activeUsers:       19,
-  inactiveUsers:     5,
-  areasRegistered:   8,
-  openPeriods:       2,
-  closedPeriods:     6,
-  recordsCaptured:   1247,
-  recordsPending:    38,
-  activeGoals:       5,
-  criticalAlerts:    3,
-  devicesConnected:  12,
-  devicesOffline:    2,
-};
-
-// ─── Service Health ─────────────────────────────────────────────────────
-export const serviceHealth = [
-  { id: "backend",  label: "Backend API",     status: "online",  latency: "42 ms",  updatedAt: "2026-04-11T08:12:00Z" },
-  { id: "database", label: "Base de datos",   status: "online",  latency: "8 ms",   updatedAt: "2026-04-11T08:12:00Z" },
-  { id: "storage",  label: "Almacenamiento",  status: "online",  latency: "120 ms", updatedAt: "2026-04-11T08:10:00Z" },
-  { id: "email",    label: "Servicio correo", status: "warning", latency: "890 ms", updatedAt: "2026-04-11T08:05:00Z" },
-  { id: "ia",       label: "Motor IA",        status: "offline", latency: "—",      updatedAt: "2026-04-11T07:50:00Z" },
-];
-
-// ─── System Alerts ──────────────────────────────────────────────────────
-export const systemAlerts = [
-  { id: 1, severity: "critical", title: "3 dispositivos sin reporte en 48 h",       module: "Dispositivos", ts: "2026-04-11T06:30:00Z", read: false },
-  { id: 2, severity: "critical", title: "Factor de emisión eléctrica vencido",      module: "Factores",     ts: "2026-04-10T22:00:00Z", read: false },
-  { id: 3, severity: "critical", title: "Periodo 2026-Q1 sin cierre programado",    module: "Periodos",     ts: "2026-04-10T18:45:00Z", read: false },
-  { id: 4, severity: "warning",  title: "12 registros pendientes de validación",    module: "Registros",    ts: "2026-04-10T14:20:00Z", read: true  },
-  { id: 5, severity: "info",     title: "Respaldo automático completado",           module: "Respaldos",    ts: "2026-04-10T03:00:00Z", read: true  },
-  { id: 6, severity: "warning",  title: "Meta de reducción Scope 2 al 78 %",       module: "Metas",        ts: "2026-04-09T10:15:00Z", read: true  },
-];
-
-// ─── Recent Admin Activity ──────────────────────────────────────────────
-export const recentActivity = [
-  { id: 1, user: "Sergio Arellano",    action: "Actualizó configuración de seguridad",     module: "Seguridad",       ts: "2026-04-11T08:05:00Z", icon: "shield" },
-  { id: 2, user: "María López",        action: "Cerró periodo 2025-Q4",                    module: "Periodos",        ts: "2026-04-11T07:30:00Z", icon: "calendar" },
-  { id: 3, user: "Carlos Méndez",      action: "Registró 45 lecturas de electricidad",     module: "Captura",         ts: "2026-04-10T16:20:00Z", icon: "zap" },
-  { id: 4, user: "Ana Torres",         action: "Creó nueva área: Edificio C",              module: "Áreas",           ts: "2026-04-10T14:00:00Z", icon: "building" },
-  { id: 5, user: "Sistema",            action: "Respaldo automático ejecutado",             module: "Respaldos",       ts: "2026-04-10T03:00:00Z", icon: "database" },
-  { id: 6, user: "Sergio Arellano",    action: "Actualizó factores de emisión Scope 1",    module: "Factores",        ts: "2026-04-09T11:45:00Z", icon: "beaker" },
-  { id: 7, user: "María López",        action: "Exportó reporte mensual",                  module: "Reportes",        ts: "2026-04-09T09:10:00Z", icon: "file" },
-  { id: 8, user: "Admin",              action: "Modificó estructura organizacional",        module: "Organización",    ts: "2026-04-08T17:30:00Z", icon: "sitemap" },
-];
-
-// ─── Quick Actions ──────────────────────────────────────────────────────
-export const quickActions = [
-  { id: "new-user",      label: "Nuevo usuario",       icon: "UserPlus",       viewId: "admin-users",    available: true  },
-  { id: "new-period",    label: "Abrir periodo",        icon: "CalendarPlus",   viewId: "admin-periods",  available: true  },
-  { id: "run-backup",    label: "Ejecutar respaldo",    icon: "DatabaseBackup", viewId: "admin-backups",  available: true  },
-  { id: "export-report", label: "Exportar reporte",     icon: "FileDown",       viewId: "admin-reports",  available: true  },
-  { id: "view-audit",    label: "Ver bitácora",         icon: "ScrollText",     viewId: "admin-audit",    available: true  },
-  { id: "check-health",  label: "Estado de servicios",  icon: "Activity",       viewId: null,             available: true, scrollTo: "admin-health-card" },
-];
-
-// ─── Pending Tasks ──────────────────────────────────────────────────────
-export const pendingTasks = [
-  { id: 1, title: "Cerrar periodo 2026-Q1",                    priority: "high",   dueDate: "2026-04-15", assignee: "Admin" },
-  { id: 2, title: "Validar 38 registros pendientes",           priority: "high",   dueDate: "2026-04-12", assignee: "María López" },
-  { id: 3, title: "Actualizar factor eléctrico CFE 2026",      priority: "medium", dueDate: "2026-04-20", assignee: "Sergio Arellano" },
-  { id: 4, title: "Revisar dispositivos desconectados",        priority: "medium", dueDate: "2026-04-13", assignee: "Carlos Méndez" },
-  { id: 5, title: "Generar reporte trimestral Scope 1+2",      priority: "low",    dueDate: "2026-04-30", assignee: "Ana Torres" },
-];
-
-// ─── Institutional Config (default values) ──────────────────────────────
-export const institutionalConfig = {
-  name:                "Universidad Ejemplo",
-  acronym:             "UEJM",
-  logo:                null,
-  headquarters:        "Campus Central",
-  description:         "Institución de educación superior comprometida con la sustentabilidad y reducción de huella de carbono.",
-  country:             "México",
-  state:               "Nuevo León",
-  city:                "Monterrey",
-  timezone:            "America/Monterrey",
-  currency:            "MXN",
-  baseUnit:            "tCO₂e",
-  defaultPeriod:       "quarterly",
-  adminEmail:          "admin@universidad-ejemplo.edu.mx",
-  phone:               "+52 81 1234 5678",
-  responsiblePerson:   "Dr. Roberto Garza",
-  usesCampuses:        true,
-  usesAreas:           true,
-  usesDepartments:     false,
-  usesBuildings:       true,
-  activeScopes:        [1, 2],
-};
-
-// ─── System Config ──────────────────────────────────────────────────────
-export const systemConfig = {
-  systemName:          "CarbonTrack",
-  version:             "2.1.0",
-  environment:         "production",
-  language:            "es-MX",
-  dateFormat:          "DD/MM/YYYY",
-  numberFormat:        "1,234.56",
-  timezone:            "America/Monterrey",
-  systemEmail:         "system@carbontrack.app",
-  notificationsEnabled: true,
-  emailNotifications:  true,
-  pushNotifications:   false,
-  logsEnabled:         true,
-  logLevel:            "info",
-  maxUploadSize:       10,
-  allowedFileTypes:    ["pdf", "xlsx", "csv", "png", "jpg"],
-  maxAttachmentSize:   5,
-  primaryColor:        "#22C55E",
-  compactMode:         false,
-  showTips:            true,
-};
-
-// ─── Security Config ────────────────────────────────────────────────────
-export const securityConfig = {
-  minPasswordLength:      8,
-  requireUppercase:       true,
-  requireNumber:          true,
-  requireSpecialChar:     false,
-  forceChangeOnFirstLogin: true,
-  sessionTimeout:         30,
-  maxFailedAttempts:      5,
-  lockoutDuration:        15,
-  emailVerification:      true,
-  twoFactorEnabled:       false,
-  twoFactorReady:         false,
-};
-
-// ─── Active Sessions (mock) ─────────────────────────────────────────────
-export const activeSessions = [
-  { id: "s1", user: "Sergio Arellano",  email: "sergio@uni.mx",  role: "admin",      ip: "192.168.1.40",  device: "Chrome / Windows",  startedAt: "2026-04-11T07:45:00Z", lastActivity: "2026-04-11T08:12:00Z" },
-  { id: "s2", user: "María López",      email: "maria@uni.mx",   role: "operativo",  ip: "192.168.1.55",  device: "Firefox / macOS",   startedAt: "2026-04-11T07:30:00Z", lastActivity: "2026-04-11T08:10:00Z" },
-  { id: "s3", user: "Carlos Méndez",    email: "carlos@uni.mx",  role: "operativo",  ip: "10.0.0.12",     device: "Chrome / Android",  startedAt: "2026-04-11T06:00:00Z", lastActivity: "2026-04-11T07:55:00Z" },
-  { id: "s4", user: "Ana Torres",       email: "ana@uni.mx",     role: "directivo",  ip: "192.168.1.70",  device: "Safari / iOS",      startedAt: "2026-04-10T22:30:00Z", lastActivity: "2026-04-11T06:45:00Z" },
-];
-
-// ─── Security Alerts (mock) ─────────────────────────────────────────────
-export const securityEvents = [
-  { id: 1, type: "failed_login",   description: "3 intentos fallidos desde 189.203.x.x",    severity: "warning",  ts: "2026-04-11T04:20:00Z" },
-  { id: 2, type: "session_expired", description: "Sesión expirada por inactividad: ana@uni.mx", severity: "info", ts: "2026-04-10T23:15:00Z" },
-  { id: 3, type: "password_change", description: "Cambio de contraseña: carlos@uni.mx",     severity: "info",     ts: "2026-04-10T16:00:00Z" },
-  { id: 4, type: "role_change",    description: "Rol actualizado: operativo → directivo (ana@uni.mx)", severity: "warning", ts: "2026-04-09T11:00:00Z" },
-];
-
-// ─── Audit Log (mock events) ────────────────────────────────────────────
-export const auditLog = [
-  { id: 1,  user: "Sergio Arellano",   action: "update",  module: "Seguridad",        description: "Cambió longitud mínima de contraseña a 8",               target: "security.config",        status: "success", severity: "medium",  ts: "2026-04-11T08:05:00Z" },
-  { id: 2,  user: "María López",       action: "update",  module: "Periodos",         description: "Cerró periodo 2025-Q4",                                 target: "period:2025-Q4",         status: "success", severity: "high",    ts: "2026-04-11T07:30:00Z" },
-  { id: 3,  user: "Carlos Méndez",     action: "create",  module: "Registros",        description: "Capturó 45 registros de electricidad",                   target: "records:electricity",    status: "success", severity: "low",     ts: "2026-04-10T16:20:00Z" },
-  { id: 4,  user: "Ana Torres",        action: "create",  module: "Áreas",            description: "Creó área Edificio C",                                  target: "area:edificio-c",        status: "success", severity: "low",     ts: "2026-04-10T14:00:00Z" },
-  { id: 5,  user: "Sistema",           action: "system",  module: "Respaldos",        description: "Respaldo automático ejecutado correctamente",            target: "backup:auto-2026-04-10", status: "success", severity: "low",     ts: "2026-04-10T03:00:00Z" },
-  { id: 6,  user: "Sergio Arellano",   action: "update",  module: "Factores",         description: "Actualizó factor de emisión Scope 1 – Gas Natural",     target: "factor:gas-natural",     status: "success", severity: "medium",  ts: "2026-04-09T11:45:00Z" },
-  { id: 7,  user: "María López",       action: "export",  module: "Reportes",         description: "Exportó reporte mensual marzo 2026",                    target: "report:mar-2026",        status: "success", severity: "low",     ts: "2026-04-09T09:10:00Z" },
-  { id: 8,  user: "Admin",             action: "update",  module: "Organización",     description: "Modificó estructura: agregó Departamento de Ingeniería", target: "org:dept-ing",           status: "success", severity: "medium",  ts: "2026-04-08T17:30:00Z" },
-  { id: 9,  user: "Carlos Méndez",     action: "delete",  module: "Registros",        description: "Baja lógica de 2 registros duplicados",                 target: "records:archive",        status: "success", severity: "high",    ts: "2026-04-08T10:15:00Z" },
-  { id: 10, user: "Sistema",           action: "system",  module: "Notificaciones",   description: "Envío masivo: recordatorio cierre periodo",             target: "notification:batch",     status: "warning", severity: "low",     ts: "2026-04-07T08:00:00Z" },
-  { id: 11, user: "Sergio Arellano",   action: "create",  module: "Usuarios",         description: "Creó usuario: pedro@uni.mx (operativo)",                target: "user:pedro",             status: "success", severity: "medium",  ts: "2026-04-06T15:20:00Z" },
-  { id: 12, user: "Ana Torres",        action: "update",  module: "Metas",            description: "Actualizó meta de reducción Scope 2 a -15%",            target: "goal:scope2-reduction",  status: "success", severity: "medium",  ts: "2026-04-05T12:00:00Z" },
-  { id: 13, user: "María López",       action: "login",   module: "Autenticación",    description: "Inicio de sesión exitoso",                              target: "session:maria",          status: "success", severity: "low",     ts: "2026-04-05T07:30:00Z" },
-  { id: 14, user: "Desconocido",       action: "login",   module: "Autenticación",    description: "Intento de login fallido (3 intentos) desde 189.203.x.x", target: "auth:failed",          status: "error",   severity: "high",    ts: "2026-04-04T22:10:00Z" },
-  { id: 15, user: "Sistema",           action: "system",  module: "Mantenimiento",    description: "Limpieza de sesiones expiradas: 12 removidas",          target: "maintenance:sessions",   status: "success", severity: "low",     ts: "2026-04-04T03:00:00Z" },
-];
-
-// ─── Admin Nav Tree ─────────────────────────────────────────────────────
+// --- Overview KPIs ------------------------------------------------------
+// Admin navigation tree
 export const adminNavTree = [
   {
     section: "Gobierno",
@@ -216,19 +54,11 @@ export const adminNavTree = [
   },
 ];
 
-// ─── Security Recommendations ───────────────────────────────────────────
-export const securityRecommendations = [
-  { id: 1, level: "high",   text: "Activar verificación en dos pasos para cuentas administrativas",  status: "pending" },
-  { id: 2, level: "medium", text: "Reducir tiempo de expiración de sesión a 20 minutos",            status: "pending" },
-  { id: 3, level: "medium", text: "Habilitar requisito de caracteres especiales en contraseñas",     status: "pending" },
-  { id: 4, level: "low",    text: "Configurar notificación automática de inicios de sesión nuevos",  status: "pending" },
-];
+/* ------------------------------------------------------------------------
+   PART 2 - Users, Org Structure, Catalogs, Periods
+   ------------------------------------------------------------------------ */
 
-/* ════════════════════════════════════════════════════════════════════════
-   PART 2 — Users, Org Structure, Catalogs, Periods
-   ════════════════════════════════════════════════════════════════════════ */
-
-// ─── Roles ──────────────────────────────────────────────────────────────
+// --- Roles --------------------------------------------------------------
 export const roles = [
   { id: "admin",     label: "Administrador", description: "Acceso total al sistema, gestión de usuarios y configuración.",    color: "#7C3AED", userCount: 2,  enabled: true  },
   { id: "directivo", label: "Directivo",     description: "Visibilidad completa, aprobación de metas y reportes ejecutivos.", color: "#2563EB", userCount: 4,  enabled: true  },
@@ -236,7 +66,7 @@ export const roles = [
   { id: "consulta",  label: "Solo lectura",  description: "Visualización de dashboards y reportes sin capacidad de edición.", color: "#64748B", userCount: 0,  enabled: false },
 ];
 
-// ─── Permission modules & actions ───────────────────────────────────────
+// --- Permission modules & actions ---------------------------------------
 export const permissionModules = [
   { id: "dashboard", label: "Dashboard",        icon: "LayoutDashboard" },
   { id: "records",   label: "Registros",        icon: "Database" },
@@ -261,7 +91,7 @@ export const permissionActions = [
   { id: "approve",  label: "Aprobar" },
 ];
 
-// roleId → moduleId → actionId → "active" | "blocked" | "inherited"
+// roleId -> moduleId -> actionId -> "active" | "blocked" | "inherited"
 export const permissionMatrix = {
   admin: {
     dashboard: { view:"active", create:"active",  edit:"active",  delete:"active",  validate:"active",  export:"active",  approve:"active" },
@@ -317,7 +147,7 @@ export const permissionMatrix = {
   },
 };
 
-// ─── Users ──────────────────────────────────────────────────────────────
+// --- Users --------------------------------------------------------------
 export const users = [
   { id:"u1",  name:"Sergio Arellano",   email:"sergio@uni.mx",    identifier:"ADM-001", role:"admin",     campus:"Campus Central", areas:["Dirección General","TI"],       status:"active",   lastAccess:"2026-04-11T08:12:00Z", createdAt:"2024-08-15", forcePasswordChange:false, notes:"Administrador principal del sistema." },
   { id:"u2",  name:"María López",       email:"maria@uni.mx",     identifier:"OPR-012", role:"operativo", campus:"Campus Central", areas:["Sustentabilidad"],               status:"active",   lastAccess:"2026-04-11T08:10:00Z", createdAt:"2025-01-10", forcePasswordChange:false, notes:"" },
@@ -341,19 +171,19 @@ export const users = [
   { id:"u20", name:"Patricia Castro",   email:"patricia@uni.mx",  identifier:"OPR-025", role:"operativo", campus:"Campus Sur",     areas:["Laboratorios"],                  status:"inactive", lastAccess:"2026-03-01T11:00:00Z", createdAt:"2025-06-20", forcePasswordChange:false, notes:"En proceso de reactivación." },
 ];
 
-// ─── Campuses ───────────────────────────────────────────────────────────
+// --- Campuses -----------------------------------------------------------
 export const campuses = [
   { id:"campus-central", name:"Campus Central", code:"CC", city:"Monterrey",   responsible:"Dr. Roberto Garza",    status:"active", buildingCount:8, areaCount:15 },
   { id:"campus-norte",   name:"Campus Norte",   code:"CN", city:"San Nicolás", responsible:"Dra. Gabriela Flores", status:"active", buildingCount:4, areaCount:9 },
   { id:"campus-sur",     name:"Campus Sur",     code:"CS", city:"San Pedro",   responsible:"Lic. Camila Ortiz",    status:"active", buildingCount:3, areaCount:6 },
 ];
 
-// ─── Org Entities (tree) ────────────────────────────────────────────────
+// --- Org Entities (tree) ------------------------------------------------
 export const orgEntities = [
-  { id:"e1",  name:"Edificio A – Rectoría",      type:"building",   code:"CC-A",    campusId:"campus-central", parentId:null,  responsible:"Dr. Roberto Garza",    status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:true,  inReductionGoals:true,  description:"Edificio principal administrativo." },
-  { id:"e2",  name:"Edificio B – Ciencias",       type:"building",   code:"CC-B",    campusId:"campus-central", parentId:null,  responsible:"Dr. Andrés Navarro",   status:"active",   usesElectricity:true,  usesFuel:true,  hasDevices:true,  inReductionGoals:true,  description:"Laboratorios y aulas de ciencias." },
-  { id:"e3",  name:"Edificio C – Ingenierías",    type:"building",   code:"CC-C",    campusId:"campus-central", parentId:null,  responsible:"Ing. Pedro Ramírez",   status:"active",   usesElectricity:true,  usesFuel:true,  hasDevices:true,  inReductionGoals:true,  description:"Talleres y laboratorios de ingeniería." },
-  { id:"e4",  name:"Edificio D – Biblioteca",     type:"building",   code:"CC-D",    campusId:"campus-central", parentId:null,  responsible:"Lic. Sofía Medina",    status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:true,  inReductionGoals:false, description:"Biblioteca central y salas de estudio." },
+  { id:"e1",  name:"Edificio A - Rectoría",      type:"building",   code:"CC-A",    campusId:"campus-central", parentId:null,  responsible:"Dr. Roberto Garza",    status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:true,  inReductionGoals:true,  description:"Edificio principal administrativo." },
+  { id:"e2",  name:"Edificio B - Ciencias",       type:"building",   code:"CC-B",    campusId:"campus-central", parentId:null,  responsible:"Dr. Andrés Navarro",   status:"active",   usesElectricity:true,  usesFuel:true,  hasDevices:true,  inReductionGoals:true,  description:"Laboratorios y aulas de ciencias." },
+  { id:"e3",  name:"Edificio C - Ingenierías",    type:"building",   code:"CC-C",    campusId:"campus-central", parentId:null,  responsible:"Ing. Pedro Ramírez",   status:"active",   usesElectricity:true,  usesFuel:true,  hasDevices:true,  inReductionGoals:true,  description:"Talleres y laboratorios de ingeniería." },
+  { id:"e4",  name:"Edificio D - Biblioteca",     type:"building",   code:"CC-D",    campusId:"campus-central", parentId:null,  responsible:"Lic. Sofía Medina",    status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:true,  inReductionGoals:false, description:"Biblioteca central y salas de estudio." },
   { id:"e5",  name:"Dirección General",           type:"area",       code:"CC-A-01", campusId:"campus-central", parentId:"e1",  responsible:"Dr. Roberto Garza",    status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:false, inReductionGoals:false, description:"" },
   { id:"e6",  name:"Oficina de Sustentabilidad",  type:"area",       code:"CC-A-02", campusId:"campus-central", parentId:"e1",  responsible:"Dra. Ana Torres",      status:"active",   usesElectricity:true,  usesFuel:false, hasDevices:true,  inReductionGoals:true,  description:"Coordinación de programas ambientales." },
   { id:"e7",  name:"Laboratorio de Química",      type:"laboratory", code:"CC-B-L1", campusId:"campus-central", parentId:"e2",  responsible:"Dr. Andrés Navarro",   status:"active",   usesElectricity:true,  usesFuel:true,  hasDevices:true,  inReductionGoals:true,  description:"Laboratorio principal de química analítica." },
@@ -382,7 +212,7 @@ export const orgEntityTypes = [
   { id:"zone",       label:"Zona operativa",  icon:"MapPin",        color:"#CA8A04" },
 ];
 
-// ─── Catalogs ───────────────────────────────────────────────────────────
+// --- Catalogs -----------------------------------------------------------
 export const catalogDefinitions = [
   { id:"consumption-types",     label:"Tipos de consumo",           count:5, status:"active" },
   { id:"fuel-types",            label:"Tipos de combustible",       count:6, status:"active" },
@@ -428,7 +258,7 @@ export const catalogEntries = {
     { id:"mu2", code:"m3",    name:"Metro cúbico",     description:"Volumen de gas",                       status:"active",   isDefault:false, order:2 },
     { id:"mu3", code:"L",     name:"Litro",            description:"Volumen de líquidos",                  status:"active",   isDefault:false, order:3 },
     { id:"mu4", code:"kg",    name:"Kilogramo",        description:"Masa",                                 status:"active",   isDefault:false, order:4 },
-    { id:"mu5", code:"tCO2e", name:"Tonelada CO₂e",   description:"Tonelada de CO₂ equivalente",          status:"active",   isDefault:true,  order:5 },
+    { id:"mu5", code:"tCO2e", name:"Tonelada CO2e",   description:"Tonelada de CO2 equivalente",          status:"active",   isDefault:true,  order:5 },
     { id:"mu6", code:"GJ",    name:"Gigajoule",        description:"Unidad de energía térmica",            status:"active",   isDefault:false, order:6 },
     { id:"mu7", code:"MWh",   name:"Megawatt-hora",    description:"Unidad de energía eléctrica (mayor)",  status:"active",   isDefault:false, order:7 },
     { id:"mu8", code:"gal",   name:"Galón",            description:"Volumen en galones",                   status:"inactive", isDefault:false, order:8 },
@@ -454,7 +284,7 @@ export const catalogEntries = {
   ],
   "device-types": [
     { id:"dt1", code:"METER",  name:"Medidor eléctrico", description:"Medidor de consumo eléctrico inteligente", status:"active",   isDefault:true,  order:1 },
-    { id:"dt2", code:"SENSOR", name:"Sensor ambiental",  description:"Sensor de temperatura, humedad, CO₂",      status:"active",   isDefault:false, order:2 },
+    { id:"dt2", code:"SENSOR", name:"Sensor ambiental",  description:"Sensor de temperatura, humedad, CO2",      status:"active",   isDefault:false, order:2 },
     { id:"dt3", code:"FLOW",   name:"Medidor de flujo",  description:"Medidor de flujo de gas o agua",            status:"active",   isDefault:false, order:3 },
     { id:"dt4", code:"GWAY",   name:"Gateway IoT",       description:"Concentrador de datos IoT",                 status:"active",   isDefault:false, order:4 },
     { id:"dt5", code:"CAM",    name:"Cámara térmica",    description:"Cámara de monitoreo térmico",               status:"inactive", isDefault:false, order:5 },
@@ -505,16 +335,16 @@ export const catalogEntries = {
   ],
 };
 
-// ─── Periods ────────────────────────────────────────────────────────────
+// --- Periods ------------------------------------------------------------
 export const periods = [
-  { id:"p1", name:"2025-Q1",    label:"Enero – Marzo 2025",   type:"quarterly", startDate:"2025-01-01", endDate:"2025-03-31", status:"closed", isDefault:false, captureDeadline:"2025-04-10", validationDeadline:"2025-04-20", reportDeadline:"2025-04-30", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Solo administracion central puede autorizar reapertura por auditoria." },
-  { id:"p2", name:"2025-Q2",    label:"Abril – Junio 2025",   type:"quarterly", startDate:"2025-04-01", endDate:"2025-06-30", status:"closed", isDefault:false, captureDeadline:"2025-07-10", validationDeadline:"2025-07-20", reportDeadline:"2025-07-31", lockCaptureOnClose:true,  allowSpecialReopen:false, specialReopenRoles:["admin"],               specialReopenNote:"" },
-  { id:"p3", name:"2025-Q3",    label:"Julio – Sep 2025",     type:"quarterly", startDate:"2025-07-01", endDate:"2025-09-30", status:"closed", isDefault:false, captureDeadline:"2025-10-10", validationDeadline:"2025-10-20", reportDeadline:"2025-10-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin","directivo"],   specialReopenNote:"La reapertura requiere justificacion y visto bueno de direccion." },
-  { id:"p4", name:"2025-Q4",    label:"Octubre – Dic 2025",   type:"quarterly", startDate:"2025-10-01", endDate:"2025-12-31", status:"closed", isDefault:false, captureDeadline:"2026-01-10", validationDeadline:"2026-01-20", reportDeadline:"2026-01-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Disponible para ajustes extraordinarios de cierre anual." },
+  { id:"p1", name:"2025-Q1",    label:"Enero - Marzo 2025",   type:"quarterly", startDate:"2025-01-01", endDate:"2025-03-31", status:"closed", isDefault:false, captureDeadline:"2025-04-10", validationDeadline:"2025-04-20", reportDeadline:"2025-04-30", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Solo administracion central puede autorizar reapertura por auditoria." },
+  { id:"p2", name:"2025-Q2",    label:"Abril - Junio 2025",   type:"quarterly", startDate:"2025-04-01", endDate:"2025-06-30", status:"closed", isDefault:false, captureDeadline:"2025-07-10", validationDeadline:"2025-07-20", reportDeadline:"2025-07-31", lockCaptureOnClose:true,  allowSpecialReopen:false, specialReopenRoles:["admin"],               specialReopenNote:"" },
+  { id:"p3", name:"2025-Q3",    label:"Julio - Sep 2025",     type:"quarterly", startDate:"2025-07-01", endDate:"2025-09-30", status:"closed", isDefault:false, captureDeadline:"2025-10-10", validationDeadline:"2025-10-20", reportDeadline:"2025-10-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin","directivo"],   specialReopenNote:"La reapertura requiere justificacion y visto bueno de direccion." },
+  { id:"p4", name:"2025-Q4",    label:"Octubre - Dic 2025",   type:"quarterly", startDate:"2025-10-01", endDate:"2025-12-31", status:"closed", isDefault:false, captureDeadline:"2026-01-10", validationDeadline:"2026-01-20", reportDeadline:"2026-01-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Disponible para ajustes extraordinarios de cierre anual." },
   { id:"p5", name:"2025-Anual", label:"Año fiscal 2025",      type:"annual",    startDate:"2025-01-01", endDate:"2025-12-31", status:"closed", isDefault:false, captureDeadline:"2026-01-31", validationDeadline:"2026-02-15", reportDeadline:"2026-02-28", lockCaptureOnClose:true,  allowSpecialReopen:false, specialReopenRoles:["admin"],               specialReopenNote:"" },
-  { id:"p6", name:"2026-Q1",    label:"Enero – Marzo 2026",   type:"quarterly", startDate:"2026-01-01", endDate:"2026-03-31", status:"review", isDefault:false, captureDeadline:"2026-04-10", validationDeadline:"2026-04-20", reportDeadline:"2026-04-30", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin","directivo"],   specialReopenNote:"Se permite reapertura durante revision para correcciones validadas." },
-  { id:"p7", name:"2026-Q2",    label:"Abril – Junio 2026",   type:"quarterly", startDate:"2026-04-01", endDate:"2026-06-30", status:"open",   isDefault:true,  captureDeadline:"2026-07-10", validationDeadline:"2026-07-20", reportDeadline:"2026-07-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Reapertura reservada para ajustes posteriores al cierre." },
-  { id:"p8", name:"2026-Q3",    label:"Julio – Sep 2026",     type:"quarterly", startDate:"2026-07-01", endDate:"2026-09-30", status:"open",   isDefault:false, captureDeadline:"2026-10-10", validationDeadline:"2026-10-20", reportDeadline:"2026-10-31", lockCaptureOnClose:true,  allowSpecialReopen:false, specialReopenRoles:["admin"],               specialReopenNote:"" },
+  { id:"p6", name:"2026-Q1",    label:"Enero - Marzo 2026",   type:"quarterly", startDate:"2026-01-01", endDate:"2026-03-31", status:"review", isDefault:false, captureDeadline:"2026-04-10", validationDeadline:"2026-04-20", reportDeadline:"2026-04-30", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin","directivo"],   specialReopenNote:"Se permite reapertura durante revision para correcciones validadas." },
+  { id:"p7", name:"2026-Q2",    label:"Abril - Junio 2026",   type:"quarterly", startDate:"2026-04-01", endDate:"2026-06-30", status:"open",   isDefault:true,  captureDeadline:"2026-07-10", validationDeadline:"2026-07-20", reportDeadline:"2026-07-31", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Reapertura reservada para ajustes posteriores al cierre." },
+  { id:"p8", name:"2026-Q3",    label:"Julio - Sep 2026",     type:"quarterly", startDate:"2026-07-01", endDate:"2026-09-30", status:"open",   isDefault:false, captureDeadline:"2026-10-10", validationDeadline:"2026-10-20", reportDeadline:"2026-10-31", lockCaptureOnClose:true,  allowSpecialReopen:false, specialReopenRoles:["admin"],               specialReopenNote:"" },
   { id:"p9", name:"2026-Anual", label:"Año fiscal 2026",      type:"annual",    startDate:"2026-01-01", endDate:"2026-12-31", status:"open",   isDefault:false, captureDeadline:"2027-01-31", validationDeadline:"2027-02-15", reportDeadline:"2027-02-28", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin","directivo"],   specialReopenNote:"La reapertura anual queda restringida a perfiles de gobierno." },
 ];
 
@@ -526,12 +356,12 @@ export const periodTypes = [
   { value:"annual",    label:"Anual" },
 ];
 
-/* ════════════════════════════════════════════════════════════════════════
-   PART 3 — Factors, Capture, Devices, Records, Validation,
+/* ------------------------------------------------------------------------
+   PART 3 - Factors, Capture, Devices, Records, Validation,
             Emissions, Goals, Alerts
-   ════════════════════════════════════════════════════════════════════════ */
+   ------------------------------------------------------------------------ */
 
-// ─── Emission Factors ───────────────────────────────────────────────────
+// --- Emission Factors ---------------------------------------------------
 export const emissionFactors = [
   { id:"f1", code:"GRID-MX-2026", name:"Red eléctrica nacional (MX)", scope:2, type:"electricity", unit:"kgCO2e/kWh",  value:0.435, source:"SENER 2026", validFrom:"2026-01-01", validUntil:"2026-12-31", status:"active",  version:"v3.0", official:true,  notes:"Factor oficial publicado por SENER en enero 2026." },
   { id:"f2", code:"NG-IPCC",      name:"Gas natural (IPCC)",         scope:1, type:"fuel",        unit:"kgCO2e/m3",   value:1.880, source:"IPCC 2019",  validFrom:"2025-01-01", validUntil:"2027-12-31", status:"active",  version:"v2.1", official:true,  notes:"" },
@@ -542,7 +372,7 @@ export const emissionFactors = [
   { id:"f7", code:"WATER-CMT",    name:"Agua potable municipal",     scope:3, type:"water",       unit:"kgCO2e/m3",   value:0.344, source:"CONAGUA",    validFrom:"2025-01-01", validUntil:"2026-12-31", status:"draft",   version:"v1.0", official:false, notes:"En revisión interna." },
 ];
 
-// factorId → array of historical versions
+// factorId -> array of historical versions
 export const factorVersions = {
   "f1": [
     { version:"v3.0", value:0.435, changedAt:"2026-01-15", changedBy:"Sergio Arellano", note:"Actualización SENER 2026." },
@@ -570,7 +400,7 @@ export const factorVersions = {
   ],
 };
 
-// ─── Capture Configuration ──────────────────────────────────────────────
+// --- Capture Configuration ----------------------------------------------
 export const captureRules = [
   { id:"cr1", consumptionType:"Electricidad",  category:"Energía", scope:2, appliesTo:"global", areaRef:"",             mode:"manual",   frequency:"Mensual",  unit:"kWh",  evidenceRequired:true,  allowEstimated:false, allowPostEdit:false, requiresPreApproval:true,  validation:"strict",  responsibleRole:"operativo", autoCalc:true,  notes:"Captura manual con evidencia obligatoria (recibo CFE)." },
   { id:"cr2", consumptionType:"Electricidad",  category:"Energía", scope:2, appliesTo:"area",   areaRef:"Centro de Datos", mode:"device",   frequency:"Diaria",   unit:"kWh",  evidenceRequired:false, allowEstimated:false, allowPostEdit:false, requiresPreApproval:false, validation:"automatic", responsibleRole:"operativo", autoCalc:true,  notes:"Lectura automática desde medidores inteligentes." },
@@ -589,7 +419,7 @@ export const captureModes = [
   { id:"file",     label:"Archivo",     icon:"FileSpreadsheet", color:"#EA580C" },
 ];
 
-// ─── Devices & Integrations ─────────────────────────────────────────────
+// --- Devices & Integrations ---------------------------------------------
 export const devices = [
   { id:"d1",  name:"Medidor CFE Edif. A",   type:"electric_meter", protocol:"Modbus TCP", areaId:"e1",  campusId:"campus-central", status:"online",  lastReading:"2026-04-11T08:00:00Z", lastValue:"1,245.6 kWh", health:98, ip:"192.168.10.21", serial:"SM-CC-001", installedAt:"2025-02-10", firmware:"v2.14.3", frequency:"15 min", assignedTo:"Carlos Méndez" },
   { id:"d2",  name:"Medidor CFE Edif. B",   type:"electric_meter", protocol:"Modbus TCP", areaId:"e2",  campusId:"campus-central", status:"online",  lastReading:"2026-04-11T08:00:00Z", lastValue:"2,108.3 kWh", health:96, ip:"192.168.10.22", serial:"SM-CC-002", installedAt:"2025-02-10", firmware:"v2.14.3", frequency:"15 min", assignedTo:"Carlos Méndez" },
@@ -598,7 +428,7 @@ export const devices = [
   { id:"d5",  name:"Sensor Diésel Taller",  type:"flow_sensor",    protocol:"Modbus RTU", areaId:"e9",  campusId:"campus-central", status:"online",  lastReading:"2026-04-11T07:00:00Z", lastValue:"32.4 L",      health:91, ip:"-",             serial:"FS-CC-001", installedAt:"2025-05-20", firmware:"v1.2.5",  frequency:"1 h",    assignedTo:"María López" },
   { id:"d6",  name:"Medidor Norte Edif. A", type:"electric_meter", protocol:"Modbus TCP", areaId:"e12", campusId:"campus-norte",   status:"online",  lastReading:"2026-04-11T08:00:00Z", lastValue:"1,567.8 kWh", health:95, ip:"192.168.20.21", serial:"SM-CN-001", installedAt:"2025-03-12", firmware:"v2.14.3", frequency:"15 min", assignedTo:"Diego Herrera" },
   { id:"d7",  name:"Medidor Nave Industrial",type:"electric_meter",protocol:"Modbus TCP", areaId:"e13", campusId:"campus-norte",   status:"offline", lastReading:"2026-04-09T22:30:00Z", lastValue:"3,210.5 kWh", health:0,  ip:"192.168.20.22", serial:"SM-CN-002", installedAt:"2025-03-12", firmware:"v2.13.9", frequency:"15 min", assignedTo:"Diego Herrera" },
-  { id:"d8",  name:"API CONAGUA Sur",       type:"api_integration",protocol:"REST",       areaId:"e17", campusId:"campus-sur",     status:"online",  lastReading:"2026-04-11T06:00:00Z", lastValue:"125 m3",      health:99, ip:"api.conagua.gob.mx", serial:"-",        installedAt:"2025-08-01", firmware:"—",        frequency:"6 h",    assignedTo:"Sofía Medina" },
+  { id:"d8",  name:"API CONAGUA Sur",       type:"api_integration",protocol:"REST",       areaId:"e17", campusId:"campus-sur",     status:"online",  lastReading:"2026-04-11T06:00:00Z", lastValue:"125 m3",      health:99, ip:"api.conagua.gob.mx", serial:"-",        installedAt:"2025-08-01", firmware:"-",        frequency:"6 h",    assignedTo:"Sofía Medina" },
   { id:"d9",  name:"Medidor Lab Materiales",type:"electric_meter", protocol:"Modbus TCP", areaId:"e15", campusId:"campus-norte",   status:"warning", lastReading:"2026-04-11T07:15:00Z", lastValue:"678.2 kWh",   health:65, ip:"192.168.20.30", serial:"SM-CN-003", installedAt:"2025-04-01", firmware:"v2.14.0", frequency:"15 min", assignedTo:"Pedro Ramírez" },
   { id:"d10", name:"Sensor GLP Cafetería",  type:"flow_sensor",    protocol:"Modbus RTU", areaId:"e11", campusId:"campus-central", status:"offline", lastReading:"2026-04-08T14:00:00Z", lastValue:"18.2 L",      health:0,  ip:"-",             serial:"FS-CC-002", installedAt:"2025-09-10", firmware:"v1.2.3",  frequency:"1 h",    assignedTo:"Carlos Méndez" },
 ];
@@ -648,16 +478,16 @@ export const deviceLogs = [
   { id:"dl6", deviceId:"d2",  ts:"2026-04-11T08:00:00Z", level:"info",    message:"Lectura normal completada." },
 ];
 
-// ─── Records ────────────────────────────────────────────────────────────
+// --- Records ------------------------------------------------------------
 export const records = [
-  { id:"r1",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e1",  areaName:"Edificio A – Rectoría",  value:1245.6, unit:"kWh",  factorId:"f1", emissions:541.84, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r2",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e2",  areaName:"Edificio B – Ciencias",   value:2108.3, unit:"kWh",  factorId:"f1", emissions:917.11, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r3",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e3",  areaName:"Edificio C – Ingenierías",value:890.2,  unit:"kWh",  factorId:"f1", emissions:387.24, captureMode:"device",   capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:true,  notes:"Lectura anómala detectada por delta -42%." },
+  { id:"r1",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e1",  areaName:"Edificio A - Rectoría",  value:1245.6, unit:"kWh",  factorId:"f1", emissions:541.84, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
+  { id:"r2",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e2",  areaName:"Edificio B - Ciencias",   value:2108.3, unit:"kWh",  factorId:"f1", emissions:917.11, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
+  { id:"r3",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e3",  areaName:"Edificio C - Ingenierías",value:890.2,  unit:"kWh",  factorId:"f1", emissions:387.24, captureMode:"device",   capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:true,  notes:"Lectura anómala detectada por delta -42%." },
   { id:"r4",  date:"2026-04-09", periodId:"p7", consumptionType:"Gas natural",  areaId:"e7",  areaName:"Laboratorio de Química",  value:45.8,   unit:"m3",   factorId:"f2", emissions:86.10,  captureMode:"manual",   capturedBy:"Carlos Méndez",  status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
   { id:"r5",  date:"2026-04-08", periodId:"p7", consumptionType:"Diésel",       areaId:"e9",  areaName:"Taller de Mecánica",      value:32.4,   unit:"L",    factorId:"f3", emissions:86.83,  captureMode:"file",     capturedBy:"María López",    status:"validated", evidenceCount:1, anomaly:false, notes:"" },
   { id:"r6",  date:"2026-04-07", periodId:"p7", consumptionType:"Electricidad", areaId:"e12", areaName:"Edificio Principal",      value:1567.8, unit:"kWh",  factorId:"f1", emissions:681.99, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r7",  date:"2026-04-07", periodId:"p7", consumptionType:"Gas LP",       areaId:"e11", areaName:"Cafetería Central",       value:18.2,   unit:"L",    factorId:"f4", emissions:29.30,  captureMode:"manual",   capturedBy:"Carlos Méndez",  status:"rejected",  evidenceCount:0, anomaly:true,  notes:"Sin evidencia adjunta — rechazado." },
-  { id:"r8",  date:"2026-04-06", periodId:"p7", consumptionType:"Gasolina",     areaId:"e3",  areaName:"Edificio C – Ingenierías",value:78.5,   unit:"L",    factorId:"f5", emissions:181.34, captureMode:"assisted", capturedBy:"Pedro Ramírez",  status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
+  { id:"r7",  date:"2026-04-07", periodId:"p7", consumptionType:"Gas LP",       areaId:"e11", areaName:"Cafetería Central",       value:18.2,   unit:"L",    factorId:"f4", emissions:29.30,  captureMode:"manual",   capturedBy:"Carlos Méndez",  status:"rejected",  evidenceCount:0, anomaly:true,  notes:"Sin evidencia adjunta - rechazado." },
+  { id:"r8",  date:"2026-04-06", periodId:"p7", consumptionType:"Gasolina",     areaId:"e3",  areaName:"Edificio C - Ingenierías",value:78.5,   unit:"L",    factorId:"f5", emissions:181.34, captureMode:"assisted", capturedBy:"Pedro Ramírez",  status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
   { id:"r9",  date:"2026-04-05", periodId:"p7", consumptionType:"Electricidad", areaId:"e15", areaName:"Laboratorio de Materiales",value:678.2, unit:"kWh", factorId:"f1", emissions:295.02, captureMode:"device",   capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:true,  notes:"Health del medidor en 65%." },
   { id:"r10", date:"2026-04-04", periodId:"p7", consumptionType:"Diésel",       areaId:"e13", areaName:"Nave Industrial",         value:120.0,  unit:"L",    factorId:"f3", emissions:321.60, captureMode:"file",     capturedBy:"Diego Herrera",  status:"validated", evidenceCount:2, anomaly:false, notes:"" },
   { id:"r11", date:"2026-04-03", periodId:"p7", consumptionType:"Electricidad", areaId:"e17", areaName:"Edificio Administrativo Sur",value:456.7,unit:"kWh",factorId:"f1",emissions:198.66, captureMode:"manual",   capturedBy:"Sofía Medina",   status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
@@ -688,14 +518,14 @@ export const recordTraceability = {
   ],
 };
 
-// ─── Validation Queue ───────────────────────────────────────────────────
+// --- Validation Queue ---------------------------------------------------
 export const validationQueue = [
   { id:"v1", recordId:"r3",  priority:"high",   reason:"Anomalía detectada (-42% delta)",     submittedAt:"2026-04-10T05:30:00Z", submittedBy:"Sistema",        assignedTo:"Ana Torres" },
   { id:"v2", recordId:"r4",  priority:"normal", reason:"Captura manual con evidencia",         submittedAt:"2026-04-09T10:16:00Z", submittedBy:"Carlos Méndez",  assignedTo:"Ana Torres" },
   { id:"v3", recordId:"r8",  priority:"normal", reason:"Captura asistida pendiente revisión",  submittedAt:"2026-04-06T13:00:00Z", submittedBy:"Pedro Ramírez",  assignedTo:"María López" },
   { id:"v4", recordId:"r9",  priority:"high",   reason:"Health del dispositivo bajo (65%)",    submittedAt:"2026-04-05T07:15:00Z", submittedBy:"Sistema",        assignedTo:"Ana Torres" },
   { id:"v5", recordId:"r11", priority:"low",    reason:"Captura manual estándar",              submittedAt:"2026-04-03T16:00:00Z", submittedBy:"Sofía Medina",   assignedTo:"María López" },
-  { id:"v6", recordId:"r12", priority:"normal", reason:"Factor en borrador — verificar",       submittedAt:"2026-04-02T07:30:00Z", submittedBy:"Sistema",        assignedTo:"Ana Torres" },
+  { id:"v6", recordId:"r12", priority:"normal", reason:"Factor en borrador - verificar",       submittedAt:"2026-04-02T07:30:00Z", submittedBy:"Sistema",        assignedTo:"Ana Torres" },
 ];
 
 export const validationDecisions = [
@@ -714,16 +544,16 @@ export const validationCriteria = [
   { id:"vc6", label:"Periodo abierto",                    required:true  },
 ];
 
-// ─── Emission Calculations ──────────────────────────────────────────────
+// --- Emission Calculations ----------------------------------------------
 export const emissionCalculations = [
   { id:"ec1", scope:1, source:"Gas natural",  area:"Laboratorio de Química",     period:"2026-Q2", consumption:45.8,   unit:"m3",  factor:1.880, emissions:86.10,  trend:"+2.3%" },
   { id:"ec2", scope:1, source:"Diésel",       area:"Taller de Mecánica",         period:"2026-Q2", consumption:32.4,   unit:"L",   factor:2.680, emissions:86.83,  trend:"-1.5%" },
   { id:"ec3", scope:1, source:"Diésel",       area:"Nave Industrial",            period:"2026-Q2", consumption:120.0,  unit:"L",   factor:2.680, emissions:321.60, trend:"+5.2%" },
   { id:"ec4", scope:1, source:"Gas LP",       area:"Cafetería Central",          period:"2026-Q2", consumption:18.2,   unit:"L",   factor:1.610, emissions:29.30,  trend:"-3.0%" },
-  { id:"ec5", scope:1, source:"Gasolina",     area:"Edificio C – Ingenierías",   period:"2026-Q2", consumption:78.5,   unit:"L",   factor:2.310, emissions:181.34, trend:"+0.8%" },
-  { id:"ec6", scope:2, source:"Electricidad", area:"Edificio A – Rectoría",      period:"2026-Q2", consumption:1245.6, unit:"kWh", factor:0.435, emissions:541.84, trend:"-2.1%" },
-  { id:"ec7", scope:2, source:"Electricidad", area:"Edificio B – Ciencias",      period:"2026-Q2", consumption:2108.3, unit:"kWh", factor:0.435, emissions:917.11, trend:"+1.4%" },
-  { id:"ec8", scope:2, source:"Electricidad", area:"Edificio C – Ingenierías",   period:"2026-Q2", consumption:890.2,  unit:"kWh", factor:0.435, emissions:387.24, trend:"-8.5%" },
+  { id:"ec5", scope:1, source:"Gasolina",     area:"Edificio C - Ingenierías",   period:"2026-Q2", consumption:78.5,   unit:"L",   factor:2.310, emissions:181.34, trend:"+0.8%" },
+  { id:"ec6", scope:2, source:"Electricidad", area:"Edificio A - Rectoría",      period:"2026-Q2", consumption:1245.6, unit:"kWh", factor:0.435, emissions:541.84, trend:"-2.1%" },
+  { id:"ec7", scope:2, source:"Electricidad", area:"Edificio B - Ciencias",      period:"2026-Q2", consumption:2108.3, unit:"kWh", factor:0.435, emissions:917.11, trend:"+1.4%" },
+  { id:"ec8", scope:2, source:"Electricidad", area:"Edificio C - Ingenierías",   period:"2026-Q2", consumption:890.2,  unit:"kWh", factor:0.435, emissions:387.24, trend:"-8.5%" },
   { id:"ec9", scope:2, source:"Electricidad", area:"Edificio Principal (Norte)", period:"2026-Q2", consumption:1567.8, unit:"kWh", factor:0.435, emissions:681.99, trend:"+3.2%" },
 ];
 
@@ -743,9 +573,9 @@ export const recalculationHistory = [
   { id:"rh3", ts:"2026-02-20T14:00:00Z", trigger:"Cierre periodo 2025-Q4",          recordsAffected:142,deltaEmissions:0,     by:"Sistema" },
 ];
 
-// ─── Goals & Actions ────────────────────────────────────────────────────
+// --- Goals & Actions ----------------------------------------------------
 export const goals = [
-  { id:"g1", name:"Reducir Scope 2 -15% vs 2024", scope:2, target:-15,  baseline:5400, current:4590, unit:"kgCO2e", progress:78, status:"in_progress", deadline:"2026-12-31", responsible:"Ana Torres",      areas:["Edificio A – Rectoría","Edificio B – Ciencias"], description:"Meta institucional de reducción de electricidad.", notes:"Revisión trimestral en curso. Buen avance gracias al cambio a LED.", linkedRecords:["r1","r2","r6"] },
+  { id:"g1", name:"Reducir Scope 2 -15% vs 2024", scope:2, target:-15,  baseline:5400, current:4590, unit:"kgCO2e", progress:78, status:"in_progress", deadline:"2026-12-31", responsible:"Ana Torres",      areas:["Edificio A - Rectoría","Edificio B - Ciencias"], description:"Meta institucional de reducción de electricidad.", notes:"Revisión trimestral en curso. Buen avance gracias al cambio a LED.", linkedRecords:["r1","r2","r6"] },
   { id:"g2", name:"Reducir Gas natural -10%",      scope:1, target:-10,  baseline:600,  current:540,  unit:"kgCO2e", progress:60, status:"in_progress", deadline:"2026-12-31", responsible:"Carlos Méndez",   areas:["Laboratorio de Química"], description:"", notes:"", linkedRecords:["r4"] },
   { id:"g3", name:"Cero diésel en flotilla",       scope:1, target:-100, baseline:400,  current:387,  unit:"kgCO2e", progress:13, status:"in_progress", deadline:"2027-12-31", responsible:"Diego Herrera",   areas:["Nave Industrial","Taller de Mecánica"], description:"Migración gradual a electromovilidad.", notes:"Depende de asignación presupuestal 2027.", linkedRecords:["r5","r10"] },
   { id:"g4", name:"Eficiencia energética Norte",   scope:2, target:-12,  baseline:2200, current:2100, unit:"kgCO2e", progress:38, status:"in_progress", deadline:"2026-12-31", responsible:"Diego Herrera",   areas:["Edificio Principal","Nave Industrial"], description:"", notes:"", linkedRecords:["r6","r7"] },
@@ -764,7 +594,7 @@ export const goalActions = [
   { id:"ga8", goalId:"g6", title:"Sistema de captación de agua de lluvia",   kind:"corrective", status:"at_risk",    due:"2026-07-30", responsible:"Camila Ortiz",  impact:"-30 kgCO2e/mes" },
 ];
 
-// ─── Alerts & Notifications ─────────────────────────────────────────────
+// --- Alerts & Notifications ---------------------------------------------
 export const alertRules = [
   { id:"ar1", name:"Dispositivo desconectado",       type:"device",       condition:"sin lectura > 24h",     severity:"critical", priority:"high",   frequency:"immediate", channels:["email","push","inapp"], recipients:["admin","Ing. Ricardo Luna","Mantenimiento"], enabled:true,  triggeredCount:8 },
   { id:"ar2", name:"Lectura fuera de rango",         type:"anomaly",      condition:"delta > 30% vs media",  severity:"warning",  priority:"normal", frequency:"immediate", channels:["email","inapp"],        recipients:["Dra. Ana Torres","María López"],             enabled:true,  triggeredCount:23 },
@@ -799,15 +629,15 @@ export const notificationChannels = [
   { id:"sms",    label:"SMS",          icon:"Smartphone" },
 ];
 
-/* ════════════════════════════════════════════════════════════════════════
-   PART 3 — SOPORTE
+/* ------------------------------------------------------------------------
+   PART 3 - SOPORTE
    - Reports & exports
    - Backups & maintenance
    - Help & documentation
    - AI control
-   ════════════════════════════════════════════════════════════════════════ */
+   ------------------------------------------------------------------------ */
 
-// ─── Reports: predefined templates ──────────────────────────────────────
+// --- Reports: predefined templates --------------------------------------
 export const reportTemplates = [
   { id:"rt-period",     name:"Reporte por periodo",       description:"Resumen completo de emisiones del periodo seleccionado.",          category:"period",     icon:"Calendar",      formats:["pdf","xlsx","csv"], lastRun:"2026-04-09T09:10:00Z" },
   { id:"rt-area",       name:"Reporte por área",          description:"Emisiones agrupadas por área, edificio o laboratorio.",            category:"area",       icon:"Building2",     formats:["pdf","xlsx","csv"], lastRun:"2026-04-05T11:30:00Z" },
@@ -819,33 +649,33 @@ export const reportTemplates = [
   { id:"rt-comparative",name:"Reporte comparativo",       description:"Comparación entre periodos, áreas o campus.",                       category:"comparative",icon:"GitCompare",    formats:["pdf","xlsx"],       lastRun:"2026-04-01T09:00:00Z" },
 ];
 
-// ─── Reports: export history ────────────────────────────────────────────
+// --- Reports: export history --------------------------------------------
 export const reportExportHistory = [
-  { id:"ex1", reportName:"Emisiones 2026-Q1 – Resumen completo",     templateId:"rt-period",     format:"pdf",  size:"2.4 MB",  generatedBy:"María López",       ts:"2026-04-09T09:10:00Z", status:"completed", evidences:12, periodLabel:"2026-Q1" },
+  { id:"ex1", reportName:"Emisiones 2026-Q1 - Resumen completo",     templateId:"rt-period",     format:"pdf",  size:"2.4 MB",  generatedBy:"María López",       ts:"2026-04-09T09:10:00Z", status:"completed", evidences:12, periodLabel:"2026-Q1" },
   { id:"ex2", reportName:"Comparativo Edificios Campus Central",     templateId:"rt-comparative",format:"xlsx", size:"1.1 MB",  generatedBy:"Sergio Arellano",   ts:"2026-04-08T16:00:00Z", status:"completed", evidences:0,  periodLabel:"2026-Q1" },
-  { id:"ex3", reportName:"Scope 1 – Combustibles",                   templateId:"rt-scope",      format:"pdf",  size:"890 KB",  generatedBy:"Sergio Arellano",   ts:"2026-04-08T15:20:00Z", status:"completed", evidences:6,  periodLabel:"2026-Q1" },
+  { id:"ex3", reportName:"Scope 1 - Combustibles",                   templateId:"rt-scope",      format:"pdf",  size:"890 KB",  generatedBy:"Sergio Arellano",   ts:"2026-04-08T15:20:00Z", status:"completed", evidences:6,  periodLabel:"2026-Q1" },
   { id:"ex4", reportName:"Avance metas institucionales 2026",        templateId:"rt-goals",      format:"pdf",  size:"1.8 MB",  generatedBy:"Ana Torres",        ts:"2026-04-05T11:30:00Z", status:"completed", evidences:4,  periodLabel:"2026" },
   { id:"ex5", reportName:"Actividad usuarios marzo",                 templateId:"rt-users",      format:"csv",  size:"320 KB",  generatedBy:"Sergio Arellano",   ts:"2026-04-02T14:20:00Z", status:"completed", evidences:0,  periodLabel:"2026-03" },
-  { id:"ex6", reportName:"Dispositivos – estado abril",              templateId:"rt-devices",    format:"xlsx", size:"720 KB",  generatedBy:"Carlos Méndez",     ts:"2026-04-01T09:00:00Z", status:"completed", evidences:0,  periodLabel:"2026-04" },
-  { id:"ex7", reportName:"Emisiones por área – Campus Norte",        templateId:"rt-area",       format:"pdf",  size:"1.4 MB",  generatedBy:"Diego Herrera",     ts:"2026-03-28T10:00:00Z", status:"completed", evidences:3,  periodLabel:"2026-Q1" },
-  { id:"ex8", reportName:"Categorías – Resumen 2026",                templateId:"rt-category",   format:"xlsx", size:"640 KB",  generatedBy:"María López",       ts:"2026-03-25T11:45:00Z", status:"completed", evidences:0,  periodLabel:"2026" },
-  { id:"ex9", reportName:"Reporte personalizado scope 2",            templateId:"rt-scope",      format:"pdf",  size:"—",       generatedBy:"Ana Torres",        ts:"2026-04-11T08:00:00Z", status:"failed",    evidences:0,  periodLabel:"2026-Q2" },
-  { id:"ex10",reportName:"Auditoría energética – borrador",          templateId:"rt-comparative",format:"pdf",  size:"—",       generatedBy:"Sergio Arellano",   ts:"2026-04-11T07:30:00Z", status:"pending",   evidences:0,  periodLabel:"2026-Q1" },
+  { id:"ex6", reportName:"Dispositivos - estado abril",              templateId:"rt-devices",    format:"xlsx", size:"720 KB",  generatedBy:"Carlos Méndez",     ts:"2026-04-01T09:00:00Z", status:"completed", evidences:0,  periodLabel:"2026-04" },
+  { id:"ex7", reportName:"Emisiones por área - Campus Norte",        templateId:"rt-area",       format:"pdf",  size:"1.4 MB",  generatedBy:"Diego Herrera",     ts:"2026-03-28T10:00:00Z", status:"completed", evidences:3,  periodLabel:"2026-Q1" },
+  { id:"ex8", reportName:"Categorías - Resumen 2026",                templateId:"rt-category",   format:"xlsx", size:"640 KB",  generatedBy:"María López",       ts:"2026-03-25T11:45:00Z", status:"completed", evidences:0,  periodLabel:"2026" },
+  { id:"ex9", reportName:"Reporte personalizado scope 2",            templateId:"rt-scope",      format:"pdf",  size:"-",       generatedBy:"Ana Torres",        ts:"2026-04-11T08:00:00Z", status:"failed",    evidences:0,  periodLabel:"2026-Q2" },
+  { id:"ex10",reportName:"Auditoría energética - borrador",          templateId:"rt-comparative",format:"pdf",  size:"-",       generatedBy:"Sergio Arellano",   ts:"2026-04-11T07:30:00Z", status:"pending",   evidences:0,  periodLabel:"2026-Q1" },
 ];
 
-// ─── Reports: mock preview data ─────────────────────────────────────────
+// --- Reports: mock preview data -----------------------------------------
 export const reportPreviewSample = {
-  title:        "Emisiones por scope – 2026-Q1",
+  title:        "Emisiones por scope - 2026-Q1",
   generatedAt:  "2026-04-09T09:10:00Z",
   generatedBy:  "María López",
-  periodLabel:  "2026-Q1 (enero – marzo)",
+  periodLabel:  "2026-Q1 (enero - marzo)",
   campus:       "Todos los campus",
   totals: {
     scope1:     705.17,
     scope2:     2528.18,
     scope3:     43.00,
     total:      3276.35,
-    unit:       "kgCO₂e",
+    unit:       "kgCO2e",
     vsPrev:     -1.8,
   },
   breakdown: [
@@ -858,7 +688,7 @@ export const reportPreviewSample = {
   ],
 };
 
-// ─── Backups: list ──────────────────────────────────────────────────────
+// --- Backups: list ------------------------------------------------------
 export const backupList = [
   { id:"bk-2026-04-11", name:"backup_auto_2026-04-11.tar.gz", type:"automatic", size:"412 MB", createdAt:"2026-04-11T03:00:00Z", durationSec:184, status:"completed", retention:"30d", checksumOk:true },
   { id:"bk-2026-04-10", name:"backup_auto_2026-04-10.tar.gz", type:"automatic", size:"408 MB", createdAt:"2026-04-10T03:00:00Z", durationSec:179, status:"completed", retention:"30d", checksumOk:true },
@@ -867,10 +697,10 @@ export const backupList = [
   { id:"bk-2026-04-07", name:"backup_auto_2026-04-07.tar.gz", type:"automatic", size:"390 MB", createdAt:"2026-04-07T03:00:00Z", durationSec:172, status:"completed", retention:"30d", checksumOk:true },
   { id:"bk-2026-04-01", name:"backup_quarter_2026-Q1.tar.gz", type:"manual",    size:"410 MB", createdAt:"2026-04-01T20:00:00Z", durationSec:212, status:"completed", retention:"perm", checksumOk:true, note:"Cierre 2026-Q1" },
   { id:"bk-2026-03-15", name:"backup_auto_2026-03-15.tar.gz", type:"automatic", size:"380 MB", createdAt:"2026-03-15T03:00:00Z", durationSec:175, status:"completed", retention:"30d", checksumOk:true },
-  { id:"bk-2026-02-29", name:"backup_failed_2026-02-29",      type:"automatic", size:"—",      createdAt:"2026-02-29T03:00:00Z", durationSec:0,   status:"failed",    retention:"—",  checksumOk:false, note:"Disco lleno – espacio insuficiente" },
+  { id:"bk-2026-02-29", name:"backup_failed_2026-02-29",      type:"automatic", size:"-",      createdAt:"2026-02-29T03:00:00Z", durationSec:0,   status:"failed",    retention:"-",  checksumOk:false, note:"Disco lleno - espacio insuficiente" },
 ];
 
-// ─── Backups: schedule ──────────────────────────────────────────────────
+// --- Backups: schedule --------------------------------------------------
 export const backupSchedule = {
   enabled:        true,
   frequency:      "daily",    // daily | weekly | monthly
@@ -884,7 +714,7 @@ export const backupSchedule = {
   nextBackupAt:   "2026-04-12T03:00:00Z",
 };
 
-// ─── System resources / health detail ───────────────────────────────────
+// --- System resources / health detail -----------------------------------
 export const systemResources = {
   storage: {
     totalGB:    500,
@@ -921,11 +751,11 @@ export const systemResources = {
     { id:"storage",   label:"Almacenamiento",   status:"online",  uptime:"32d 14h", canRestart:false },
     { id:"queue",     label:"Cola de tareas",   status:"online",  uptime:"5d 02h",  canRestart:true },
     { id:"email",     label:"Servicio correo",  status:"warning", uptime:"1d 04h",  canRestart:true },
-    { id:"ia",        label:"Motor IA",         status:"offline", uptime:"—",       canRestart:true },
+    { id:"ia",        label:"Motor IA",         status:"offline", uptime:"-",       canRestart:true },
   ],
 };
 
-// ─── Maintenance: cleanup tasks ─────────────────────────────────────────
+// --- Maintenance: cleanup tasks -----------------------------------------
 export const cleanupTasks = [
   { id:"ct-temp",     label:"Archivos temporales",       description:"Vista previa de reportes, descargas pendientes y caché temporal.",  size:"412 MB", lastRun:"2026-04-08T03:00:00Z", icon:"Trash2"    },
   { id:"ct-sessions", label:"Sesiones expiradas",         description:"Sesiones inactivas con más de 30 días.",                            size:"24 KB",  lastRun:"2026-04-10T03:00:00Z", icon:"LogOut"     },
@@ -935,7 +765,7 @@ export const cleanupTasks = [
   { id:"ct-notifs",   label:"Notificaciones leídas",      description:"Notificaciones marcadas como leídas hace más de 90 días.",          size:"4.5 MB", lastRun:"2026-04-05T03:00:00Z", icon:"Bell"       },
 ];
 
-// ─── Maintenance: status ────────────────────────────────────────────────
+// --- Maintenance: status ------------------------------------------------
 export const maintenanceStatus = {
   maintenanceMode: false,
   scheduledWindow: null, // { from, to, message }
@@ -943,7 +773,7 @@ export const maintenanceStatus = {
   pendingUpdates:  1,
 };
 
-/* ─── Help / Documentation ──────────────────────────────────────────── */
+/* --- Help / Documentation -------------------------------------------- */
 
 // Quick guides
 export const helpQuickGuides = [
@@ -965,13 +795,13 @@ export const helpManuals = [
 
 // FAQ
 export const helpFaq = [
-  { id:"faq-1", category:"Captura",   question:"¿Cómo capturo una lectura de electricidad?", answer:"Ve a Capturar → selecciona el área y dispositivo → ingresa la lectura del periodo, adjunta evidencia y guarda. Si tu rol lo permite, queda en estado pendiente para validación." },
+  { id:"faq-1", category:"Captura",   question:"¿Cómo capturo una lectura de electricidad?", answer:"Ve a Capturar -> selecciona el área y dispositivo -> ingresa la lectura del periodo, adjunta evidencia y guarda. Si tu rol lo permite, queda en estado pendiente para validación." },
   { id:"faq-2", category:"Captura",   question:"¿Qué hago si el dispositivo no aparece?",     answer:"Verifica que estés en el campus correcto y que el dispositivo esté activo. Si persiste, contacta al administrador para revisar la configuración." },
-  { id:"faq-3", category:"Reportes",  question:"¿Por qué un reporte se queda en pendiente?",   answer:"Los reportes pesados se procesan en cola. Si tarda más de 5 minutos, revisa el estado en Soporte → Historial de exportaciones, o reintenta con un periodo más corto." },
+  { id:"faq-3", category:"Reportes",  question:"¿Por qué un reporte se queda en pendiente?",   answer:"Los reportes pesados se procesan en cola. Si tarda más de 5 minutos, revisa el estado en Soporte -> Historial de exportaciones, o reintenta con un periodo más corto." },
   { id:"faq-4", category:"Scopes",    question:"¿Qué diferencia hay entre Scope 1, 2 y 3?",    answer:"Scope 1: emisiones directas (combustibles propios). Scope 2: emisiones indirectas por electricidad comprada. Scope 3: otras emisiones indirectas (cadena de valor)." },
   { id:"faq-5", category:"Factores",  question:"¿Qué pasa si un factor está vencido?",         answer:"Las nuevas capturas usan el factor más reciente vigente. Si no hay vigente, se bloquea el cálculo y el sistema genera una alerta crítica." },
-  { id:"faq-6", category:"Cuenta",    question:"¿Cómo cambio mi contraseña?",                  answer:"En tu perfil → Seguridad → Cambiar contraseña. La política mínima la define el administrador." },
-  { id:"faq-7", category:"IA",        question:"¿Puedo desactivar las recomendaciones IA?",    answer:"Sí, desde Soporte → Inteligencia artificial puedes activar/desactivar módulos individualmente. Los datos históricos se conservan." },
+  { id:"faq-6", category:"Cuenta",    question:"¿Cómo cambio mi contraseña?",                  answer:"En tu perfil -> Seguridad -> Cambiar contraseña. La política mínima la define el administrador." },
+  { id:"faq-7", category:"IA",        question:"¿Puedo desactivar las recomendaciones IA?",    answer:"Sí, desde Soporte -> Inteligencia artificial puedes activar/desactivar módulos individualmente. Los datos históricos se conservan." },
   { id:"faq-8", category:"Soporte",   question:"¿A quién contacto si algo deja de funcionar?", answer:"Usa el botón Contactar soporte. Adjunta el módulo, fecha y captura del error si es posible." },
 ];
 
@@ -1011,7 +841,7 @@ export const helpChangelog = [
     "Nuevo módulo Soporte: reportes, respaldos, ayuda e IA.",
     "Mejoras de validación masiva de registros.",
     "Nueva vista de huella por edificio.",
-    "Optimización de cálculo de emisiones (×3 más rápido).",
+    "Optimización de cálculo de emisiones (x3 más rápido).",
   ]},
   { id:"v201", version:"2.0.1", date:"2026-02-10", changes:[
     "Corrección en exportación de reportes Scope 3.",
@@ -1034,17 +864,17 @@ export const helpChangelog = [
 export const helpSupportContact = {
   email:   "soporte@carbontrack.app",
   phone:   "+52 81 1234 5678",
-  hours:   "Lunes a viernes, 9:00 – 18:00 (CST)",
+  hours:   "Lunes a viernes, 9:00 - 18:00 (CST)",
   portal:  "https://soporte.carbontrack.app",
   channels:[
     { id:"email",  label:"Correo",       value:"soporte@carbontrack.app", icon:"Mail" },
     { id:"phone",  label:"Teléfono",     value:"+52 81 1234 5678",         icon:"Phone" },
-    { id:"chat",   label:"Chat en vivo", value:"L–V 9–18 h",               icon:"MessageSquare" },
+    { id:"chat",   label:"Chat en vivo", value:"L-V 9-18 h",               icon:"MessageSquare" },
     { id:"ticket", label:"Ticket",       value:"Crear ticket",             icon:"Ticket" },
   ],
 };
 
-/* ─── Inteligencia artificial ──────────────────────────────────────── */
+/* --- Inteligencia artificial ---------------------------------------- */
 
 // AI engine status
 export const aiEngineStatus = {
@@ -1087,8 +917,8 @@ export const aiModuleToggles = [
 
 // AI predictions
 export const aiPredictions = [
-  { id:"pr1", target:"Edificio A – Rectoría",     scope:2, period:"2026-Q3", predictedKgCO2e:1320, confidence:0.92, deltaPct:-3.2, generatedAt:"2026-04-10T10:00:00Z" },
-  { id:"pr2", target:"Edificio B – Ciencias",     scope:2, period:"2026-Q3", predictedKgCO2e:2180, confidence:0.88, deltaPct:+1.4, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr1", target:"Edificio A - Rectoría",     scope:2, period:"2026-Q3", predictedKgCO2e:1320, confidence:0.92, deltaPct:-3.2, generatedAt:"2026-04-10T10:00:00Z" },
+  { id:"pr2", target:"Edificio B - Ciencias",     scope:2, period:"2026-Q3", predictedKgCO2e:2180, confidence:0.88, deltaPct:+1.4, generatedAt:"2026-04-10T10:00:00Z" },
   { id:"pr3", target:"Nave Industrial",            scope:1, period:"2026-Q3", predictedKgCO2e:340,  confidence:0.83, deltaPct:+5.6, generatedAt:"2026-04-10T10:00:00Z" },
   { id:"pr4", target:"Laboratorio de Química",    scope:1, period:"2026-Q3", predictedKgCO2e:92,   confidence:0.90, deltaPct:-2.1, generatedAt:"2026-04-10T10:00:00Z" },
   { id:"pr5", target:"Campus Sur (consolidado)",   scope:0, period:"2026-Q3", predictedKgCO2e:540,  confidence:0.79, deltaPct:+0.6, generatedAt:"2026-04-10T10:00:00Z" },
@@ -1097,7 +927,7 @@ export const aiPredictions = [
 // AI anomalies
 export const aiAnomalies = [
   { id:"an1", target:"Sensor GLP Cafetería",       metric:"consumo",     observed:42.5, expected:18.2, deviation:"+133%", severity:"critical", ts:"2026-04-10T22:15:00Z", status:"open" },
-  { id:"an2", target:"Edificio C – Ingenierías",   metric:"electricidad",observed:1450, expected:920,  deviation:"+58%",  severity:"warning",  ts:"2026-04-09T16:40:00Z", status:"open" },
+  { id:"an2", target:"Edificio C - Ingenierías",   metric:"electricidad",observed:1450, expected:920,  deviation:"+58%",  severity:"warning",  ts:"2026-04-09T16:40:00Z", status:"open" },
   { id:"an3", target:"Taller de Mecánica",         metric:"diésel",      observed:65,   expected:32,   deviation:"+103%", severity:"warning",  ts:"2026-04-08T09:10:00Z", status:"reviewed" },
   { id:"an4", target:"Edificio Principal Norte",   metric:"electricidad",observed:850,  expected:1540, deviation:"-45%",  severity:"info",     ts:"2026-04-07T19:00:00Z", status:"reviewed" },
   { id:"an5", target:"Lab. Materiales (Norte)",    metric:"gas natural", observed:8.4,  expected:21.5, deviation:"-61%",  severity:"info",     ts:"2026-04-05T11:20:00Z", status:"resolved" },
@@ -1105,10 +935,10 @@ export const aiAnomalies = [
 
 // AI recommendations
 export const aiRecommendations = [
-  { id:"rc1", title:"Apagar HVAC fuera de horario en Edif. B",   estimatedSavingKgCO2e:120, scope:2, area:"Edificio B – Ciencias", confidence:0.87, status:"new",       ts:"2026-04-10T10:00:00Z" },
+  { id:"rc1", title:"Apagar HVAC fuera de horario en Edif. B",   estimatedSavingKgCO2e:120, scope:2, area:"Edificio B - Ciencias", confidence:0.87, status:"new",       ts:"2026-04-10T10:00:00Z" },
   { id:"rc2", title:"Sustituir caldera Lab. Química por eléctrica", estimatedSavingKgCO2e:180, scope:1, area:"Laboratorio de Química", confidence:0.81, status:"in_review", ts:"2026-04-09T10:00:00Z" },
-  { id:"rc3", title:"Programar mantenimiento de iluminación – Edif. A", estimatedSavingKgCO2e:60, scope:2, area:"Edificio A – Rectoría", confidence:0.74, status:"applied",   ts:"2026-03-28T10:00:00Z" },
-  { id:"rc4", title:"Revisar fuga GLP – Cafetería Central",        estimatedSavingKgCO2e:95, scope:1, area:"Cafetería Central",     confidence:0.92, status:"new",       ts:"2026-04-10T22:30:00Z" },
+  { id:"rc3", title:"Programar mantenimiento de iluminación - Edif. A", estimatedSavingKgCO2e:60, scope:2, area:"Edificio A - Rectoría", confidence:0.74, status:"applied",   ts:"2026-03-28T10:00:00Z" },
+  { id:"rc4", title:"Revisar fuga GLP - Cafetería Central",        estimatedSavingKgCO2e:95, scope:1, area:"Cafetería Central",     confidence:0.92, status:"new",       ts:"2026-04-10T22:30:00Z" },
   { id:"rc5", title:"Instalar sensores presencia en aulas Norte",  estimatedSavingKgCO2e:75, scope:2, area:"Aulas Norte",           confidence:0.68, status:"new",       ts:"2026-04-08T10:00:00Z" },
 ];
 

@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { hashPassword, verifyPassword, assertPasswordComplexity } from "../../shared/utils/password.js";
+import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 import { getUserForAuthByEmail, updateOwnPassword } from "../users/users.repository.js";
 
 export async function updateOwnPasswordService(actor, payload, auditContext) {
@@ -14,7 +15,7 @@ export async function updateOwnPasswordService(actor, payload, auditContext) {
     });
   }
 
-  assertPasswordComplexity(nextPassword);
+  assertPasswordComplexity(nextPassword, await getSecurityConfigForOrganization(actor.organizationId));
 
   const userRecord = await getUserForAuthByEmail(actor.email);
   const currentPasswordMatches = await verifyPassword(currentPassword, userRecord.password_hash);

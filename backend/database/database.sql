@@ -631,6 +631,15 @@ CREATE TABLE user_settings (
   CONSTRAINT user_settings_user_uq UNIQUE (user_id),
   CONSTRAINT user_settings_theme_chk CHECK (theme IN ('light','dark','system'))
 );
+CREATE TABLE organization_admin_settings (
+  organization_id uuid PRIMARY KEY REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  institutional jsonb NOT NULL DEFAULT '{}'::jsonb,
+  system jsonb NOT NULL DEFAULT '{}'::jsonb,
+  security jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_by_user_id uuid,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT organization_admin_settings_updated_by_fk FOREIGN KEY (updated_by_user_id) REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
+);
 CREATE TABLE dashboard_activity_feeds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
@@ -958,6 +967,7 @@ CREATE TRIGGER records_set_updated_at BEFORE UPDATE ON records FOR EACH ROW EXEC
 CREATE TRIGGER targets_set_updated_at BEFORE UPDATE ON targets FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER target_actions_set_updated_at BEFORE UPDATE ON target_actions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER user_settings_set_updated_at BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER organization_admin_settings_set_updated_at BEFORE UPDATE ON organization_admin_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER dashboard_activity_feeds_set_updated_at BEFORE UPDATE ON dashboard_activity_feeds FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER profile_change_requests_set_updated_at BEFORE UPDATE ON profile_change_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER iot_devices_set_updated_at BEFORE UPDATE ON iot_devices FOR EACH ROW EXECUTE FUNCTION set_updated_at();

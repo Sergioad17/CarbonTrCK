@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { assertPasswordComplexity, generateTemporaryPassword } from "../../shared/utils/password.js";
 import { assertEmail, assertRequiredString } from "../../shared/utils/validation.js";
+import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 import {
   createUser,
   listRolesCatalog,
@@ -49,7 +50,7 @@ export async function listRolesService(actor) {
 export async function createUserService(actor, payload, auditContext) {
   validateUserPayload(payload);
   const temporaryPassword = payload.temporaryPassword || generateTemporaryPassword();
-  assertPasswordComplexity(temporaryPassword);
+  assertPasswordComplexity(temporaryPassword, await getSecurityConfigForOrganization(actor.organizationId));
   return createUser(actor, { ...payload, temporaryPassword }, auditContext);
 }
 

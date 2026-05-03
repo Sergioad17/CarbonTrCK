@@ -9,7 +9,8 @@ import { assertEmail, assertRequiredString } from "../../shared/utils/validation
 import { insertAuditEvent } from "../audit/audit.repository.js";
 import { createForgotPasswordToken, getRefreshSession, revokeRefreshSession, rotateRefreshSession } from "./auth.repository.js";
 import { getAnyOrganizationId, getUserAuthorizationContext, getUserForAuthByEmail, updateLastLoginAt } from "../users/users.repository.js";
-import { withTransaction } from "../../shared/db/pool.js";
+import { query, withTransaction } from "../../shared/db/pool.js";
+import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 
 function parseJwtExpiryToDate(ttl) {
   const now = Date.now();
@@ -110,6 +111,45 @@ export async function loginService(payload, auditContext, env) {
       statusCode: 401,
       code: "USER_INACTIVE",
       message: "This user is inactive.",
+    });
+  }
+
+  const securityConfig = await getSecurityConfigForOrganization(userRecord.organization_id);
+  const lockoutWindow = `${securityConfig.lockoutDuration} minutes`;
+  const recentFailures = await query(
+    `
+      SELECT count(*)::int AS total
+      FROM audit_events
+      WHERE organization_id = $1
+        AND user_id = $2
+        AND event_type = 'auth.login.failure'
+        AND created_at >= now() - $3::interval
+    `,
+    [userRecord.organization_id, userRecord.id, lockoutWindow],
+  );
+
+  if (recentFailures.rows[0]?.total >= securityConfig.maxFailedAttempts) {
+    await withTransaction(async (client) => {
+      await insertAuditEvent(client, {
+        organizationId: userRecord.organization_id,
+        userId: userRecord.id,
+        eventType: "auth.login.locked",
+        entityType: "user",
+        entityId: userRecord.id,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        details: {
+          reason: "too_many_failed_attempts",
+          maxFailedAttempts: securityConfig.maxFailedAttempts,
+          lockoutDuration: securityConfig.lockoutDuration,
+        },
+      });
+    });
+
+    throw new AppError({
+      statusCode: 423,
+      code: "ACCOUNT_LOCKED",
+      message: `Account is temporarily locked. Try again in ${securityConfig.lockoutDuration} minutes.`,
     });
   }
 
