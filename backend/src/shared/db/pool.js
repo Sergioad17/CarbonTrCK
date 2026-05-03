@@ -4,9 +4,12 @@ import { AppError } from "../errors/app-error.js";
 import { mapDatabaseError } from "./sql-errors.js";
 
 const { Pool } = pg;
+const isTestPool = env.NODE_ENV === "test" || Boolean(process.env.TEST_DATABASE_URL);
 
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  connectionTimeoutMillis: isTestPool ? 2000 : 0,
+  allowExitOnIdle: isTestPool,
 });
 
 pool.on("error", (error) => {

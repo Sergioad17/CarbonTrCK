@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { configureTestDatabaseUrl } from "./helpers/test-database-url.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-const hasDb = Boolean(process.env.DATABASE_URL);
+const hasDb = Boolean(configureTestDatabaseUrl());
 
 let server;
 let baseUrl;
