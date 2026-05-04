@@ -1,5 +1,6 @@
 import {
   createUserService,
+  deleteUserService,
   listRolesService,
   listUsersService,
   resetUserPasswordService,
@@ -40,6 +41,11 @@ export async function updateUserController(request, response) {
 export async function updateUserStatusController(request, response) {
   const user = await updateUserStatusService(request.user, request.params.id, request.body, auditContextFromRequest(request));
   response.json({ user });
+}
+
+export async function deleteUserController(request, response) {
+  const result = await deleteUserService(request.user, request.params.id, auditContextFromRequest(request));
+  response.json(result);
 }
 
 export async function resetUserPasswordController(request, response) {

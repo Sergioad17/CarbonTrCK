@@ -49,13 +49,44 @@ const pool = new pg.Pool({
   allowExitOnIdle: true,
 });
 
+async function hasRequiredSchema() {
+  await pool.query("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+  await pool.query("CREATE EXTENSION IF NOT EXISTS citext");
+  await pool.query("CREATE EXTENSION IF NOT EXISTS btree_gist");
+
+  const result = await pool.query(
+    `
+      SELECT to_regclass('public.organizations') AS organizations,
+             to_regclass('public.permissions') AS permissions,
+             to_regclass('public.users') AS users
+    `,
+  );
+
+  return Boolean(result.rows[0]?.organizations && result.rows[0]?.permissions && result.rows[0]?.users);
+}
+
+async function ensureTestDatabaseSchema() {
+  if (!(await hasRequiredSchema())) {
+    console.error("Backend integration test database is reachable but the schema is missing.");
+    console.error("Apply backend/database/database.sql before running tests.");
+    process.exitCode = 1;
+  }
+}
+
 try {
   await pool.query("SELECT 1");
+  await ensureTestDatabaseSchema();
 } catch (error) {
-  console.error("Backend integration test database is not reachable.");
+  console.error(
+    error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT"
+      ? "Backend integration test database is not reachable."
+      : "Backend integration test database precheck failed.",
+  );
   console.error(`Tried: ${redactDatabaseUrl(databaseUrl)}`);
-  console.error("Start the local database with: docker compose up -d postgres");
-  console.error(`Cause: ${error.code || error.message}`);
+  if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+    console.error("Start the local database with: docker compose up -d postgres");
+  }
+  console.error(`Cause: ${error.code || "ERROR"} ${error.message || ""}`.trim());
   process.exitCode = 1;
 } finally {
   await pool.end().catch(() => {});

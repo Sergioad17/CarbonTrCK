@@ -2,8 +2,10 @@ import { AppError } from "../../shared/errors/app-error.js";
 import {
   getAdminGovernmentSettings,
   getAdminHomeSummary,
+  createAdminAuditEvent,
   listActiveSessions,
   listAuditEvents,
+  revokeOtherSessions,
   revokeSession,
   upsertAdminGovernmentSettings,
 } from "./admin.repository.js";
@@ -35,11 +37,24 @@ export function revokeSessionService(actor, sessionId, auditContext) {
   return revokeSession(actor, sessionId, auditContext);
 }
 
+export function revokeOtherSessionsService(actor, currentSessionId, auditContext) {
+  return revokeOtherSessions(actor, currentSessionId, auditContext);
+}
+
 export function listAuditEventsService(actor, query) {
   return listAuditEvents(actor, {
     search: String(query.search || "").trim(),
     module: String(query.module || "").trim(),
     action: String(query.action || "").trim(),
     status: String(query.status || "").trim(),
+    severity: String(query.severity || "").trim(),
+    user: String(query.user || "").trim(),
+    dateFrom: String(query.dateFrom || "").trim(),
+    dateTo: String(query.dateTo || "").trim(),
   });
+}
+
+export function createAdminAuditEventService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createAdminAuditEvent(actor, payload, auditContext);
 }

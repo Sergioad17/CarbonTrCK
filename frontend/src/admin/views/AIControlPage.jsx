@@ -7,6 +7,7 @@ import {
   GitCompare, Layers, ClipboardCheck, UserCheck, History, LineChart,
   SlidersHorizontal,
 } from "lucide-react";
+import { recordAdminAuditEvent } from "../../api/admin";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
@@ -202,7 +203,18 @@ export default function AIControlPage() {
   const [confirm, setConfirm] = React.useState(null);
 
   function toggleModule(id) {
+    const module = modules.find(item => item.id === id);
     setModules(prev => prev.map(m => m.id === id ? { ...m, enabled: !m.enabled } : m));
+    recordAdminAuditEvent({
+      eventType: "ai.module.update",
+      entityType: "ai",
+      details: {
+        target: module?.name || id,
+        before: { enabled: Boolean(module?.enabled) },
+        after: { enabled: !module?.enabled },
+        changes: { enabled: { before: Boolean(module?.enabled), after: !module?.enabled } },
+      },
+    }).catch(() => {});
   }
 
   function toggleEngine() {
@@ -213,7 +225,21 @@ export default function AIControlPage() {
         : "El motor comenzará a generar predicciones y recomendaciones automáticamente.",
       danger: engine.enabled,
       onConfirm: () => {
+        const nextEnabled = !engine.enabled;
         setEngine(p => ({ ...p, enabled: !p.enabled, status: !p.enabled ? "online" : "offline" }));
+        recordAdminAuditEvent({
+          eventType: "ai.engine.update",
+          entityType: "ai",
+          details: {
+            target: "Motor IA",
+            before: { enabled: engine.enabled, status: engine.status },
+            after: { enabled: nextEnabled, status: nextEnabled ? "online" : "offline" },
+            changes: {
+              enabled: { before: engine.enabled, after: nextEnabled },
+              status: { before: engine.status, after: nextEnabled ? "online" : "offline" },
+            },
+          },
+        }).catch(() => {});
         setConfirm(null);
       },
     });
@@ -226,6 +252,15 @@ export default function AIControlPage() {
       onConfirm: () => {
         setConfirm(null);
         setRetraining(true);
+        recordAdminAuditEvent({
+          eventType: "ai.model.execute",
+          entityType: "ai",
+          details: {
+            target: aiConfig.selectedModel,
+            action: "execute",
+            description: `Reentrenamiento solicitado para ${aiConfig.selectedModel}`,
+          },
+        }).catch(() => {});
         setTimeout(() => setRetraining(false), 1500);
       },
     });

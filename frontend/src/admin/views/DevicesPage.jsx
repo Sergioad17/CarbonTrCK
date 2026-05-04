@@ -24,9 +24,9 @@ const fd = "var(--eco-font-display)";
 const fm = "var(--eco-font-mono)";
 
 const TECH_STATUS = {
-  online: { variant: "success", label: "En linea" },
+  online: { variant: "success", label: "En línea" },
   warning: { variant: "warning", label: "Advertencia" },
-  offline: { variant: "error", label: "Sin conexion" },
+  offline: { variant: "error", label: "Sin conexión" },
 };
 
 const OPERATING_STATUS = {
@@ -38,7 +38,7 @@ const OPERATING_STATUS = {
 const HEALTH_STATUS = {
   healthy: { variant: "success", label: "Estable" },
   degraded: { variant: "warning", label: "Degradado" },
-  critical: { variant: "error", label: "Critico" },
+  critical: { variant: "error", label: "Crítico" },
 };
 
 const AREAS = orgEntities.filter(entity => entity.status === "active");
@@ -83,7 +83,7 @@ function getDeviceActivity(device) {
     ts: device.lastReading,
     message: device.status === "offline"
       ? "Sin lectura reciente reportada."
-      : `Ultima lectura registrada: ${device.lastValue}.`,
+      : `Última lectura registrada: ${device.lastValue}.`,
   };
 }
 
@@ -162,7 +162,7 @@ export default function DevicesPage() {
               <div style={{ fontSize: 11, color: "var(--eco-text-soft)", fontFamily: fm }}>{row.serial || "--"}</div>
               <div style={{ marginTop: 5, display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <InlineChip icon={Building2} label={campus?.name || "Sin campus"} />
-                <InlineChip icon={MapPin} label={area?.name || "Sin area"} />
+                <InlineChip icon={MapPin} label={area?.name || "Sin área"} />
               </div>
             </div>
           </div>
@@ -171,7 +171,7 @@ export default function DevicesPage() {
     },
     {
       key: "assignedTo",
-      label: "Asignacion",
+      label: "Asignación",
       width: 180,
       render: (value, row) => (
         <div>
@@ -184,7 +184,7 @@ export default function DevicesPage() {
     },
     {
       key: "operational",
-      label: "Operacion",
+      label: "Operación",
       width: 170,
       render: (_, row) => {
         const key = getOperationalKey(row);
@@ -192,7 +192,7 @@ export default function DevicesPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <AdminStatusBadge variant={OPERATING_STATUS[key].variant} label={OPERATING_STATUS[key].label} />
             <span style={{ fontSize: 11, color: "var(--eco-text-soft)" }}>
-              {row.isActive ? "Asignado al flujo operativo" : "Fuera de operacion por decision administrativa"}
+              {row.isActive ? "Asignado al flujo operativo" : "Fuera de operación por decisión administrativa"}
             </span>
           </div>
         );
@@ -200,7 +200,7 @@ export default function DevicesPage() {
     },
     {
       key: "technical",
-      label: "Tecnico",
+      label: "Técnico",
       width: 190,
       render: (_, row) => {
         const health = getHealthState(row.health);
@@ -236,7 +236,7 @@ export default function DevicesPage() {
   const integrationColumns = [
     {
       key: "name",
-      label: "Integracion",
+      label: "Integración",
       width: 240,
       render: (value, row) => {
         const linkedDevice = devices.find(device => device.id === row.deviceId);
@@ -295,7 +295,7 @@ export default function DevicesPage() {
     },
     {
       key: "lastSync",
-      label: "Ultima sync",
+      label: "Última sync",
       width: 150,
       render: value => <span style={{ fontFamily: fm, fontSize: 11 }}>{new Date(value).toLocaleString()}</span>,
     },
@@ -324,8 +324,8 @@ export default function DevicesPage() {
       <AdminPageHeader
         icon={Cpu}
         title="Dispositivos e integraciones"
-        subtitle="Rastreo administrativo de medidores, sensores e integraciones. El alta y la vinculacion operativa se gestionan desde Dashboard > Dispositivos."
-        breadcrumb={["Operacion", "Dispositivos"]}
+        subtitle="Rastreo administrativo de medidores, sensores e integraciones. El alta y la vinculación operativa se gestionan desde Dashboard > Dispositivos."
+        breadcrumb={["Operación", "Dispositivos"]}
       />
 
       {tab === "devices" ? (
@@ -333,7 +333,7 @@ export default function DevicesPage() {
           <Mini label="Inventario total" value={stats.total} icon={Cpu} color="#64748B" />
           <Mini label="Operativos" value={stats.active} icon={ShieldCheck} color="#16A34A" />
           <Mini label="Con seguimiento" value={stats.attention} icon={AlertTriangle} color="#CA8A04" />
-          <Mini label="Sin conexion" value={stats.offline} icon={WifiOff} color="#DC2626" />
+          <Mini label="Sin conexión" value={stats.offline} icon={WifiOff} color="#DC2626" />
           <Mini label="Asignados" value={stats.assigned} icon={Building2} color="#2563EB" />
           <Mini label="Sin actividad 24 h" value={stats.stale} icon={Clock} color="#7C3AED" />
         </div>
@@ -362,11 +362,11 @@ export default function DevicesPage() {
             <AdminFilterBar
               searchValue={search}
               onSearchChange={setSearch}
-              searchPlaceholder="Buscar por nombre, serial, responsable o ubicacion..."
+              searchPlaceholder="Buscar por nombre, serial, responsable o ubicación..."
               filters={[
                 {
                   key: "status",
-                  label: "Operacion",
+                  label: "Operación",
                   options: [
                     { value: "active", label: "Operativo" },
                     { value: "attention", label: "Con seguimiento" },
@@ -426,12 +426,12 @@ export default function DevicesPage() {
                 letterSpacing: ".05em",
                 color: "var(--eco-text-soft)",
               }}>
-                <ScrollText size={13} /> Bitacora de sincronizaciones
+                <ScrollText size={13} /> Bitácora de sincronizaciones
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {integrationLogs.map(log => {
                   const integration = integrations.find(item => item.id === log.integrationId);
-                  return <LogRow key={log.id} color={getLogColor(log.level)} title={integration?.name || "Integracion"} message={log.message} ts={log.ts} level={log.level} />;
+                  return <LogRow key={log.id} color={getLogColor(log.level)} title={integration?.name || "Integración"} message={log.message} ts={log.ts} level={log.level} />;
                 })}
               </div>
             </div>
@@ -500,7 +500,7 @@ export default function DevicesPage() {
               marginBottom: 6,
             }}>
               <MetricCard icon={Building2} label="Campus" value={getCampus(selected.campusId)?.name || "--"} />
-              <MetricCard icon={MapPin} label="Area" value={getArea(selected.areaId)?.name || "--"} />
+              <MetricCard icon={MapPin} label="Área" value={getArea(selected.areaId)?.name || "--"} />
               <MetricCard icon={ShieldCheck} label="Responsable" value={selected.assignedTo || "Sin asignar"} />
             </div>
 
@@ -511,13 +511,13 @@ export default function DevicesPage() {
               <DrawerField label="Firmware" mono>{selected.firmware || "--"}</DrawerField>
               <DrawerField label="Frecuencia">{selected.frequency}</DrawerField>
               <DrawerField label="Instalado" mono>{selected.installedAt}</DrawerField>
-              <DrawerField label="Ultima lectura" mono>{selected.lastValue}</DrawerField>
-              <DrawerField label="Ultima conexion" mono>{new Date(selected.lastReading).toLocaleString()}</DrawerField>
+              <DrawerField label="Última lectura" mono>{selected.lastValue}</DrawerField>
+              <DrawerField label="Última conexión" mono>{new Date(selected.lastReading).toLocaleString()}</DrawerField>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
               <StatusPanel title="Estado operativo" icon={ShieldCheck} variant={OPERATING_STATUS[getOperationalKey(selected)].variant} label={OPERATING_STATUS[getOperationalKey(selected)].label} helper={selected.isActive ? "Disponible para captura automatizada" : "Retirado del flujo administrativo"} />
-              <StatusPanel title="Estado tecnico" icon={selected.status === "offline" ? WifiOff : Wifi} variant={TECH_STATUS[selected.status]?.variant} label={TECH_STATUS[selected.status]?.label} helper={selected.status === "offline" ? "Requiere revision de enlace" : "Comunicacion disponible"} />
+              <StatusPanel title="Estado técnico" icon={selected.status === "offline" ? WifiOff : Wifi} variant={TECH_STATUS[selected.status]?.variant} label={TECH_STATUS[selected.status]?.label} helper={selected.status === "offline" ? "Requiere revisión de enlace" : "Comunicación disponible"} />
               <StatusPanel title="Salud" icon={Activity} variant={getHealthState(selected.health).variant} label={getHealthState(selected.health).label} helper={`${selected.health}% de estabilidad`} />
             </div>
 
@@ -575,7 +575,7 @@ export default function DevicesPage() {
                 letterSpacing: ".05em",
                 color: "var(--eco-text-soft)",
               }}>
-                <ScrollText size={13} /> Bitacora reciente
+                <ScrollText size={13} /> Bitácora reciente
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {deviceLogs.filter(log => log.deviceId === selected.id).length === 0 ? (
@@ -605,9 +605,9 @@ export default function DevicesPage() {
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <DrawerField label="Endpoint" mono>{selectedIntegration.endpoint}</DrawerField>
-              <DrawerField label="Autenticacion">{selectedIntegration.authType}</DrawerField>
+              <DrawerField label="Autenticación">{selectedIntegration.authType}</DrawerField>
               <DrawerField label="Frecuencia de sync">{selectedIntegration.syncFrequency}</DrawerField>
-              <DrawerField label="Ultima sync" mono>{new Date(selectedIntegration.lastSync).toLocaleString()}</DrawerField>
+              <DrawerField label="Última sync" mono>{new Date(selectedIntegration.lastSync).toLocaleString()}</DrawerField>
               <DrawerField label="Registros procesados" mono>{selectedIntegration.recordsPulled}</DrawerField>
               <DrawerField label="Dispositivo relacionado">
                 {devices.find(device => device.id === selectedIntegration.deviceId)?.name || "Sin vinculo directo"}
@@ -615,7 +615,7 @@ export default function DevicesPage() {
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-              <StatusPanel title="Estado" icon={Plug} variant={TECH_STATUS[selectedIntegration.status]?.variant} label={TECH_STATUS[selectedIntegration.status]?.label} helper="Disponibilidad actual de la integracion" />
+              <StatusPanel title="Estado" icon={Plug} variant={TECH_STATUS[selectedIntegration.status]?.variant} label={TECH_STATUS[selectedIntegration.status]?.label} helper="Disponibilidad actual de la integración" />
               <StatusPanel title="Frecuencia" icon={Clock} variant="info" label={selectedIntegration.syncFrequency} helper="Cadencia configurada en frontend" />
               <StatusPanel title="Procesamiento" icon={ServerCog} variant="success" label={`${selectedIntegration.recordsPulled} registros`} helper="Total acumulado mostrado en panel" />
             </div>
@@ -633,12 +633,12 @@ export default function DevicesPage() {
                 letterSpacing: ".05em",
                 color: "var(--eco-text-soft)",
               }}>
-                <ScrollText size={13} /> Historial de sincronizacion
+                <ScrollText size={13} /> Historial de sincronización
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {selectedIntegrationLogs.length === 0 ? (
                   <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontStyle: "italic" }}>
-                    Sin eventos registrados para esta integracion.
+                    Sin eventos registrados para esta integración.
                   </div>
                 ) : selectedIntegrationLogs.map(log => (
                   <LogRow key={log.id} color={getLogColor(log.level)} title={selectedIntegration.name} message={log.message} ts={log.ts} level={log.level} />

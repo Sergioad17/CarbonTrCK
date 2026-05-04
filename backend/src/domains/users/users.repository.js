@@ -26,6 +26,18 @@ function mapUserRow(row, authorization = {}) {
   });
 }
 
+function changedFields(before = {}, after = {}) {
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+  return keys.reduce((acc, key) => {
+    const previousValue = before[key] ?? null;
+    const nextValue = after[key] ?? null;
+    if (JSON.stringify(previousValue) !== JSON.stringify(nextValue)) {
+      acc[key] = { before: previousValue, after: nextValue };
+    }
+    return acc;
+  }, {});
+}
+
 async function getAuthorizationData(userId, client = { query }) {
   const result = await client.query(
     `
@@ -133,6 +145,10 @@ export async function getUserForAuthByEmail(email) {
       FROM users u
       LEFT JOIN campuses c ON c.id = u.campus_id
       WHERE u.email = $1
+      ORDER BY
+        u.is_active DESC,
+        u.created_at DESC,
+        u.id DESC
       LIMIT 1
     `,
     [String(email || "").trim().toLowerCase()],
@@ -433,7 +449,29 @@ export async function createUser(actor, payload, auditContext) {
 export async function updateUser(actor, userId, payload, auditContext) {
   await withTransaction(async (client) => {
     const currentUser = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND organization_id = $2 LIMIT 1`,
+      `
+        SELECT
+          u.id,
+          u.email::text AS email,
+          u.full_name,
+          u.is_active,
+          u.area_access_mode,
+          c.code AS campus_code,
+          COALESCE(r.name, '') AS role
+        FROM users u
+        LEFT JOIN campuses c ON c.id = u.campus_id
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE u.id = $1 AND u.organization_id = $2
+        ORDER BY
+          CASE lower(r.name)
+            WHEN 'admin' THEN 1
+            WHEN 'directivo' THEN 2
+            WHEN 'operativo' THEN 3
+            ELSE 9
+          END
+        LIMIT 1
+      `,
       [userId, actor.organizationId],
     );
 
@@ -446,6 +484,22 @@ export async function updateUser(actor, userId, payload, auditContext) {
     }
 
     const validPayload = await ensureUserWritePayload(actor, payload, client);
+    const before = {
+      email: currentUser.rows[0].email,
+      fullName: currentUser.rows[0].full_name,
+      role: normalizeRoleKey(currentUser.rows[0].role),
+      campusCode: currentUser.rows[0].campus_code,
+      areaAccessMode: currentUser.rows[0].area_access_mode,
+      isActive: Boolean(currentUser.rows[0].is_active),
+    };
+    const after = {
+      email: String(payload.email).trim().toLowerCase(),
+      fullName: payload.fullName,
+      role: normalizeRoleKey(validPayload.role.name),
+      campusCode: validPayload.campus.code,
+      areaAccessMode: validPayload.areaAccessMode,
+      isActive: payload.isActive ?? true,
+    };
 
     await client.query(
       `
@@ -510,8 +564,12 @@ export async function updateUser(actor, userId, payload, auditContext) {
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
       details: {
-        email: String(payload.email).trim().toLowerCase(),
-        role: normalizeRoleKey(validPayload.role.name),
+        target: after.email,
+        email: after.email,
+        role: after.role,
+        before,
+        after,
+        changes: changedFields(before, after),
       },
     });
 
@@ -524,7 +582,7 @@ export async function updateUserStatus(actor, userId, isActive, auditContext) {
   await withTransaction(async (client) => {
     const targetUser = await client.query(
       `
-        SELECT id
+        SELECT id, is_active, email::text AS email
         FROM users
         WHERE id = $1 AND organization_id = $2
         LIMIT 1
@@ -595,12 +653,176 @@ export async function updateUserStatus(actor, userId, isActive, auditContext) {
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
       details: {
-        isActive,
+        target: targetUser.rows[0].email,
+        before: { isActive: Boolean(targetUser.rows[0].is_active) },
+        after: { isActive },
+        changes: { isActive: { before: Boolean(targetUser.rows[0].is_active), after: isActive } },
       },
     });
   });
 
   return getUserAuthorizationContext(userId);
+}
+
+export async function deleteUser(actor, userId, auditContext) {
+  return withTransaction(async (client) => {
+    const targetUser = await client.query(
+      `
+        SELECT
+          u.id,
+          u.is_active,
+          u.email::text AS email,
+          u.full_name,
+          COALESCE(r.name, '') AS role
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.user_id = u.id
+        LEFT JOIN roles r ON r.id = ur.role_id
+        WHERE u.id = $1 AND u.organization_id = $2
+        ORDER BY
+          CASE lower(r.name)
+            WHEN 'admin' THEN 1
+            WHEN 'administrador' THEN 1
+            WHEN 'directivo' THEN 2
+            WHEN 'operativo' THEN 3
+            ELSE 9
+          END
+        LIMIT 1
+      `,
+      [userId, actor.organizationId],
+    );
+
+    if (targetUser.rowCount < 1) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "User not found.",
+      });
+    }
+
+    if (actor.id === userId) {
+      throw new AppError({
+        statusCode: 409,
+        code: "SELF_DELETE_FORBIDDEN",
+        message: "You cannot delete your own account.",
+      });
+    }
+
+    const targetRole = normalizeRoleKey(targetUser.rows[0].role);
+    if (targetRole === "admin" && targetUser.rows[0].is_active) {
+      const adminCount = await client.query(
+        `
+          SELECT COUNT(*)::int AS total
+          FROM users u
+          JOIN user_roles ur ON ur.user_id = u.id
+          JOIN roles r ON r.id = ur.role_id
+          WHERE u.organization_id = $1
+            AND u.is_active = true
+            AND LOWER(r.name) IN ('admin', 'administrador')
+        `,
+        [actor.organizationId],
+      );
+
+      if (adminCount.rows[0].total <= 1) {
+        throw new AppError({
+          statusCode: 409,
+          code: "LAST_ADMIN_CONFLICT",
+          message: "The last active admin cannot be deleted.",
+        });
+      }
+    }
+
+    const dependencyChecks = [];
+    dependencyChecks.push(await client.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM records
+        WHERE organization_id = $1
+          AND $2 IN (created_by, updated_by, approved_by)
+      `,
+      [actor.organizationId, userId],
+    ));
+    dependencyChecks.push(await client.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM equipment_inventory
+        WHERE organization_id = $1
+          AND created_by = $2
+      `,
+      [actor.organizationId, userId],
+    ));
+    dependencyChecks.push(await client.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM target_actions
+        WHERE organization_id = $1
+          AND $2 IN (owner_user_id, created_by)
+      `,
+      [actor.organizationId, userId],
+    ));
+    const hasBusinessActivity = dependencyChecks.some((result) => result.rows[0]?.total > 0);
+
+    if (hasBusinessActivity) {
+      throw new AppError({
+        statusCode: 409,
+        code: "USER_HAS_ACTIVITY",
+        message: "This user already has operational activity and cannot be deleted. Deactivate it instead.",
+      });
+    }
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "users.delete",
+      entityType: "user",
+      entityId: userId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: {
+        target: targetUser.rows[0].email,
+        fullName: targetUser.rows[0].full_name,
+        role: targetRole,
+      },
+    });
+
+    await client.query(
+      `
+        UPDATE profile_change_request_events
+        SET actor_user_id = NULL,
+            actor_organization_id = NULL
+        WHERE actor_user_id = $1
+          AND actor_organization_id = $2
+      `,
+      [userId, actor.organizationId],
+    );
+    await client.query(
+      `
+        UPDATE user_area_access
+        SET created_by = NULL
+        WHERE created_by = $1
+          AND organization_id = $2
+      `,
+      [userId, actor.organizationId],
+    );
+    await client.query(
+      `
+        UPDATE audit_events
+        SET user_id = NULL
+        WHERE user_id = $1
+          AND organization_id = $2
+      `,
+      [userId, actor.organizationId],
+    );
+    await client.query(
+      `
+        DELETE FROM users
+        WHERE id = $1
+          AND organization_id = $2
+      `,
+      [userId, actor.organizationId],
+    );
+
+    return { ok: true, deletedUserId: userId };
+  });
 }
 
 export async function resetUserPassword(actor, userId, auditContext) {

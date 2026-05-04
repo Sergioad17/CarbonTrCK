@@ -4,6 +4,7 @@ import { assertEmail, assertRequiredString } from "../../shared/utils/validation
 import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 import {
   createUser,
+  deleteUser,
   listRolesCatalog,
   listUsers,
   resetUserPassword,
@@ -69,6 +70,10 @@ export async function updateUserStatusService(actor, userId, payload, auditConte
   }
 
   return updateUserStatus(actor, userId, payload.isActive, auditContext);
+}
+
+export async function deleteUserService(actor, userId, auditContext) {
+  return deleteUser(actor, userId, auditContext);
 }
 
 export async function resetUserPasswordService(actor, userId, auditContext) {

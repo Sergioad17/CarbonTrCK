@@ -366,18 +366,11 @@ Detalles relevantes ya cubiertos:
 - refresh token fallido
 - forgot password solicitado
 
-## Datos semilla
+## Datos iniciales
 
-`backend/database/seed_auth.sql` crea:
+El backend ya no depende de datos semilla demo. En una base nueva, la organizacion, campus, areas, roles y usuarios deben configurarse desde el sistema o desde el flujo administrativo correspondiente.
 
-- organizacion demo
-- campus `CAMPUS-CT`
-- areas `ADM`, `LAB`, `PLANTA`
-- roles `Admin`, `Directivo`, `Operativo`
-- usuarios demo:
-  - `admin@itsmante.edu.mx / admin123A`
-  - `ana@itsmante.edu.mx / captura1A`
-  - `director@itsmante.edu.mx / consulta1A`
+Las pruebas de integracion crean sus propios fixtures temporales y los eliminan al terminar cada suite.
 
 ## Migraciones
 
@@ -392,4 +385,4 @@ Reglas vigentes:
 - cada cambio nuevo de esquema debe entrar en una migracion incremental nueva.
 - `database.sql` es el snapshot consolidado del esquema actual y no debe ser invocado desde `001`.
 
-`database.sql` sigue siendo util para inicializacion limpia por snapshot, y `seed_auth.sql` agrega los datos demo de autenticacion en arranques nuevos.
+`database.sql` sigue siendo util para inicializacion limpia por snapshot. Los datos operativos iniciales se gestionan desde la aplicacion, no desde seeds demo.

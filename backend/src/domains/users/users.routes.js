@@ -3,6 +3,7 @@ import { requireAuth, requirePermission, requireRole } from "../../shared/middle
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createUserController,
+  deleteUserController,
   listRolesController,
   listUsersController,
   resetUserPasswordController,
@@ -22,6 +23,8 @@ export function registerUsersRoutes(router) {
   usersRouter.patch("/:id", asyncHandler(updateUserController));
   usersRouter.patch("/:id/status", asyncHandler(updateUserStatusController));
   usersRouter.post("/:id/password-reset", asyncHandler(resetUserPasswordController));
+  usersRouter.post("/:id/delete", asyncHandler(deleteUserController));
+  usersRouter.delete("/:id", asyncHandler(deleteUserController));
 
   router.use("/users", usersRouter);
 }

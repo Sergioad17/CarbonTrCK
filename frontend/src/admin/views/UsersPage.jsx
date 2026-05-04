@@ -2,9 +2,8 @@ import React from "react";
 import {
   UserPlus,
   KeyRound,
-  ToggleLeft,
   ToggleRight,
-  Trash2,
+  UserMinus,
   Edit3,
   Shield,
   Building2,
@@ -13,6 +12,7 @@ import {
   Download,
   Bell,
   X,
+  Loader2,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
@@ -21,9 +21,46 @@ import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
 import { AdminToggleField } from "../components/AdminFormSection";
-import { users as mockUsers, roles, campuses } from "../mocks/adminMocks";
+import { roles, campuses } from "../mocks/adminMocks";
 import { exportRowsToCsv } from "../../lib/csvExport";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests } from "../../api/profileRequests";
+import { fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../../api/users";
+
+const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
+
+function mapApiUser(apiUser) {
+  if (!apiUser) return null;
+  const fullName = apiUser.fullName
+    || [apiUser.firstName, apiUser.paternalLastName, apiUser.maternalLastName].filter(Boolean).join(" ").trim()
+    || apiUser.email
+    || "Usuario";
+  const role = apiUser.roleKey || apiUser.role || "operativo";
+  const campusName = campuses.find((item) => item.code === apiUser.campusCode || item.id === apiUser.campusCode)?.name
+    || campuses[0]?.name
+    || "Campus Central";
+  const areas = apiUser.areaAccess?.mode === "custom" && Array.isArray(apiUser.areaAccess?.areaCodes)
+    ? apiUser.areaAccess.areaCodes
+    : [];
+  return {
+    id: apiUser.id,
+    apiUser,
+    name: fullName,
+    firstName: apiUser.firstName || "",
+    paternalLastName: apiUser.paternalLastName || "",
+    maternalLastName: apiUser.maternalLastName || "",
+    email: apiUser.email || "",
+    identifier: apiUser.numericId ? String(apiUser.numericId) : "",
+    role,
+    campus: campusName,
+    campusCode: apiUser.campusCode || DEFAULT_CAMPUS_CODE,
+    areas,
+    status: apiUser.isActive ? "active" : "inactive",
+    createdAt: apiUser.createdAt || null,
+    lastAccess: apiUser.lastLoginAt || null,
+    forcePasswordChange: false,
+    notes: apiUser.notes || "",
+  };
+}
 
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
@@ -32,18 +69,6 @@ const fd = "var(--eco-font-display)";
 const ROLE_COLORS = { admin: "#7C3AED", directivo: "#2563EB", operativo: "#059669", consulta: "#64748B" };
 const ROLE_LABELS = { admin: "Admin", directivo: "Directivo", operativo: "Operativo", consulta: "Consulta" };
 const ICON_GRADIENT = "linear-gradient(135deg, var(--eco-primary-500), var(--eco-primary-600))";
-
-const EMPTY_USER = {
-  name: "",
-  email: "",
-  identifier: "",
-  role: "operativo",
-  campus: "Campus Central",
-  areas: [],
-  status: "active",
-  forcePasswordChange: false,
-  notes: "",
-};
 
 function splitNameParts(name = "") {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
@@ -62,9 +87,9 @@ function emptyUserForm(user) {
   const parts = splitNameParts(user?.name);
   return {
     id: user?.id || "",
-    firstName: parts.firstName,
-    paternalLastName: parts.paternalLastName,
-    maternalLastName: parts.maternalLastName,
+    firstName: user?.firstName || parts.firstName,
+    paternalLastName: user?.paternalLastName || parts.paternalLastName,
+    maternalLastName: user?.maternalLastName || parts.maternalLastName,
     email: user?.email || "",
     identifier: user?.identifier || "",
     role: user?.role || "operativo",
@@ -78,22 +103,24 @@ function emptyUserForm(user) {
 }
 
 const ALL_AREAS = [
-  "Direccion General",
+  "Dirección General",
   "TI",
   "Sustentabilidad",
   "Mantenimiento",
-  "Rectoria",
+  "Rectoría",
   "Laboratorios",
   "Instalaciones",
-  "Direccion Academica",
-  "Administracion",
-  "Investigacion",
-  "Direccion Administrativa",
+  "Dirección Académica",
+  "Administración",
+  "Investigación",
+  "Dirección Administrativa",
 ];
 
 const PAGE_STYLES = `
 @keyframes ctOverlay{from{opacity:0}to{opacity:1}}
 @keyframes ctPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ctSpin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.ct-users-admin-spin{animation:ctSpin .9s linear infinite}
 @media(max-width:860px){
   .ct-users-admin-modal-grid{grid-template-columns:1fr!important}
   .ct-users-admin-modal-actions{flex-direction:column-reverse!important;align-items:stretch!important}
@@ -369,7 +396,7 @@ function createTemporaryPassword() {
 }
 
 function requestTypeLabel(type) {
-  return type === "password" ? "Cambio de contrasena" : "Cambio de correo";
+  return type === "password" ? "Cambio de contraseña" : "Cambio de correo";
 }
 
 function StyledInput(props) {
@@ -578,7 +605,7 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               <p style={{ ...subtleText, marginTop: 4, maxWidth: 520 }}>
                 {isEdit
                   ? "Actualiza identidad, alcance y estado del usuario sin salir del panel administrativo."
-                  : "Configura el nuevo usuario con el mismo flujo operativo del modulo principal de usuarios."}
+                  : "Configura el nuevo usuario con el mismo flujo operativo del módulo principal de usuarios."}
               </p>
             </div>
           </div>
@@ -601,7 +628,7 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               <Field label="Apellido materno">
                 <StyledInput value={form.maternalLastName} onChange={(event) => setForm((current) => ({ ...current, maternalLastName: event.target.value }))} placeholder="Apellido materno" />
               </Field>
-              <Field label="Correo electronico" required error={errors.email}>
+              <Field label="Correo electrónico" required error={errors.email}>
                 <StyledInput type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="usuario@dominio.com" />
               </Field>
               <Field label="Identificador interno" helper="Puedes conservar la clave existente o registrar una nueva.">
@@ -618,8 +645,8 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
 
           <div style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ padding: "14px 16px", background: "var(--eco-card-muted, #F8FAFC)", borderBottom: "1px solid var(--eco-border, #E2E8F0)" }}>
-              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Permisos y asignacion</p>
-              <p style={{ ...subtleText, marginTop: 3 }}>Alineado al panel principal: rol, campus y areas del usuario.</p>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Permisos y asignación</p>
+              <p style={{ ...subtleText, marginTop: 3 }}>Alineado al panel principal: rol, campus y áreas del usuario.</p>
             </div>
             <div className="ct-users-admin-modal-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
               <Field label="Rol">
@@ -638,7 +665,7 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               </Field>
             </div>
             <div style={{ padding: "0 16px 16px" }}>
-              <p style={{ ...sectionLabel, marginBottom: 10 }}>Areas asignadas</p>
+              <p style={{ ...sectionLabel, marginBottom: 10 }}>Áreas asignadas</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {areaOptions.map((area) => {
                   const selected = form.areas.includes(area);
@@ -673,15 +700,26 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               <p style={{ ...subtleText, marginTop: 3 }}>Administra restablecimiento de clave temporal y notas internas.</p>
             </div>
             <div className="ct-users-admin-modal-grid" style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }}>
-              <Field label="Contrasena temporal" helper="Solo para flujo frontend. En backend real se enviaria por un canal seguro.">
+              <Field
+                label="Contraseña inicial (opcional)"
+                helper={isEdit
+                  ? "Solo aplica al crear. Para cambiarla usa el botón Restablecer contraseña."
+                  : "Si se deja vacío, el sistema generará una contraseña segura automáticamente y la mostrará al guardar."}
+                error={errors.tempPassword}
+              >
                 <div style={{ display: "flex", gap: 8 }}>
-                  <StyledInput value={form.tempPassword} readOnly placeholder="Genera una clave temporal" />
-                  <ActionButton type="button" onClick={onGeneratePassword}>Generar</ActionButton>
+                  <StyledInput
+                    value={form.tempPassword}
+                    onChange={(event) => setForm((current) => ({ ...current, tempPassword: event.target.value }))}
+                    placeholder={isEdit ? "No editable desde aquí" : "Mínimo 8 caracteres con mayúscula y número"}
+                    disabled={isEdit}
+                  />
+                  <ActionButton type="button" onClick={onGeneratePassword} disabled={isEdit}>Generar</ActionButton>
                 </div>
               </Field>
               <div style={{ display: "flex", alignItems: "flex-end" }}>
                 <AdminToggleField
-                  label="Forzar cambio de contrasena en el siguiente acceso"
+                  label="Forzar cambio de contraseña en el siguiente acceso"
                   checked={form.forcePasswordChange}
                   onChange={(checked) => setForm((current) => ({ ...current, forcePasswordChange: checked }))}
                   hint="Mantiene la cuenta protegida tras la entrega inicial."
@@ -689,7 +727,7 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               </div>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Field label="Observaciones">
-                  <StyledTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notas administrativas, alcance de acceso o contexto de operacion." />
+                  <StyledTextarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Notas administrativas, alcance de acceso o contexto de operación." />
                 </Field>
               </div>
             </div>
@@ -747,7 +785,7 @@ function RequestsPanel({ open, requests, onClose }) {
           {requests.length === 0 ? (
             <div style={{ padding: "28px 18px", textAlign: "center" }}>
               <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Sin peticiones registradas</p>
-              <p style={{ ...subtleText, marginTop: 6 }}>Las solicitudes de perfil y contrasena apareceran aqui para seguimiento administrativo.</p>
+              <p style={{ ...subtleText, marginTop: 6 }}>Las solicitudes de perfil y contraseña aparecerán aquí para seguimiento administrativo.</p>
             </div>
           ) : (
             requests.map((request) => {
@@ -801,7 +839,7 @@ function RequestsPanel({ open, requests, onClose }) {
   );
 }
 
-function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
+function ResetPasswordModal({ user, tempPassword, loading = false, onCancel, onConfirm }) {
   const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
@@ -840,31 +878,31 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
           </div>
           <div>
             <h3 style={{ margin: 0, fontFamily: fd, fontSize: 18, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>
-              {tempPassword ? "Contrasena generada" : "Restablecer contrasena"}
+              {tempPassword ? "Contraseña generada" : "Restablecer contraseña"}
             </h3>
             <p style={{ ...subtleText, marginTop: 4 }}>
               {tempPassword
-                ? "Copia la contrasena temporal ahora. Este flujo es local y no modifica backend."
-                : `Se generara una contrasena temporal para ${user.name}.`}
+                ? "Copia la contraseña temporal ahora — solo se mostrará una vez. La contraseña anterior fue invalidada y las sesiones activas del usuario fueron cerradas."
+                : `Se generará una nueva contraseña temporal para ${user.name}. La actual quedará invalidada de inmediato.`}
             </p>
           </div>
         </div>
 
         {tempPassword ? (
-          <div style={{ background: "#0F172A", color: "#fff", borderRadius: 16, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div>
-              <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "rgba(255,255,255,.56)", textTransform: "uppercase", letterSpacing: ".05em" }}>Contrasena temporal</p>
-              <p style={{ margin: "6px 0 0", fontFamily: fm, fontSize: 20, fontWeight: 700, letterSpacing: ".04em" }}>{tempPassword}</p>
+          <div style={{ background: "var(--eco-card-muted, #F8FAFC)", color: "var(--eco-text-strong, #0F172A)", border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 16, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, #64748B)", textTransform: "uppercase", letterSpacing: ".05em" }}>Contraseña temporal</p>
+              <p style={{ margin: "6px 0 0", fontFamily: fm, fontSize: 20, fontWeight: 700, letterSpacing: ".04em", color: "var(--eco-text-strong, #0F172A)", overflowWrap: "anywhere", lineHeight: 1.35 }}>{tempPassword}</p>
             </div>
             <ActionButton type="button" onClick={handleCopy}>{copied ? "Copiada" : "Copiar"}</ActionButton>
           </div>
         ) : null}
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
-          <ActionButton type="button" onClick={onCancel}>{tempPassword ? "Cerrar" : "Cancelar"}</ActionButton>
+          <ActionButton type="button" onClick={onCancel} disabled={loading}>{tempPassword ? "Cerrar" : "Cancelar"}</ActionButton>
           {!tempPassword ? (
-            <ActionButton type="button" tone="primary" icon={KeyRound} onClick={onConfirm}>
-              Generar contrasena
+            <ActionButton type="button" tone="primary" icon={loading ? Loader2 : KeyRound} onClick={onConfirm} disabled={loading}>
+              {loading ? "Generando..." : "Generar contraseña"}
             </ActionButton>
           ) : null}
         </div>
@@ -874,16 +912,35 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
 }
 
 export default function UsersPage() {
-  const [usersList, setUsersList] = React.useState(mockUsers);
+  const [usersList, setUsersList] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState(null);
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({});
   const [drawerUser, setDrawerUser] = React.useState(null);
   const [formState, setFormState] = React.useState(null);
   const [confirmAction, setConfirmAction] = React.useState(null);
-  const [passwordResetState, setPasswordResetState] = React.useState({ user: null, password: "" });
+  const [passwordResetState, setPasswordResetState] = React.useState({ user: null, password: "", loading: false });
   const [requests, setRequests] = React.useState(() => fetchProfileChangeRequests());
   const [requestsOpen, setRequestsOpen] = React.useState(false);
   const [feedback, setFeedback] = React.useState(null);
+
+  const reloadUsers = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { users } = await fetchUsersModuleData();
+      setUsersList(users.map(mapApiUser).filter(Boolean));
+    } catch (error) {
+      setLoadError(error?.payload?.message || error?.message || "No se pudo cargar la lista de usuarios.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    reloadUsers();
+  }, [reloadUsers]);
 
   const areaOptions = React.useMemo(() => {
     return Array.from(new Set([
@@ -976,7 +1033,7 @@ export default function UsersPage() {
     return errors;
   }
 
-  function handleSaveUser(event) {
+  async function handleSaveUser(event) {
     event.preventDefault();
     if (!formState) return;
     const { user, form } = formState;
@@ -987,85 +1044,124 @@ export default function UsersPage() {
     }
 
     setFormState((prev) => (prev ? { ...prev, saving: true, errors: {} } : prev));
-    const name = buildFullName(form.firstName, form.paternalLastName, form.maternalLastName);
-    const nextUser = {
-      id: user?.id || `u${Date.now()}`,
-      name,
-      email: form.email.trim().toLowerCase(),
-      identifier: form.identifier.trim() || (user?.identifier || `USR-${Date.now().toString().slice(-4)}`),
+    const fullName = buildFullName(form.firstName, form.paternalLastName, form.maternalLastName);
+    const trimmedEmail = form.email.trim().toLowerCase();
+    const trimmedIdentifier = form.identifier.trim();
+    const numericIdPayload = /^\d+$/.test(trimmedIdentifier) ? trimmedIdentifier : null;
+    const isActive = form.status === "active";
+
+    const payload = {
+      id: user?.id,
+      firstName: form.firstName.trim(),
+      paternalLastName: form.paternalLastName.trim(),
+      maternalLastName: form.maternalLastName.trim(),
+      fullName,
+      email: trimmedEmail,
       role: form.role,
-      campus: form.campus,
-      areas: form.areas,
-      status: form.status,
-      createdAt: user?.createdAt || new Date().toISOString().slice(0, 10),
-      lastAccess: user?.lastAccess || null,
-      forcePasswordChange: form.forcePasswordChange,
+      campusCode: user?.apiUser?.campusCode || DEFAULT_CAMPUS_CODE,
+      areaAccess: { mode: "all", areaCodes: [] },
+      isActive,
       notes: form.notes.trim(),
+      numericId: numericIdPayload,
     };
 
-    setUsersList((prev) => user
-      ? prev.map((item) => (item.id === user.id ? nextUser : item))
-      : [...prev, nextUser]);
-    if (user) syncSelectedUser(user.id, () => nextUser);
-    setFormState(null);
-    setFeedback({
-      tone: "success",
-      title: user ? "Usuario actualizado" : "Usuario creado",
-      message: user
-        ? `Se actualizaron los datos administrativos de ${nextUser.name}.`
-        : `La cuenta de ${nextUser.name} quedó lista para asignación y seguimiento.`,
-    });
+    if (form.tempPassword) {
+      payload.password = form.tempPassword;
+      payload.temporaryPassword = form.tempPassword;
+    }
+
+    try {
+      const result = await saveUser(payload);
+      const mappedUsers = (result.users || []).map(mapApiUser).filter(Boolean);
+      setUsersList(mappedUsers);
+      const updated = mappedUsers.find((item) => item.id === (result.user?.id || user?.id)) || null;
+      if (updated) syncSelectedUser(updated.id, () => updated);
+      setFormState(null);
+      const issuedPassword = !user
+        ? (form.tempPassword.trim() || result.temporaryPassword || "")
+        : "";
+      setFeedback({
+        tone: "success",
+        title: user ? "Usuario actualizado" : "Usuario creado",
+        message: user
+          ? `Se actualizaron los datos de ${fullName}.`
+          : `La cuenta de ${fullName} se creó correctamente y ya puede iniciar sesión con el correo ${trimmedEmail}.`,
+      });
+      if (!user && updated && issuedPassword) {
+        setPasswordResetState({ user: updated, password: issuedPassword, loading: false });
+      }
+    } catch (error) {
+      const code = error?.payload?.code || "";
+      const message = error?.payload?.message || error?.message || "";
+      const nextErrors = {};
+      if (code === "INVALID_PASSWORD") {
+        nextErrors.tempPassword = "La contraseña no cumple la política (mínimo 8 caracteres, mayúscula y número).";
+      } else if (/email/i.test(message) || /correo/i.test(message)) {
+        nextErrors.email = message || "Este correo ya está registrado.";
+      }
+      setFormState((prev) => (prev ? { ...prev, saving: false, errors: nextErrors } : prev));
+      setFeedback({
+        tone: "info",
+        title: user ? "No se pudo actualizar" : "No se pudo crear el usuario",
+        message: message || "Revisa los datos e intenta de nuevo.",
+      });
+    }
   }
 
-  function handleToggleStatus(user) {
-    const nextStatus = user.status === "active" ? "inactive" : "active";
-    setUsersList((prev) => prev.map((item) => (item.id === user.id ? { ...item, status: nextStatus } : item)));
-    syncSelectedUser(user.id, (current) => ({ ...current, status: nextStatus }));
-    setFeedback({
-      tone: "info",
-      title: nextStatus === "active" ? "Usuario reactivado" : "Usuario desactivado",
-      message: nextStatus === "active"
-        ? `${user.name} ya puede volver a iniciar sesion.`
-        : `${user.name} quedo sin acceso al panel hasta nueva activacion.`,
-    });
-    setConfirmAction(null);
-  }
-
-  function handleDeleteUser(user) {
-    setUsersList((prev) => prev.filter((item) => item.id !== user.id));
-    setDrawerUser(null);
-    setPasswordResetState({ user: null, password: "" });
-    setFeedback({
-      tone: "info",
-      title: "Usuario eliminado",
-      message: `La cuenta de ${user.name} fue retirada del listado local.`,
-    });
-    setConfirmAction(null);
+  async function handleToggleStatus(user) {
+    const nextActive = user.status !== "active";
+    try {
+      const apiUsers = await updateUserStatus({ id: user.id }, nextActive);
+      const mappedUsers = (apiUsers || []).map(mapApiUser).filter(Boolean);
+      setUsersList(mappedUsers);
+      const updated = mappedUsers.find((item) => item.id === user.id);
+      if (updated) syncSelectedUser(user.id, () => updated);
+      setFeedback({
+        tone: "info",
+        title: nextActive ? "Usuario reactivado" : "Usuario dado de baja",
+        message: nextActive
+          ? `${user.name} ya puede volver a iniciar sesión.`
+          : `${user.name} quedó sin acceso al sistema. Sus sesiones activas fueron revocadas.`,
+      });
+    } catch (error) {
+      const message = error?.payload?.message || error?.message || "Intenta de nuevo en unos segundos.";
+      setFeedback({
+        tone: "info",
+        title: "No se pudo actualizar el estado",
+        message,
+      });
+    } finally {
+      setConfirmAction(null);
+    }
   }
 
   function openPasswordReset(user) {
-    setPasswordResetState({ user, password: "" });
+    setPasswordResetState({ user, password: "", loading: false });
   }
 
-  function handleResetPassword() {
+  async function handleResetPassword() {
     if (!passwordResetState.user) return;
-    const temporaryPassword = createTemporaryPassword();
-    const updatedFields = {
-      forcePasswordChange: true,
-      lastPasswordResetAt: new Date().toISOString(),
-      notes: passwordResetState.user.notes,
-    };
-
-    setUsersList((prev) => prev.map((user) => (
-      user.id === passwordResetState.user.id ? { ...user, ...updatedFields } : user
-    )));
-    syncSelectedUser(passwordResetState.user.id, (user) => ({ ...user, ...updatedFields }));
-    setFeedback({
-      tone: "success",
-      title: "Contraseña temporal generada",
-      message: `Nueva contraseña para ${passwordResetState.user.name}: ${temporaryPassword}.`,
-    });
-    setPasswordResetState({ user: passwordResetState.user, password: temporaryPassword });
+    setPasswordResetState((prev) => ({ ...prev, loading: true }));
+    try {
+      const result = await resetUserPassword(passwordResetState.user.id);
+      if (!result.ok || !result.password) {
+        throw new Error("password_reset_failed");
+      }
+      setPasswordResetState({ user: passwordResetState.user, password: result.password, loading: false });
+      setFeedback({
+        tone: "success",
+        title: "Contraseña temporal generada",
+        message: `Se asignó una nueva contraseña a ${passwordResetState.user.name}. Compártesela por un canal seguro.`,
+      });
+      reloadUsers();
+    } catch (error) {
+      setPasswordResetState((prev) => ({ ...prev, loading: false }));
+      setFeedback({
+        tone: "info",
+        title: "No se pudo restablecer la contraseña",
+        message: error?.payload?.message || error?.message || "Intenta de nuevo en unos segundos.",
+      });
+    }
   }
 
   function handleExportCsv() {
@@ -1123,12 +1219,12 @@ export default function UsersPage() {
     },
     {
       key: "areas",
-      label: "Area",
+      label: "Área",
       width: "16%",
       render: (value = []) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontSize: 12.5, fontWeight: 500 }}>
-            {value[0] || "Sin area"}
+            {value[0] || "Sin área"}
           </span>
           {value.length > 1 && (
             <span style={{ fontSize: 11, color: "var(--eco-text-soft, #94A3B8)" }}>
@@ -1162,7 +1258,7 @@ export default function UsersPage() {
     },
     {
       key: "lastAccess",
-      label: "Ultimo acceso",
+      label: "Último acceso",
       width: "14%",
       nowrap: true,
       render: (value) => (
@@ -1208,7 +1304,7 @@ export default function UsersPage() {
         title="Usuarios y permisos"
         subtitle={`${activeCount} activos · ${inactiveCount} inactivos · ${usersList.length} total`}
         icon={UsersIcon}
-        breadcrumb={["Operacion", "Usuarios"]}
+        breadcrumb={["Operación", "Usuarios"]}
         actions={(
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button onClick={openCreateModal} style={primaryHeaderBtn}>
@@ -1235,7 +1331,7 @@ export default function UsersPage() {
             { key: "role", label: "Rol", options: roles.filter((role) => role.enabled).map((role) => ({ value: role.id, label: role.label })) },
             { key: "status", label: "Estado", options: [{ value: "active", label: "Activo" }, { value: "inactive", label: "Inactivo" }] },
             { key: "campus", label: "Campus", options: campuses.map((campus) => ({ value: campus.name, label: campus.name })) },
-            { key: "area", label: "Area", options: areaOptions.map((area) => ({ value: area, label: area })) },
+            { key: "area", label: "Área", options: areaOptions.map((area) => ({ value: area, label: area })) },
           ]}
           filterValues={filters}
           onFilterChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
@@ -1251,11 +1347,55 @@ export default function UsersPage() {
         fontSize: 12,
         color: "var(--eco-text-soft, #64748B)",
         marginBottom: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
       }}>
-        {filtered.length === usersList.length
-          ? `${usersList.length} usuarios`
-          : `${filtered.length} de ${usersList.length} usuarios`}
+        {loading ? (
+          <>
+            <Loader2 size={12} className="ct-users-admin-spin" /> Cargando usuarios...
+          </>
+        ) : filtered.length === usersList.length ? (
+          `${usersList.length} usuarios`
+        ) : (
+          `${filtered.length} de ${usersList.length} usuarios`
+        )}
       </div>
+
+      {loadError ? (
+        <div style={{
+          padding: "12px 16px",
+          marginBottom: 12,
+          borderRadius: 12,
+          border: "1px solid rgba(239,68,68,.22)",
+          background: "rgba(239,68,68,.08)",
+          color: "var(--eco-danger, #DC2626)",
+          fontFamily: fb,
+          fontSize: 12.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}>
+          <span>{loadError}</span>
+          <button
+            onClick={reloadUsers}
+            style={{
+              border: "1px solid rgba(239,68,68,.3)",
+              background: "var(--eco-card, #fff)",
+              color: "var(--eco-danger, #DC2626)",
+              borderRadius: 8,
+              padding: "6px 12px",
+              fontFamily: fb,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : null}
 
       <AdminDataTable
         columns={columns}
@@ -1263,7 +1403,7 @@ export default function UsersPage() {
         sortable
         onRowClick={setDrawerUser}
         maxHeight={520}
-        emptyMessage="No se encontraron usuarios con estos filtros."
+        emptyMessage={loading ? "Cargando usuarios..." : "No se encontraron usuarios con estos filtros."}
       />
 
       <AdminEntityDrawer
@@ -1278,16 +1418,10 @@ export default function UsersPage() {
             <AdminActionButton icon={Edit3} label="Editar" onClick={() => openEditModal(drawerUser)} />
             <AdminActionButton icon={KeyRound} label="Restablecer clave" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
             <AdminActionButton
-              icon={drawerUser.status === "active" ? ToggleRight : ToggleLeft}
-              label={drawerUser.status === "active" ? "Desactivar" : "Activar"}
-              accent={drawerUser.status === "active" ? "warning" : "success"}
+              icon={drawerUser.status === "active" ? UserMinus : ToggleRight}
+              label={drawerUser.status === "active" ? "Dar de baja" : "Reactivar"}
+              accent={drawerUser.status === "active" ? "danger" : "success"}
               onClick={() => setConfirmAction({ type: "toggle", user: drawerUser })}
-            />
-            <AdminActionButton
-              icon={Trash2}
-              label="Eliminar"
-              accent="danger"
-              onClick={() => setConfirmAction({ type: "delete", user: drawerUser })}
             />
           </>
         )}
@@ -1304,10 +1438,10 @@ export default function UsersPage() {
               </DrawerField>
               <DrawerField label="Campus">{drawerUser.campus}</DrawerField>
               <DrawerField label="Fecha de alta">{fmtDate(drawerUser.createdAt)}</DrawerField>
-              <DrawerField label="Ultimo acceso">{fmtDateTime(drawerUser.lastAccess)}</DrawerField>
+              <DrawerField label="Último acceso">{fmtDateTime(drawerUser.lastAccess)}</DrawerField>
               <DrawerField label="Cambio obligatorio">
                 {drawerUser.forcePasswordChange
-                  ? <span style={{ color: "var(--eco-warning, #CA8A04)", fontWeight: 600 }}>Si</span>
+                  ? <span style={{ color: "var(--eco-warning, #CA8A04)", fontWeight: 600 }}>Sí</span>
                   : "No"}
               </DrawerField>
             </div>
@@ -1330,7 +1464,7 @@ export default function UsersPage() {
                 Acciones administrativas
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <AdminActionButton icon={KeyRound} label="Restablecer contrasena" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
+                <AdminActionButton icon={KeyRound} label="Restablecer contraseña" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
               </div>
             </div>
 
@@ -1343,7 +1477,7 @@ export default function UsersPage() {
                 textTransform: "uppercase",
                 letterSpacing: ".05em",
               }}>
-                Areas asignadas
+                Áreas asignadas
               </span>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
                 {drawerUser.areas.length > 0 ? drawerUser.areas.map((area) => (
@@ -1361,7 +1495,7 @@ export default function UsersPage() {
                   >
                     {area}
                   </span>
-                )) : <span style={{ opacity: 0.4, fontSize: 12 }}>Sin areas asignadas</span>}
+                )) : <span style={{ opacity: 0.4, fontSize: 12 }}>Sin áreas asignadas</span>}
               </div>
             </div>
 
@@ -1389,7 +1523,8 @@ export default function UsersPage() {
       <ResetPasswordModal
         user={passwordResetState.user}
         tempPassword={passwordResetState.password}
-        onCancel={() => setPasswordResetState({ user: null, password: "" })}
+        loading={passwordResetState.loading}
+        onCancel={() => setPasswordResetState({ user: null, password: "", loading: false })}
         onConfirm={handleResetPassword}
       />
 
@@ -1397,23 +1532,13 @@ export default function UsersPage() {
         open={confirmAction?.type === "toggle"}
         onClose={() => setConfirmAction(null)}
         onConfirm={() => handleToggleStatus(confirmAction.user)}
-        title={confirmAction?.user?.status === "active" ? "Desactivar usuario" : "Activar usuario"}
+        title={confirmAction?.user?.status === "active" ? "Dar de baja al usuario" : "Reactivar usuario"}
         message={confirmAction?.user?.status === "active"
-          ? `¿Desactivar la cuenta de ${confirmAction?.user?.name}? No podra iniciar sesion.`
-          : `¿Reactivar la cuenta de ${confirmAction?.user?.name}?`
+          ? `¿Dar de baja la cuenta de ${confirmAction?.user?.name}? Conservaremos su historial de auditoría, pero no podrá iniciar sesión y sus sesiones activas serán revocadas. Podrás reactivarla más adelante.`
+          : `¿Reactivar la cuenta de ${confirmAction?.user?.name}? Recuperará el acceso al sistema con sus permisos previos.`
         }
-        confirmLabel={confirmAction?.user?.status === "active" ? "Desactivar" : "Activar"}
+        confirmLabel={confirmAction?.user?.status === "active" ? "Dar de baja" : "Reactivar"}
         danger={confirmAction?.user?.status === "active"}
-      />
-
-      <AdminConfirmDialog
-        open={confirmAction?.type === "delete"}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={() => handleDeleteUser(confirmAction.user)}
-        title="Eliminar usuario"
-        message={`¿Eliminar permanentemente a ${confirmAction?.user?.name}? Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        danger
       />
     </>
   );

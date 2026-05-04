@@ -16,6 +16,7 @@ import {
   fetchAdminAuditEvents,
   fetchAdminGovernmentSettings,
   fetchAdminSessions,
+  revokeOtherAdminSessions,
   revokeAdminSession,
   saveAdminGovernmentSettings,
 } from "../../api/admin";
@@ -125,6 +126,10 @@ function translateTechnicalEvent(value) {
     "admin.government.read": "Configuración general consultada",
     "admin.government.update": "Configuración general actualizada",
     "admin.security.session_revoke": "Sesión remota cerrada",
+    "admin.security.sessions_revoke_all": "Sesiones remotas cerradas",
+    "ai.engine.update": "Motor IA actualizado",
+    "ai.module.update": "Módulo IA actualizado",
+    "ai.model.execute": "Modelo IA ejecutado",
     "auth.forgot_password.requested": "Solicitud de recuperación de contraseña",
     "auth.login.failure": "Intento de acceso fallido",
     "auth.login.inactive_user": "Intento de acceso con usuario inactivo",
@@ -376,6 +381,14 @@ function eventSeverity(evt) {
   return evt.severity || "low";
 }
 
+function normalizeSession(session) {
+  return {
+    ...session,
+    deviceLabel: formatDevice(session.device),
+    roleLabel: roleLabel(session.role),
+  };
+}
+
 export default function SecurityPage() {
   const [form, setForm] = React.useState(null);
   const [settings, setSettings] = React.useState(null);
@@ -383,6 +396,7 @@ export default function SecurityPage() {
   const [events, setEvents] = React.useState([]);
   const [dirty, setDirty] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [closingSessions, setClosingSessions] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [status, setStatus] = React.useState(null);
 
@@ -398,11 +412,7 @@ export default function SecurityPage() {
         if (cancelled) return;
         setSettings(data);
         setForm(normalizeSecurityForm(data?.security || {}));
-        setSessions(liveSessions.map((session) => ({
-          ...session,
-          deviceLabel: formatDevice(session.device),
-          roleLabel: roleLabel(session.role),
-        })));
+        setSessions(liveSessions.map(normalizeSession));
         setEvents(auditEvents.filter(isSecurityEvent).slice(0, 8).map(normalizeSecurityEvent));
         setDirty(false);
         setStatus(null);
@@ -432,6 +442,8 @@ export default function SecurityPage() {
       });
       setSettings(saved);
       setForm(normalizeSecurityForm(saved?.security || {}));
+      const liveSessions = await fetchAdminSessions();
+      setSessions(liveSessions.map(normalizeSession));
       setDirty(false);
       setStatus({ type: "success", text: "Políticas de seguridad aplicadas al sistema." });
     } catch (error) {
@@ -451,7 +463,8 @@ export default function SecurityPage() {
   async function handleRevokeSession(id) {
     try {
       await revokeAdminSession(id);
-      setSessions((prev) => prev.filter((session) => session.id !== id));
+      const liveSessions = await fetchAdminSessions();
+      setSessions(liveSessions.map(normalizeSession));
       setStatus({ type: "success", text: "Sesión remota cerrada correctamente." });
     } catch (error) {
       console.error("admin_session_revoke_failed", error);
@@ -459,10 +472,36 @@ export default function SecurityPage() {
     }
   }
 
+  async function handleRevokeOtherSessions() {
+    const remoteCount = sessions.filter((session) => !session.current).length;
+    if (remoteCount < 1 || closingSessions) return;
+    const confirmed = window.confirm(`Se cerrarán ${remoteCount} sesiones remotas. Tu sesión actual seguirá activa.`);
+    if (!confirmed) return;
+
+    setClosingSessions(true);
+    try {
+      const result = await revokeOtherAdminSessions();
+      const liveSessions = await fetchAdminSessions();
+      setSessions(liveSessions.map(normalizeSession));
+      setStatus({
+        type: "success",
+        text: result.revokedCount === 1
+          ? "Se cerró 1 sesión remota."
+          : `Se cerraron ${result.revokedCount} sesiones remotas.`,
+      });
+    } catch (error) {
+      console.error("admin_sessions_revoke_all_failed", error);
+      setStatus({ type: "error", text: "No se pudieron cerrar las sesiones remotas." });
+    } finally {
+      setClosingSessions(false);
+    }
+  }
+
   if (loading || !form) {
     return <AdminLoadingScreen />;
   }
 
+  const remoteSessionCount = sessions.filter((session) => !session.current).length;
   const sessionColumns = [
     {
       key: "user",
@@ -699,6 +738,38 @@ export default function SecurityPage() {
             }}>
               {sessions.length}
             </span>
+            <button
+              type="button"
+              onClick={handleRevokeOtherSessions}
+              disabled={remoteSessionCount < 1 || closingSessions}
+              style={{
+                marginLeft: "auto",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                minHeight: 30,
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--eco-danger-soft, rgba(239,68,68,.28))",
+                background: remoteSessionCount < 1 || closingSessions
+                  ? "var(--eco-card-muted, #F8FAFC)"
+                  : "rgba(239,68,68,.08)",
+                color: remoteSessionCount < 1 || closingSessions
+                  ? "var(--eco-text-soft, #94A3B8)"
+                  : "var(--eco-danger, #DC2626)",
+                fontFamily: fb,
+                fontSize: 11.5,
+                fontWeight: 700,
+                cursor: remoteSessionCount < 1 || closingSessions ? "not-allowed" : "pointer",
+                textTransform: "none",
+                letterSpacing: 0,
+                transition: "background .15s, border-color .15s",
+              }}
+              title="Cerrar todas las sesiones excepto la sesión actual"
+            >
+              <LogOut size={14} />
+              {closingSessions ? "Cerrando..." : "Cerrar otras sesiones"}
+            </button>
           </div>
           <div style={{
             marginBottom: 10,

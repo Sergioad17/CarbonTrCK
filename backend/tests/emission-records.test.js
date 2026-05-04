@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { cleanupTestAuthFixtures, prepareTestAuthFixtures } from "./helpers/test-auth-fixtures.js";
 import { configureTestDatabaseUrl } from "./helpers/test-database-url.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -102,7 +103,7 @@ async function getSeedContext() {
       JOIN users ana_user ON ana_user.organization_id = o.id AND ana_user.email::text = 'ana@itsmante.edu.mx'
       JOIN users director_user ON director_user.organization_id = o.id AND director_user.email::text = 'director@itsmante.edu.mx'
       JOIN roles operativo_role ON operativo_role.organization_id = o.id AND lower(operativo_role.name) = 'operativo'
-      WHERE o.name = 'CarbonTrack Demo Org'
+      WHERE o.name = 'CarbonTrack Test Org'
       LIMIT 1
     `,
   );
@@ -514,6 +515,7 @@ if (!hasDb) {
   before(async () => {
     const { createApp } = await import("../src/app.js");
     ({ query, closePool } = await import("../src/shared/db/pool.js"));
+    await prepareTestAuthFixtures(query);
     ({ createRecord } = await import("../src/domains/records/records.repository.js"));
     ({ getUserAuthorizationContext } = await import("../src/domains/users/users.repository.js"));
 
@@ -526,6 +528,7 @@ if (!hasDb) {
 
   after(async () => {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await cleanupTestAuthFixtures(query);
     await closePool();
   });
 

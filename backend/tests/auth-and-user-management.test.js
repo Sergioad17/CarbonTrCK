@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { cleanupTestAuthFixtures, prepareTestAuthFixtures } from "./helpers/test-auth-fixtures.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
@@ -63,6 +64,10 @@ function assertNormalizedUserShape(user, options = {}) {
     expectedKeys.push("organizationId");
   }
 
+  if ("previousLoginAt" in user) {
+    expectedKeys.push("previousLoginAt");
+  }
+
   assert.deepEqual(Object.keys(user).sort(), expectedKeys.sort());
   assert.equal(typeof user.id, "string");
   assert.equal(typeof user.numericId, "string");
@@ -76,6 +81,7 @@ function assertNormalizedUserShape(user, options = {}) {
   assert.equal(typeof user.campusCode, "string");
   assert.equal(typeof user.isActive, "boolean");
   assert.ok(user.lastLoginAt === null || typeof user.lastLoginAt === "string");
+  assert.ok(user.previousLoginAt === undefined || user.previousLoginAt === null || typeof user.previousLoginAt === "string");
   assert.ok(user.createdAt === null || typeof user.createdAt === "string");
   assert.ok(user.updatedAt === null || typeof user.updatedAt === "string");
   assert.equal(typeof user.notes, "string");
@@ -127,6 +133,7 @@ if (!hasDb) {
   before(async () => {
     const { createApp } = await import("../src/app.js");
     ({ query, closePool } = await import("../src/shared/db/pool.js"));
+    await prepareTestAuthFixtures(query);
 
     const app = createApp();
     server = app.listen(0);
@@ -137,6 +144,7 @@ if (!hasDb) {
 
   after(async () => {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await cleanupTestAuthFixtures(query);
     await closePool();
   });
 
@@ -190,20 +198,31 @@ if (!hasDb) {
   });
 
   test("login con usuario inactivo", async () => {
-    const org = await query(`SELECT id FROM organizations WHERE name = 'CarbonTrack Demo Org' LIMIT 1`);
-    const campus = await query(`SELECT id FROM campuses WHERE code = 'CAMPUS-CT' LIMIT 1`);
-    await query(
-      `
-        INSERT INTO users (
-          organization_id, campus_id, area_access_mode, email, password_hash,
-          full_name, first_name, paternal_last_name, is_active
-        )
-        VALUES ($1,$2,'all',$3,crypt($4, gen_salt('bf', 10)),$5,$6,$7,false)
-      `,
-      [org.rows[0].id, campus.rows[0].id, "inactive@itsmante.edu.mx", "Inactiva123", "Usuario Inactivo", "Usuario", "Inactivo"],
-    );
+    const auth = await login();
+    const password = "Inactiva123A!";
+    const created = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Usuario",
+        paternalLastName: "Inactivo",
+        maternalLastName: "Demo",
+        fullName: "Usuario Inactivo Demo",
+        email: "inactive@itsmante.edu.mx",
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: false,
+        notes: "",
+        temporaryPassword: password,
+      }),
+    });
+    assert.equal(created.response.status, 201);
 
-    const { response, body } = await login("inactive@itsmante.edu.mx", "Inactiva123");
+    const { response, body } = await login("inactive@itsmante.edu.mx", password);
     assert.equal(response.status, 401);
     assert.equal(body.code, "USER_INACTIVE");
   });
@@ -481,6 +500,39 @@ if (!hasDb) {
     assert.equal(second.response.status, 409);
   });
 
+  test("creacion de usuario con password temporal permite login", async () => {
+    const auth = await login();
+    const email = `test.create.login.${Date.now()}@itsmante.edu.mx`;
+    const temporaryPassword = "TempCuenta123A!";
+    const created = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Login",
+        paternalLastName: "Nuevo",
+        maternalLastName: "Demo",
+        fullName: "Login Nuevo Demo",
+        email,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: true,
+        notes: "",
+        temporaryPassword,
+      }),
+    });
+
+    assert.equal(created.response.status, 201);
+    assert.equal(created.body.temporaryPassword, temporaryPassword);
+
+    const createdLogin = await login(email, temporaryPassword);
+    assert.equal(createdLogin.response.status, 200);
+    assert.equal(createdLogin.body.user.email, email);
+  });
+
   test("edicion de usuario", async () => {
     const auth = await login();
     const created = await request("/users", {
@@ -563,6 +615,91 @@ if (!hasDb) {
     assertNormalizedUserShape(updated.body.user, { includeOrganizationId: true });
   });
 
+  test("borrado de usuario elimina cuenta e impide login", async () => {
+    const auth = await login();
+    const suffix = Date.now();
+    const email = `test.delete.${suffix}@itsmante.edu.mx`;
+    const temporaryPassword = "DeleteCuenta123A!";
+    const created = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Delete",
+        paternalLastName: "User",
+        maternalLastName: "Demo",
+        fullName: "Delete User Demo",
+        email,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: true,
+        notes: "",
+        temporaryPassword,
+      }),
+    });
+    assert.equal(created.response.status, 201);
+
+    const loginBeforeDelete = await login(email, temporaryPassword);
+    assert.equal(loginBeforeDelete.response.status, 200);
+
+    const deleted = await request(`/users/${created.body.user.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+    });
+    assert.equal(deleted.response.status, 200);
+    assert.equal(deleted.body.ok, true);
+
+    const loginAfterDelete = await login(email, temporaryPassword);
+    assert.equal(loginAfterDelete.response.status, 401);
+
+    const list = await request(`/users?search=${encodeURIComponent(email)}`, {
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+    assert.equal(list.response.status, 200);
+    assert.equal(list.body.users.some((user) => user.email === email), false);
+
+    const fallbackEmail = `test.delete.fallback.${suffix}@itsmante.edu.mx`;
+    const fallbackPassword = "DeleteFallback123A!";
+    const fallbackCreated = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Delete",
+        paternalLastName: "Fallback",
+        maternalLastName: "Demo",
+        fullName: "Delete Fallback Demo",
+        email: fallbackEmail,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: true,
+        notes: "",
+        temporaryPassword: fallbackPassword,
+      }),
+    });
+    assert.equal(fallbackCreated.response.status, 201);
+
+    const fallbackDeleted = await request(`/users/${fallbackCreated.body.user.id}/delete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+    });
+    assert.equal(fallbackDeleted.response.status, 200);
+    assert.equal(fallbackDeleted.body.ok, true);
+
+    const fallbackLoginAfterDelete = await login(fallbackEmail, fallbackPassword);
+    assert.equal(fallbackLoginAfterDelete.response.status, 401);
+  });
+
   test("reset de password administrativo invalida password anterior", async () => {
     const auth = await login();
     const target = await request("/users", {
@@ -617,36 +754,51 @@ if (!hasDb) {
 
   test("cambio de password propio", async () => {
     const auth = await login();
-    const nextPassword = `NuevaClave${Date.now()}A`;
+    const email = `test.profile.password.${Date.now()}@itsmante.edu.mx`;
+    const temporaryPassword = "PerfilCuenta123A!";
+    const nextPassword = `NuevaClave${Date.now()}A!`;
 
-    const changed = await request("/profile/password", {
-      method: "PATCH",
+    const created = await request("/users", {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${auth.body.token}`,
       },
       body: JSON.stringify({
-        currentPassword: "admin123A",
+        firstName: "Perfil",
+        paternalLastName: "Password",
+        maternalLastName: "Demo",
+        fullName: "Perfil Password Demo",
+        email,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: true,
+        notes: "",
+        temporaryPassword,
+      }),
+    });
+    assert.equal(created.response.status, 201);
+
+    const targetAuth = await login(email, temporaryPassword);
+    assert.equal(targetAuth.response.status, 200);
+
+    const changed = await request("/profile/password", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${targetAuth.body.token}`,
+      },
+      body: JSON.stringify({
+        currentPassword: temporaryPassword,
         nextPassword,
       }),
     });
 
     assert.equal(changed.response.status, 200);
 
-    const relogin = await login("admin@itsmante.edu.mx", nextPassword);
+    const relogin = await login(email, nextPassword);
     assert.equal(relogin.response.status, 200);
-
-    await request("/profile/password", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${relogin.body.token}`,
-      },
-      body: JSON.stringify({
-        currentPassword: nextPassword,
-        nextPassword: "admin123A",
-      }),
-    });
   });
 
   test("guard por rol y permiso", async () => {

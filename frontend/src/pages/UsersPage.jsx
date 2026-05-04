@@ -27,12 +27,13 @@ import {
   Sparkles,
   Copy,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
 import { createNotification } from "../api/notifications";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../api/profileRequests";
 import { fetchCurrentUser, fetchSession, persistSession } from "../api/session";
-import { fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../api/users";
+import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../api/users";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
@@ -70,7 +71,7 @@ const PAGE_STYLES = `
 }
 `;
 
-/* ─── Base styles ─── */
+/* â”€â”€â”€ Base styles â”€â”€â”€ */
 const cardBase = {
   background: "var(--eco-card)",
   borderRadius: "var(--eco-radius-lg)",
@@ -197,9 +198,9 @@ function getInitials(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Reusable Components
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 
 function Avatar({ name, role, size = 40 }) {
   const colors = ROLE_COLORS[role] || ROLE_COLORS.operativo;
@@ -263,7 +264,7 @@ function Badge({ tone = "neutral", children, dot }) {
   );
 }
 
-/* ─── Filter select (Emissions-style) ─── */
+/* â”€â”€â”€ Filter select (Emissions-style) â”€â”€â”€ */
 function BarFilterSelect({ value, onChange, options, icon, placeholder }) {
   return (
     <div style={{ position: "relative", display: "inline-flex" }}>
@@ -612,7 +613,7 @@ function PageSkeleton() {
   );
 }
 
-/* ─── KPI Card ─── */
+/* â”€â”€â”€ KPI Card â”€â”€â”€ */
 function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
   const [hovered, setHovered] = useState(false);
   const toneMap = {
@@ -662,9 +663,9 @@ function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    User Form Modal
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) {
   if (!state) return null;
   const { user, form, errors, saving } = state;
@@ -710,7 +711,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
             >
               {isEdit ? <Pencil size={20} /> : <Plus size={20} />}
             </div>
-            <div>
+            <div style={{ minWidth: 0, flex: "1 1 260px" }}>
               <h3 style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-text-strong)", letterSpacing: "-0.01em" }}>
                 {isEdit ? "Editar usuario" : "Nuevo usuario"}
               </h3>
@@ -938,7 +939,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
             <div>
               <p style={{ ...sectionLabel, marginBottom: 12 }}>Credenciales iniciales</p>
               <div className="ct-users-modal-grid" style={{ display: "grid", gridTemplateColumns: "1.6fr auto", gap: 14, alignItems: "end" }}>
-                <Field label="Contraseña temporal" helper="Solo visible durante esta captura inicial.">
+                <Field label="Contraseña temporal" error={state.errors.tempPassword} helper="Solo visible durante esta captura inicial.">
                   <StyledInput
                     value={form.tempPassword}
                     onChange={(e) => state.setForm((p) => ({ ...p, tempPassword: e.target.value }))}
@@ -1031,9 +1032,9 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
   );
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    User Detail Drawer
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function UserDetailDrawer({ user, onClose, onEdit, canEdit }) {
   if (!user) return null;
 
@@ -1162,9 +1163,9 @@ function UserDetailDrawer({ user, onClose, onEdit, canEdit }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Reset Password Modal
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
   const [copied, setCopied] = useState(false);
 
@@ -1229,20 +1230,22 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
         {tempPassword && (
           <div
             style={{
-              background: "var(--eco-gray-900)",
-              color: "white",
+              background: "var(--eco-card-muted)",
+              color: "var(--eco-text-strong)",
               borderRadius: "var(--eco-radius-lg)",
+              border: "1px solid var(--eco-border)",
               padding: "16px 18px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              flexWrap: "wrap",
               gap: 12,
               marginBottom: 4,
             }}
           >
-            <div>
-              <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "rgba(255,255,255,.5)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Contraseña temporal</p>
-              <p style={{ margin: "6px 0 0", fontFamily: fm, fontSize: 20, fontWeight: 700, letterSpacing: "0.04em" }}>{tempPassword}</p>
+            <div style={{ minWidth: 0, flex: "1 1 260px" }}>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Contraseña temporal</p>
+              <p style={{ margin: "6px 0 0", fontFamily: fm, fontSize: 20, fontWeight: 700, letterSpacing: "0.04em", color: "var(--eco-text-strong)", overflowWrap: "anywhere", lineHeight: 1.35 }}>{tempPassword}</p>
             </div>
             <button
               type="button"
@@ -1252,9 +1255,9 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
                 width: 38,
                 height: 38,
                 borderRadius: "var(--eco-radius-md)",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: copied ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.08)",
-                color: copied ? "#4ADE80" : "rgba(255,255,255,0.7)",
+                border: copied ? "1px solid var(--eco-success)" : "1px solid var(--eco-border)",
+                background: copied ? "var(--eco-success-bg)" : "var(--eco-card)",
+                color: copied ? "var(--eco-success)" : "var(--eco-text-soft)",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -1282,9 +1285,9 @@ function ResetPasswordModal({ user, tempPassword, onCancel, onConfirm }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    Main Page
-   ═══════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 function RequestsPanel({ open, requests, canManage, onClose, onApprove, onReject }) {
   if (!open) return null;
 
@@ -1511,16 +1514,29 @@ export default function UsersPage() {
       notes: form.notes.trim(),
       lastLoginAt: user?.lastLoginAt || null,
     };
-    const result = await saveUser(payload).catch(() => ({ ok: false }));
+    if (!user && form.tempPassword.trim()) {
+      payload.temporaryPassword = form.tempPassword.trim();
+    }
+
+    const result = await saveUser(payload).catch((requestError) => ({ ok: false, error: requestError }));
     if (!result.ok) {
-      setFormState((prev) => (prev ? { ...prev, saving: false, errors: { email: "Este correo ya está registrado." } } : prev));
+      const code = result.error?.payload?.code;
+      const message = result.error?.payload?.message;
+      const nextErrors =
+        code === "INVALID_PASSWORD"
+          ? { tempPassword: message || "La contraseña no cumple la política de seguridad." }
+          : { email: code === "CONFLICT" ? "Este correo ya está registrado." : message || "No se pudo guardar el usuario." };
+      setFormState((prev) => (prev ? { ...prev, saving: false, errors: nextErrors } : prev));
       return;
     }
     setUsers(result.users);
     setFormState(null);
+    if (!user && result.temporaryPassword) {
+      setPasswordResetState({ user: result.user, password: result.temporaryPassword });
+    }
     setToast({
       title: user ? "Usuario actualizado" : "Usuario creado",
-      message: user ? `${payload.fullName} se actualizó correctamente.` : `${payload.fullName} ya está listo para usarse.`,
+      message: user ? `${payload.fullName} se actualizó correctamente.` : `${payload.fullName} ya está listo para iniciar sesión.`,
     });
   };
 
@@ -1535,6 +1551,29 @@ export default function UsersPage() {
     setToast({
       title: "Estado actualizado",
       message: `${user.fullName} ahora está ${user.isActive ? "inactivo" : "activo"}.`,
+    });
+  };
+
+  const handleDeleteUser = async (user) => {
+    if (!canManageUsers) return;
+    const confirmed = window.confirm(`¿Dar de baja completamente a ${user.fullName}? Esta acción eliminará la cuenta del sistema.`);
+    if (!confirmed) return;
+
+    const nextUsers = await deleteUser(user.id).catch((requestError) => {
+      setToast({
+        title: "No se pudo borrar",
+        message: requestError?.payload?.message || "La cuenta tiene actividad relacionada o no se puede eliminar.",
+        tone: "error",
+      });
+      return null;
+    });
+
+    if (!nextUsers) return;
+    setUsers(nextUsers);
+    setDetailUser((current) => (current?.id === user.id ? null : current));
+    setToast({
+      title: "Usuario eliminado",
+      message: `${user.fullName} fue dado de baja completamente.`,
     });
   };
 
@@ -1564,8 +1603,15 @@ export default function UsersPage() {
   const handleResetPassword = async () => {
     if (!canManageUsers) return;
     if (!passwordResetState.user) return;
-    const result = await resetUserPassword(passwordResetState.user.id).catch(() => ({ ok: false }));
-    if (!result.ok) return;
+    const result = await resetUserPassword(passwordResetState.user.id).catch((requestError) => ({ ok: false, error: requestError }));
+    if (!result.ok) {
+      setToast({
+        title: "No se pudo restablecer",
+        message: result.error?.payload?.message || "Intenta de nuevo en un momento.",
+        tone: "error",
+      });
+      return;
+    }
     await loadUsers();
     setPasswordResetState({ user: passwordResetState.user, password: result.password });
     setToast({ title: "Contraseña temporal generada", message: `Nueva contraseña para ${passwordResetState.user.fullName}.` });
@@ -1684,7 +1730,7 @@ export default function UsersPage() {
       <style>{PAGE_STYLES}</style>
       <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
 
-        {/* ─── Page Header ─── */}
+        {/* â”€â”€â”€ Page Header â”€â”€â”€ */}
         <div
           className="ct-users-header"
           style={{
@@ -1763,7 +1809,7 @@ export default function UsersPage() {
           </ActionButton>
         </div>
 
-        {/* ─── KPI Cards ─── */}
+        {/* â”€â”€â”€ KPI Cards â”€â”€â”€ */}
         <div className="ct-users-kpis" style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 14, marginBottom: 24 }}>
           <KpiCard title="Usuarios activos" value={stats.activeUsers} sub={`${stats.recentLoginUsers} con acceso reciente`} icon={<Users size={18} />} tone="primary" delay={80} />
           <KpiCard title="Administradores" value={stats.adminUsers} sub="Control total del sistema" icon={<Shield size={18} />} tone="warning" delay={120} />
@@ -1771,7 +1817,7 @@ export default function UsersPage() {
           <KpiCard title="Directivos" value={stats.directivoUsers} sub="Consulta y seguimiento" icon={<Eye size={18} />} tone="info" delay={200} />
         </div>
 
-        {/* ─── Filters ─── */}
+        {/* â”€â”€â”€ Filters â”€â”€â”€ */}
         <div
           style={{
             background: "white",
@@ -1873,7 +1919,7 @@ export default function UsersPage() {
           )}
         </div>
 
-        {/* ─── Users Table ─── */}
+        {/* â”€â”€â”€ Users Table â”€â”€â”€ */}
         <div style={{ marginBottom: 8 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, animation: "ctFadeUp .4s cubic-bezier(.33,1,.68,1) 120ms both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2089,6 +2135,7 @@ export default function UsersPage() {
                             />
                           ) : null}
                           {canManageUsers ? <IconButton label="Restablecer contraseña" onClick={() => setPasswordResetState({ user, password: "" })} icon={<KeyRound size={15} />} /> : null}
+                          {canManageUsers ? <IconButton label="Eliminar usuario" onClick={() => handleDeleteUser(user)} icon={<Trash2 size={15} />} tone="danger" /> : null}
                         </div>
                       </td>
                     </tr>

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import LandingPage from './pages/Landing/LandingPage'
-import { hydrateCurrentUser, login as loginRequest } from './api/auth'
+import { hydrateCurrentUser, login as loginRequest, logout as logoutRequest } from './api/auth'
 import { fetchCurrentUser, removeSession } from './api/session'
 
 function AuthProvider({ children }) {
@@ -52,11 +52,12 @@ function AuthProvider({ children }) {
     return nextUser
   }
 
-  const logout = () => {
+  const logout = async () => {
     if (loginCommitTimerRef.current) {
       window.clearTimeout(loginCommitTimerRef.current)
       loginCommitTimerRef.current = null
     }
+    await logoutRequest()
     removeSession()
     setUser(null)
   }

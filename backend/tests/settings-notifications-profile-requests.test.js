@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { cleanupTestAuthFixtures, prepareTestAuthFixtures } from "./helpers/test-auth-fixtures.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
@@ -63,7 +64,7 @@ async function getSeedContext() {
       JOIN users admin_user ON admin_user.organization_id = o.id AND admin_user.email::text = 'admin@itsmante.edu.mx'
       JOIN users ana_user ON ana_user.organization_id = o.id AND ana_user.email::text = 'ana@itsmante.edu.mx'
       JOIN users director_user ON director_user.organization_id = o.id AND director_user.email::text = 'director@itsmante.edu.mx'
-      WHERE o.name = 'CarbonTrack Demo Org'
+      WHERE o.name = 'CarbonTrack Test Org'
       LIMIT 1
     `,
   );
@@ -72,12 +73,44 @@ async function getSeedContext() {
   return result.rows[0];
 }
 
+async function cleanupProfileChangeRequestsForSeedUsers() {
+  const context = await getSeedContext();
+  const seedUserIds = [context.admin_user_id, context.ana_user_id];
+
+  await query(
+    `
+      DELETE FROM profile_change_request_events
+      WHERE request_id IN (
+        SELECT id
+        FROM profile_change_requests
+        WHERE organization_id = $1
+          AND user_id = ANY($2::uuid[])
+      )
+        OR (
+          actor_organization_id = $1
+          AND actor_user_id = ANY($2::uuid[])
+        )
+        OR actor_name = 'P4 Admin'
+    `,
+    [context.organization_id, seedUserIds],
+  );
+  await query(
+    `
+      DELETE FROM profile_change_requests
+      WHERE organization_id = $1
+        AND user_id = ANY($2::uuid[])
+    `,
+    [context.organization_id, seedUserIds],
+  );
+}
+
 if (!hasDb) {
   test.skip("persona4 integration tests require DATABASE_URL or TEST_DATABASE_URL. Reproducible local command: docker compose up -d postgres && set DATABASE_URL=postgresql://carbontrack_app:<password>@127.0.0.1:5433/carbontrack", () => {});
 } else {
   before(async () => {
     const { createApp } = await import("../src/app.js");
     ({ query, closePool } = await import("../src/shared/db/pool.js"));
+    await prepareTestAuthFixtures(query);
 
     const app = createApp();
     server = app.listen(0);
@@ -88,12 +121,12 @@ if (!hasDb) {
 
   after(async () => {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await cleanupTestAuthFixtures(query);
     await closePool();
   });
 
   afterEach(async () => {
-    await query(`DELETE FROM profile_change_request_events WHERE detail LIKE 'P4 %' OR actor_name = 'P4 Admin'`);
-    await query(`DELETE FROM profile_change_requests WHERE reason LIKE 'P4 %' OR detail LIKE 'P4 %' OR resolution_detail LIKE 'P4 %'`);
+    await cleanupProfileChangeRequestsForSeedUsers();
     await query(`DELETE FROM notifications WHERE title LIKE 'P4 %'`);
     await query(`DELETE FROM user_settings WHERE user_id IN (SELECT id FROM users WHERE email::text IN ('admin@itsmante.edu.mx', 'ana@itsmante.edu.mx'))`);
   });
@@ -348,6 +381,7 @@ if (!hasDb) {
     const admin = await login();
     const ana = await login("ana@itsmante.edu.mx", "captura1A");
     const context = await getSeedContext();
+    await cleanupProfileChangeRequestsForSeedUsers();
 
     const unauth = await request("/profile-change-requests");
     assert.equal(unauth.response.status, 401);

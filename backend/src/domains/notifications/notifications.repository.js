@@ -133,10 +133,18 @@ export async function createNotification(actor, payload, auditContext) {
       ],
     );
     const notification = buildNotificationShape(result.rows[0]);
+    const metadata = notification.metadata || {};
+    const isReportExport = notification.type === "export_done" || metadata.resource === "reports";
     await insertAuditEvent(client, {
-      ...buildAuditPayload(actor, auditContext, { status: notification.status, type: notification.type }),
-      eventType: "notifications.create",
-      entityType: "notification",
+      ...buildAuditPayload(actor, auditContext, {
+        status: notification.status,
+        type: notification.type,
+        target: isReportExport ? (metadata.filename || notification.title) : notification.title,
+        filename: metadata.filename || null,
+        count: metadata.count || null,
+      }),
+      eventType: isReportExport ? "reports.export" : "notifications.create",
+      entityType: isReportExport ? "report" : "notification",
       entityId: notification.id,
     });
     return notification;

@@ -116,6 +116,11 @@ export async function hydrateCurrentUser() {
   }
 }
 
+export async function logout() {
+  if (!isBackendConfigured() || !getSession()?.token) return null;
+  return apiRequest("/auth/logout", { method: "POST" }).catch(() => null);
+}
+
 export async function requestPasswordReset(emailInput) {
   const email = String(emailInput || "").trim().toLowerCase();
 

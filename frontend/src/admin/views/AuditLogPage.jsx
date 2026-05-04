@@ -14,6 +14,7 @@ const fm = "var(--eco-font-mono)";
 const MODULE_LABELS = {
   actions: "Acciones",
   admin: "Administración",
+  ai: "Inteligencia artificial",
   auth: "Autenticación",
   dashboard: "Tablero",
   devices: "Dispositivos",
@@ -25,6 +26,7 @@ const MODULE_LABELS = {
   organization_admin_settings: "Configuración general",
   profile: "Perfil",
   records: "Registros",
+  reports: "Reportes",
   session: "Sesiones",
   settings: "Configuración personal",
   targets: "Metas",
@@ -54,11 +56,17 @@ const ACTION_LABELS = {
   remove: "Eliminación",
   requested: "Solicitud",
   session_revoke: "Cierre de sesión",
+  sessions_revoke_all: "Cierre masivo de sesiones",
   status_change: "Cambio de estado",
   success: "Acceso permitido",
   system: "Sistema",
   update: "Actualización",
   upload: "Carga de archivo",
+  export: "Exportación",
+  execute: "Ejecución",
+  engine: "Motor",
+  module: "Módulo",
+  model: "Modelo",
 };
 
 const EVENT_LABELS = {
@@ -67,12 +75,18 @@ const EVENT_LABELS = {
   "admin.government.read": "Configuración general consultada",
   "admin.government.update": "Configuración general actualizada",
   "admin.security.session_revoke": "Sesión remota cerrada",
+  "admin.security.sessions_revoke_all": "Sesiones remotas cerradas",
+  "ai.engine.update": "Motor IA actualizado",
+  "ai.module.update": "Módulo IA actualizado",
+  "ai.model.execute": "Modelo IA ejecutado",
   "auth.forgot_password.requested": "Solicitud de recuperación de contraseña",
   "auth.login.failure": "Intento de acceso fallido",
   "auth.login.inactive_user": "Intento de acceso con usuario inactivo",
   "auth.login.locked": "Cuenta bloqueada temporalmente",
   "auth.login.success": "Inicio de sesión exitoso",
+  "auth.logout.success": "Cierre de sesión exitoso",
   "auth.refresh.failure": "Renovación de sesión fallida",
+  "auth.refresh.success": "Sesión renovada correctamente",
   "dashboard.activity.update": "Actividad del tablero actualizada",
   "devices.create": "Dispositivo creado",
   "devices.duplicate": "Dispositivo duplicado",
@@ -99,6 +113,7 @@ const EVENT_LABELS = {
   "records.archive": "Registro archivado",
   "records.create": "Registro creado",
   "records.files_attached": "Archivos adjuntados a registro",
+  "reports.export": "Reporte exportado",
   "settings.read": "Configuración personal consultada",
   "settings.update": "Configuración personal actualizada",
   "targets.create": "Meta creada",
@@ -179,6 +194,7 @@ function normalizeAuditEvent(evt) {
   const moduleKey = String(evt.moduleKey || moduleKeyFromType || evt.module || "system").toLowerCase();
   const status = String(evt.status || "success").toLowerCase();
   const severity = String(evt.severity || (status === "error" ? "high" : "low")).toLowerCase();
+  const role = evt.role || evt.details?.actorRole || "Sin rol registrado";
   const humanDescription = isTechnicalText(evt.description)
     ? EVENT_LABELS[eventType.toLowerCase()] || fallbackEventLabel(eventType)
     : (evt.description || EVENT_LABELS[eventType.toLowerCase()] || fallbackEventLabel(eventType));
@@ -191,6 +207,7 @@ function normalizeAuditEvent(evt) {
     status,
     severity,
     user: evt.user || "Sistema",
+    role,
     actionLabel: actionLabel(actionKey),
     moduleLabel: moduleLabel(evt.module || moduleKey),
     descriptionLabel: humanDescription,
@@ -199,6 +216,7 @@ function normalizeAuditEvent(evt) {
     severityLabel: SEVERITY_LABELS[severity] || labelFromToken(severity),
     searchText: [
       evt.user,
+      role,
       humanDescription,
       actionLabel(actionKey),
       moduleLabel(evt.module || moduleKey),
@@ -216,6 +234,9 @@ function escapeCsv(value) {
 
 function detailLabel(key) {
   return {
+    after: "Después",
+    before: "Antes",
+    changes: "Cambios",
     email: "Correo",
     enabled: "Activo",
     force: "Forzar cambio",
@@ -231,6 +252,7 @@ function detailLabel(key) {
     tokenHint: "Token",
     type: "Tipo",
     updatedCount: "Registros actualizados",
+    userRole: "Rol",
   }[key] || labelFromToken(key);
 }
 
@@ -253,14 +275,39 @@ function detailValue(key, value) {
 }
 
 function detailEntries(details) {
-  return Object.entries(details || {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
+  return Object.entries(details || {}).filter(([key, value]) => (
+    !["before", "after", "changes"].includes(key)
+    && value !== null
+    && value !== undefined
+    && value !== ""
+  ));
+}
+
+function changeEntries(details = {}) {
+  if (details.changes && typeof details.changes === "object" && !Array.isArray(details.changes)) {
+    return Object.entries(details.changes).map(([field, value]) => ({
+      field,
+      before: value?.before,
+      after: value?.after,
+    }));
+  }
+
+  const before = details.before && typeof details.before === "object" ? details.before : null;
+  const after = details.after && typeof details.after === "object" ? details.after : null;
+  if (!before || !after) return [];
+
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+  return keys
+    .filter((key) => JSON.stringify(before[key] ?? null) !== JSON.stringify(after[key] ?? null))
+    .map((key) => ({ field: key, before: before[key], after: after[key] }));
 }
 
 function exportCsv(rows) {
-  const headers = ["Fecha", "Usuario", "Acción", "Módulo", "Descripción", "Elemento", "Estado", "Severidad", "IP"];
+  const headers = ["Fecha", "Usuario", "Rol", "Acción", "Módulo", "Descripción", "Elemento", "Estado", "Severidad", "IP"];
   const body = rows.map((row) => [
     fmtDate(row.ts),
     row.user,
+    row.role,
     row.actionLabel,
     row.moduleLabel,
     row.descriptionLabel,
@@ -283,7 +330,7 @@ export default function AuditLogPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
   const [search, setSearch] = React.useState("");
-  const [filters, setFilters] = React.useState({ module: "all", action: "all", status: "all" });
+  const [filters, setFilters] = React.useState({ module: "all", action: "all", status: "all", severity: "all", user: "all", dateFrom: "", dateTo: "" });
   const [selected, setSelected] = React.useState(null);
 
   React.useEffect(() => {
@@ -313,6 +360,10 @@ export default function AuditLogPage() {
     [...new Map(events.map((event) => [event.actionLabel, event.actionLabel])).values()].sort()
   ), [events]);
 
+  const users = React.useMemo(() => (
+    [...new Map(events.filter((event) => event.user !== "Sistema").map((event) => [event.user, event.user])).values()].sort()
+  ), [events]);
+
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
     return events.filter((evt) => {
@@ -320,6 +371,10 @@ export default function AuditLogPage() {
       if (filters.module !== "all" && evt.moduleLabel !== filters.module) return false;
       if (filters.action !== "all" && evt.actionLabel !== filters.action) return false;
       if (filters.status !== "all" && evt.status !== filters.status) return false;
+      if (filters.severity !== "all" && evt.severity !== filters.severity) return false;
+      if (filters.user !== "all" && evt.user !== filters.user) return false;
+      if (filters.dateFrom && new Date(evt.ts) < new Date(`${filters.dateFrom}T00:00:00`)) return false;
+      if (filters.dateTo && new Date(evt.ts) > new Date(`${filters.dateTo}T23:59:59.999`)) return false;
       return true;
     });
   }, [events, search, filters]);
@@ -331,7 +386,12 @@ export default function AuditLogPage() {
     },
     {
       key: "user", label: "Usuario", minWidth: 150,
-      render: (v) => <strong style={{ fontWeight: 600 }}>{v}</strong>,
+      render: (v, row) => (
+        <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <strong style={{ fontWeight: 600 }}>{v}</strong>
+          <span style={{ fontSize: 11.5, color: "var(--eco-text-soft, #64748B)" }}>{row.role}</span>
+        </span>
+      ),
     },
     {
       key: "actionLabel", label: "Acción", width: 150,
@@ -361,7 +421,7 @@ export default function AuditLogPage() {
 
   function clearFilters() {
     setSearch("");
-    setFilters({ module: "all", action: "all", status: "all" });
+    setFilters({ module: "all", action: "all", status: "all", severity: "all", user: "all", dateFrom: "", dateTo: "" });
   }
 
   if (loading || error) {
@@ -419,6 +479,7 @@ export default function AuditLogPage() {
           filters={[
             { key: "module", label: "Todos los módulos", options: modules },
             { key: "action", label: "Todas las acciones", options: actions },
+            { key: "user", label: "Todos los usuarios", options: users },
             {
               key: "status", label: "Todos los estados",
               options: [
@@ -428,11 +489,65 @@ export default function AuditLogPage() {
                 { value: "pending", label: "Pendiente" },
               ],
             },
+            {
+              key: "severity", label: "Toda importancia",
+              options: [
+                { value: "high", label: "Alta" },
+                { value: "medium", label: "Media" },
+                { value: "low", label: "Baja" },
+              ],
+            },
           ]}
           filterValues={filters}
           onFilterChange={(key, val) => setFilters(prev => ({ ...prev, [key]: val }))}
           onClear={clearFilters}
         />
+
+        <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 14px",
+          background: "var(--eco-card, #fff)",
+          border: "1px solid var(--eco-border, #E2E8F0)",
+          borderRadius: 10,
+          fontFamily: fb,
+          fontSize: 12,
+          color: "var(--eco-text-soft, #64748B)",
+        }}>
+          <span style={{ fontWeight: 600, color: "var(--eco-text, #1E293B)" }}>Rango de fechas</span>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            Desde
+            <input
+              type="date"
+              value={filters.dateFrom}
+              onChange={(event) => setFilters(prev => ({ ...prev, dateFrom: event.target.value }))}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                fontFamily: fm,
+                fontSize: 12,
+              }}
+            />
+          </label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            Hasta
+            <input
+              type="date"
+              value={filters.dateTo}
+              onChange={(event) => setFilters(prev => ({ ...prev, dateTo: event.target.value }))}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                fontFamily: fm,
+                fontSize: 12,
+              }}
+            />
+          </label>
+        </div>
 
         <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, #94A3B8)", padding: "0 2px" }}>
           Mostrando <strong style={{ fontFamily: fm, fontWeight: 700, color: "var(--eco-text, #1E293B)" }}>{filtered.length}</strong> de {events.length} registros
@@ -487,6 +602,7 @@ export default function AuditLogPage() {
                 {[
                   ["Fecha y hora", fmtDate(selected.ts)],
                   ["Usuario", selected.user],
+                  ["Rol", selected.role],
                   ["Acción", selected.actionLabel],
                   ["Módulo", selected.moduleLabel],
                   ["Descripción", selected.descriptionLabel],
@@ -543,6 +659,35 @@ export default function AuditLogPage() {
                           <div style={{ fontFamily: fb, fontSize: 12.5, color: "var(--eco-text, #1E293B)", wordBreak: "break-word" }}>
                             {detailValue(key, value)}
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {changeEntries(selected.details).length > 0 && (
+                  <div>
+                    <div style={{ fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-text-soft, #94A3B8)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 6 }}>
+                      Antes y después
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {changeEntries(selected.details).map((change) => (
+                        <div key={change.field} style={{
+                          display: "grid",
+                          gridTemplateColumns: "110px minmax(0, 1fr) minmax(0, 1fr)",
+                          gap: 8,
+                          padding: "9px 10px",
+                          borderRadius: 8,
+                          background: "var(--eco-card-muted, #F8FAFC)",
+                          border: "1px solid var(--eco-border, #E2E8F0)",
+                        }}>
+                          <strong style={{ fontFamily: fb, fontSize: 11.5, color: "var(--eco-text, #1E293B)" }}>{detailLabel(change.field)}</strong>
+                          <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft, #64748B)", wordBreak: "break-word" }}>
+                            Antes: {detailValue(change.field, change.before)}
+                          </span>
+                          <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text, #1E293B)", wordBreak: "break-word" }}>
+                            Después: {detailValue(change.field, change.after)}
+                          </span>
                         </div>
                       ))}
                     </div>

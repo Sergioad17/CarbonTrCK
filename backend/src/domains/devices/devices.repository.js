@@ -13,6 +13,18 @@ function cleanString(value) {
   return String(value ?? "").trim();
 }
 
+function changedFields(before = {}, after = {}) {
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+  return keys.reduce((acc, key) => {
+    const previousValue = before[key] ?? null;
+    const nextValue = after[key] ?? null;
+    if (JSON.stringify(previousValue) !== JSON.stringify(nextValue)) {
+      acc[key] = { before: previousValue, after: nextValue };
+    }
+    return acc;
+  }, {});
+}
+
 function parseBoolean(value, fallback = false) {
   if (typeof value === "boolean") return value;
   if (value === "true") return true;
@@ -422,14 +434,21 @@ export async function updateDevice(actor, deviceId, payload, auditContext) {
       ],
     );
 
+    const stored = await getStoredDevice(client, actor.organizationId, deviceId);
+    const before = buildDeviceShape(existing);
+    const after = buildDeviceShape(stored);
     await insertAuditEvent(
       client,
       {
         ...buildAuditPayload(actor, auditContext, {
+          target: after.code || after.name,
           code: payload.code,
           campusCode: payload.campusCode,
           areaCode: payload.areaCode,
           enabled: payload.enabled,
+          before,
+          after,
+          changes: changedFields(before, after),
         }),
         eventType: "devices.update",
         entityType: "device",
@@ -437,13 +456,21 @@ export async function updateDevice(actor, deviceId, payload, auditContext) {
       },
     );
 
-    const stored = await getStoredDevice(client, actor.organizationId, deviceId);
     return buildDeviceShape(stored);
   });
 }
 
 export async function updateDeviceStatus(actor, deviceId, enabled, auditContext) {
   return withTransaction(async (client) => {
+    const existing = await getStoredDevice(client, actor.organizationId, deviceId);
+    if (!existing) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Device not found.",
+      });
+    }
+
     const result = await client.query(
       `
         UPDATE iot_devices
@@ -455,25 +482,27 @@ export async function updateDeviceStatus(actor, deviceId, enabled, auditContext)
       [enabled, deviceId, actor.organizationId],
     );
 
-    if (result.rowCount < 1) {
-      throw new AppError({
-        statusCode: 404,
-        code: "NOT_FOUND",
-        message: "Device not found.",
-      });
-    }
+    if (result.rowCount < 1) throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Device not found." });
 
+    const stored = await getStoredDevice(client, actor.organizationId, deviceId);
+    const before = buildDeviceShape(existing);
+    const after = buildDeviceShape(stored);
     await insertAuditEvent(
       client,
       {
-        ...buildAuditPayload(actor, auditContext, { enabled }),
+        ...buildAuditPayload(actor, auditContext, {
+          target: after.code || after.name,
+          enabled,
+          before: { enabled: before.enabled },
+          after: { enabled: after.enabled },
+          changes: { enabled: { before: before.enabled, after: after.enabled } },
+        }),
         eventType: "devices.status_change",
         entityType: "device",
         entityId: deviceId,
       },
     );
 
-    const stored = await getStoredDevice(client, actor.organizationId, deviceId);
     return buildDeviceShape(stored);
   });
 }

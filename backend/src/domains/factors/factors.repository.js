@@ -48,6 +48,18 @@ function formatDateValue(value) {
   return raw;
 }
 
+function changedFields(before = {}, after = {}) {
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+  return keys.reduce((acc, key) => {
+    const previousValue = before[key] ?? null;
+    const nextValue = after[key] ?? null;
+    if (JSON.stringify(previousValue) !== JSON.stringify(nextValue)) {
+      acc[key] = { before: previousValue, after: nextValue };
+    }
+    return acc;
+  }, {});
+}
+
 function toNullableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
@@ -436,7 +448,12 @@ export async function updateFactor(actor, factorId, payload, auditContext) {
       entityId: factor.id,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
-      details: {},
+      details: {
+        target: `${factor.scope}/${factor.category}/${factor.metric}`,
+        before: existing,
+        after: factor,
+        changes: changedFields(existing, factor),
+      },
     });
     return factor;
   });

@@ -1,8 +1,10 @@
 import {
   getAdminGovernmentSettingsService,
   getAdminHomeSummaryService,
+  createAdminAuditEventService,
   listActiveSessionsService,
   listAuditEventsService,
+  revokeOtherSessionsService,
   revokeSessionService,
   upsertAdminGovernmentSettingsService,
 } from "./admin.service.js";
@@ -41,6 +43,22 @@ export async function revokeSessionController(request, response) {
   });
 }
 
+export async function revokeOtherSessionsController(request, response) {
+  response.json({
+    result: await revokeOtherSessionsService(
+      request.user,
+      request.auth?.sessionId || null,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
 export async function listAuditEventsController(request, response) {
   response.json({ events: await listAuditEventsService(request.user, request.query) });
+}
+
+export async function createAdminAuditEventController(request, response) {
+  response.status(201).json({
+    result: await createAdminAuditEventService(request.user, request.body, auditContextFromRequest(request)),
+  });
 }

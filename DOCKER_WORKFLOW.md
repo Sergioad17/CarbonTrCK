@@ -69,7 +69,5 @@ Cada integrante debe:
 La base se crea desde:
 
 - `backend/database/database.sql`
-- `backend/database/seed_catalogs.sql`
-- `backend/database/seed_auth.sql`
 
 Si agregan tablas nuevas, crear primero una migracion incremental en `backend/database/migrations/` y luego reflejarla en `database.sql`.

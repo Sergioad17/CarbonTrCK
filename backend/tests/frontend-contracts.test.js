@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
+import { cleanupTestAuthFixtures, prepareTestAuthFixtures } from "./helpers/test-auth-fixtures.js";
 import { configureTestDatabaseUrl } from "./helpers/test-database-url.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,7 +54,7 @@ async function getSeedContext() {
       JOIN areas adm ON adm.campus_id = c.id AND adm.code = 'ADM'
       JOIN areas lab ON lab.campus_id = c.id AND lab.code = 'LAB'
       JOIN users ana_user ON ana_user.organization_id = o.id AND ana_user.email::text = 'ana@itsmante.edu.mx'
-      WHERE o.name = 'CarbonTrack Demo Org'
+      WHERE o.name = 'CarbonTrack Test Org'
       LIMIT 1
     `,
   );
@@ -170,6 +171,7 @@ if (!hasDb) {
   before(async () => {
     const { createApp } = await import("../src/app.js");
     ({ query, closePool } = await import("../src/shared/db/pool.js"));
+    await prepareTestAuthFixtures(query);
 
     const app = createApp();
     server = app.listen(0);
@@ -180,6 +182,7 @@ if (!hasDb) {
 
   after(async () => {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+    await cleanupTestAuthFixtures(query);
     await closePool();
   });
 

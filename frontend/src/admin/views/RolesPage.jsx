@@ -155,7 +155,7 @@ function RoleCard({ role, active, dirty, onClick }) {
                 fontWeight: 600,
                 color: "var(--eco-text-soft, #94A3B8)",
               }}>
-                Proximamente
+                Próximamente
               </span>
             )}
           </div>
@@ -253,9 +253,9 @@ export default function RolesPage() {
     <>
       <AdminPageHeader
         title="Roles y permisos"
-        subtitle="Gestion de roles y configuracion de permisos por modulo"
+        subtitle="Gestión de roles y configuración de permisos por módulo"
         icon={Shield}
-        breadcrumb={["Operacion", "Roles y permisos"]}
+        breadcrumb={["Operación", "Roles y permisos"]}
         dirty={hasUnsavedChanges}
         onSave={handleSaveChanges}
         onRestore={handleRestoreChanges}
@@ -330,7 +330,7 @@ export default function RolesPage() {
             flexWrap: "wrap",
           }}>
             <Clock3 size={12} />
-            Ultimo guardado local: {new Date(lastSavedAt).toLocaleString("es-MX", {
+            Último guardado local: {new Date(lastSavedAt).toLocaleString("es-MX", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -418,7 +418,7 @@ export default function RolesPage() {
               fontSize: 12.5,
               color: "var(--eco-text-soft, #64748B)",
             }}>
-              Has modificado {dirtyRoleIds.length} rol{dirtyRoleIds.length === 1 ? "" : "es"}. Puedes guardar el borrador local o restaurar el ultimo estado guardado.
+              Has modificado {dirtyRoleIds.length} rol{dirtyRoleIds.length === 1 ? "" : "es"}. Puedes guardar el borrador local o restaurar el último estado guardado.
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -624,7 +624,7 @@ export default function RolesPage() {
                     zIndex: 2,
                     minWidth: 160,
                   }}>
-                    Modulo
+                    Módulo
                   </th>
                   {permissionActions.map((action) => (
                     <th
@@ -707,7 +707,7 @@ export default function RolesPage() {
             <Eye size={8} color="var(--eco-info, #2563EB)" />
           </span> Heredado
         </span>
-        <span style={{ opacity: 0.6 }}>Haz clic en un permiso para cambiar su estado y usa Guardar cambios para cerrar la edicion.</span>
+        <span style={{ opacity: 0.6 }}>Haz clic en un permiso para cambiar su estado y usa Guardar cambios para cerrar la edición.</span>
       </div>
     </>
   );

@@ -1,5 +1,5 @@
 import { env } from "../../shared/config/env.js";
-import { forgotPasswordService, loginService, meService, refreshService } from "./auth.service.js";
+import { forgotPasswordService, loginService, logoutService, meService, refreshService } from "./auth.service.js";
 
 function auditContextFromRequest(request) {
   return {
@@ -16,6 +16,12 @@ export async function loginController(request, response) {
 export async function meController(request, response) {
   const user = await meService(request.user);
   response.json({ user });
+}
+
+export async function logoutController(request, response) {
+  response.json({
+    result: await logoutService(request.user, request.auth?.sessionId || null, auditContextFromRequest(request)),
+  });
 }
 
 export async function refreshController(request, response) {

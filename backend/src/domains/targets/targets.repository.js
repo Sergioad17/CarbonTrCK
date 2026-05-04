@@ -6,6 +6,18 @@ function cleanString(value) {
   return String(value ?? "").trim();
 }
 
+function changedFields(before = {}, after = {}) {
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+  return keys.reduce((acc, key) => {
+    const previousValue = before[key] ?? null;
+    const nextValue = after[key] ?? null;
+    if (JSON.stringify(previousValue) !== JSON.stringify(nextValue)) {
+      acc[key] = { before: previousValue, after: nextValue };
+    }
+    return acc;
+  }, {});
+}
+
 function toNullableNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const parsed = Number(value);
@@ -423,7 +435,12 @@ export async function updateTarget(actor, targetId, payload, auditContext) {
       entityId: target.id,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
-      details: {},
+      details: {
+        target: target.title,
+        before: existing,
+        after: target,
+        changes: changedFields(existing, target),
+      },
     });
     return target;
   });
@@ -452,6 +469,7 @@ export async function updateTargetStatus(actor, targetId, payload, auditContext)
       actor.organizationId,
     ]);
 
+    const before = buildTargetShape(existing);
     const target = buildTargetShape(await getTargetRow(actor, targetId, client));
     await insertAuditEvent(client, {
       organizationId: actor.organizationId,
@@ -461,7 +479,16 @@ export async function updateTargetStatus(actor, targetId, payload, auditContext)
       entityId: target.id,
       ipAddress: auditContext.ipAddress,
       userAgent: auditContext.userAgent,
-      details: { status },
+      details: {
+        target: target.title,
+        status,
+        before: { status: before.status, pauseReason: before.pauseReason },
+        after: { status: target.status, pauseReason: target.pauseReason },
+        changes: changedFields(
+          { status: before.status, pauseReason: before.pauseReason },
+          { status: target.status, pauseReason: target.pauseReason },
+        ),
+      },
     });
     return target;
   });

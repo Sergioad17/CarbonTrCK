@@ -29,7 +29,7 @@ const fm = "var(--eco-font-mono)";
 const STATUS_MAP = {
   open: { label: "Abierto", variant: "success", icon: Unlock, color: "var(--eco-success, #16A34A)" },
   closed: { label: "Cerrado", variant: "neutral", icon: Lock, color: "var(--eco-text-soft, #64748B)" },
-  review: { label: "En revision", variant: "warning", icon: Eye, color: "var(--eco-warning, #CA8A04)" },
+  review: { label: "En revisión", variant: "warning", icon: Eye, color: "var(--eco-warning, #CA8A04)" },
 };
 
 const TYPE_LABELS = {
@@ -41,7 +41,7 @@ const TYPE_LABELS = {
 };
 
 const ROLE_LABELS = {
-  admin: "Administracion",
+  admin: "Administración",
   directivo: "Directivo",
   operativo: "Operativo",
   consulta: "Consulta",
@@ -295,7 +295,7 @@ function RulesSummary({ period }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <RulePill
             icon={period.lockCaptureOnClose ? Lock : Unlock}
-            label={period.lockCaptureOnClose ? "Bloqueo de captura al cerrar" : "Sin bloqueo automatico"}
+            label={period.lockCaptureOnClose ? "Bloqueo de captura al cerrar" : "Sin bloqueo automático"}
             tone={period.lockCaptureOnClose ? "warning" : "success"}
           />
           <RulePill
@@ -308,7 +308,7 @@ function RulesSummary({ period }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <DrawerField label="Captura al cerrar">
-          {period.lockCaptureOnClose ? "Se bloquea automaticamente" : "Permanece disponible"}
+          {period.lockCaptureOnClose ? "Se bloquea automáticamente" : "Permanece disponible"}
         </DrawerField>
         <DrawerField label="Perfiles para reapertura">
           {period.allowSpecialReopen
@@ -378,7 +378,7 @@ export default function PeriodsPage() {
         </span>
       ),
     },
-    { key: "label", label: "Descripcion", width: "18%" },
+    { key: "label", label: "Descripción", width: "18%" },
     {
       key: "type",
       label: "Tipo",
@@ -422,9 +422,9 @@ export default function PeriodsPage() {
     <>
       <AdminPageHeader
         title="Periodos y ciclos de trabajo"
-        subtitle={`${openCount} abiertos · ${reviewCount} en revision · ${closedCount} cerrados`}
+        subtitle={`${openCount} abiertos · ${reviewCount} en revisión · ${closedCount} cerrados`}
         icon={Calendar}
-        breadcrumb={["Operacion", "Periodos"]}
+        breadcrumb={["Operación", "Periodos"]}
         actions={(
           <button
             onClick={() => setModalPeriod({ ...EMPTY_PERIOD })}
@@ -515,7 +515,7 @@ export default function PeriodsPage() {
           }}>
             {[
               { label: "Abiertos", value: openCount, icon: Unlock, color: "var(--eco-success, #16A34A)" },
-              { label: "En revision", value: reviewCount, icon: Eye, color: "var(--eco-warning, #CA8A04)" },
+              { label: "En revisión", value: reviewCount, icon: Eye, color: "var(--eco-warning, #CA8A04)" },
               { label: "Cerrados", value: closedCount, icon: Lock, color: "var(--eco-text-soft, #64748B)" },
               { label: "Captura bloqueable", value: lockedCount, icon: ShieldCheck, color: "var(--eco-warning, #CA8A04)" },
               { label: "Con reapertura especial", value: reopenableCount, icon: RotateCcw, color: "var(--eco-info, #2563EB)" },
@@ -573,7 +573,7 @@ export default function PeriodsPage() {
               onSearchChange={setSearch}
               searchPlaceholder="Buscar periodo..."
               filters={[
-                { key: "status", label: "Estado", options: [{ value: "open", label: "Abierto" }, { value: "review", label: "En revision" }, { value: "closed", label: "Cerrado" }] },
+                { key: "status", label: "Estado", options: [{ value: "open", label: "Abierto" }, { value: "review", label: "En revisión" }, { value: "closed", label: "Cerrado" }] },
                 { key: "type", label: "Tipo", options: periodTypes },
               ]}
               filterValues={filters}
@@ -632,7 +632,7 @@ export default function PeriodsPage() {
               <DrawerField label="Tipo">{TYPE_LABELS[drawerPeriod.type]}</DrawerField>
               <DrawerField label="Por defecto">
                 {drawerPeriod.isDefault
-                  ? <span style={{ color: "var(--eco-primary-600, #16A34A)", fontWeight: 600 }}>Si</span>
+                  ? <span style={{ color: "var(--eco-primary-600, #16A34A)", fontWeight: 600 }}>Sí</span>
                   : "No"}
               </DrawerField>
               <DrawerField label="Fecha inicio" mono>{fmtDate(drawerPeriod.startDate)}</DrawerField>
@@ -651,11 +651,11 @@ export default function PeriodsPage() {
                 textTransform: "uppercase",
                 letterSpacing: ".05em",
               }}>
-                Fechas limite
+                Fechas límite
               </span>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 10 }}>
                 <DrawerField label="Captura" mono>{fmtDate(drawerPeriod.captureDeadline)}</DrawerField>
-                <DrawerField label="Validacion" mono>{fmtDate(drawerPeriod.validationDeadline)}</DrawerField>
+                <DrawerField label="Validación" mono>{fmtDate(drawerPeriod.validationDeadline)}</DrawerField>
                 <DrawerField label="Reporte" mono>{fmtDate(drawerPeriod.reportDeadline)}</DrawerField>
               </div>
             </div>
@@ -703,7 +703,7 @@ export default function PeriodsPage() {
                 onChange={(value) => setModalPeriod((period) => ({ ...period, status: value }))}
                 options={[
                   { value: "open", label: "Abierto" },
-                  { value: "review", label: "En revision" },
+                  { value: "review", label: "En revisión" },
                   { value: "closed", label: "Cerrado" },
                 ]}
               />
@@ -727,7 +727,7 @@ export default function PeriodsPage() {
               label="Periodo activo por defecto"
               checked={modalPeriod.isDefault}
               onChange={(value) => setModalPeriod((period) => ({ ...period, isDefault: value }))}
-              description="Se usara como periodo predeterminado para captura"
+              description="Se usará como periodo predeterminado para captura"
             />
 
             <div style={{
@@ -743,7 +743,7 @@ export default function PeriodsPage() {
                 marginBottom: 10,
                 display: "block",
               }}>
-                Fechas limite
+                Fechas límite
               </span>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                 <AdminTextField
@@ -753,7 +753,7 @@ export default function PeriodsPage() {
                   onChange={(value) => setModalPeriod((period) => ({ ...period, captureDeadline: value }))}
                 />
                 <AdminTextField
-                  label="Validacion"
+                  label="Validación"
                   type="date"
                   value={modalPeriod.validationDeadline}
                   onChange={(value) => setModalPeriod((period) => ({ ...period, validationDeadline: value }))}
@@ -794,7 +794,7 @@ export default function PeriodsPage() {
                   color: "var(--eco-text-soft, #64748B)",
                   lineHeight: 1.5,
                 }}>
-                  Define como se comporta la captura cuando el periodo se cierra y quien puede reabrirlo.
+                  Define cómo se comporta la captura cuando el periodo se cierra y quién puede reabrirlo.
                 </div>
               </div>
 
@@ -809,7 +809,7 @@ export default function PeriodsPage() {
                 label="Permitir reapertura con permisos especiales"
                 checked={modalPeriod.allowSpecialReopen}
                 onChange={(value) => setModalPeriod((period) => ({ ...period, allowSpecialReopen: value }))}
-                description="Solo perfiles autorizados podran habilitar una reapertura excepcional."
+                description="Solo perfiles autorizados podrán habilitar una reapertura excepcional."
               />
 
               <AdminSelectField
@@ -822,7 +822,7 @@ export default function PeriodsPage() {
                   { value: "operativo", label: ROLE_LABELS.operativo },
                 ]}
                 disabled={!modalPeriod.allowSpecialReopen}
-                hint="Puedes dejar un perfil principal aunque la logica real aun sea frontend-only."
+                hint="Puedes dejar un perfil principal aunque la lógica real aún sea frontend-only."
               />
 
               <AdminTextField

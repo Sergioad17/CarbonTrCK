@@ -245,6 +245,37 @@ export async function meService(actor) {
   return freshUser;
 }
 
+export async function logoutService(actor, sessionId, auditContext) {
+  if (!sessionId) return { revoked: false };
+
+  await withTransaction(async (client) => {
+    await client.query(
+      `
+        UPDATE auth_sessions
+        SET revoked_at = now(),
+            last_used_at = now()
+        WHERE id = $1
+          AND organization_id = $2
+          AND revoked_at IS NULL
+      `,
+      [sessionId, actor.organizationId],
+    );
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "auth.logout.success",
+      entityType: "session",
+      entityId: sessionId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: { role: actor.roleKey },
+    });
+  });
+
+  return { revoked: true };
+}
+
 export async function refreshService(refreshToken, auditContext, env) {
   assertRequiredString(refreshToken, "refreshToken");
 

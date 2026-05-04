@@ -106,9 +106,15 @@ export async function saveUser(payload) {
     body: JSON.stringify(payload),
   });
   const user = normalizeUser(response?.user || response?.data?.user || response?.data || response);
+  const temporaryPassword =
+    response?.temporaryPassword ||
+    response?.data?.temporaryPassword ||
+    response?.password ||
+    response?.data?.password ||
+    "";
   const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
   syncCurrentSessionUser(users);
-  return { ok: true, user, users };
+  return { ok: true, user, users, temporaryPassword };
 }
 
 export async function updateUserStatus(user, nextActive) {
@@ -117,6 +123,31 @@ export async function updateUserStatus(user, nextActive) {
     headers: authHeaders(),
     body: JSON.stringify({ isActive: nextActive }),
   });
+  const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
+  syncCurrentSessionUser(users);
+  return users;
+}
+
+export async function deleteUser(userId) {
+  try {
+    await apiRequest(`/users/${userId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+  } catch (error) {
+    const missingDeleteRoute =
+      error?.status === 404 &&
+      String(error?.message || error?.payload?.message || "").includes("Route DELETE");
+
+    if (!missingDeleteRoute) {
+      throw error;
+    }
+
+    await apiRequest(`/users/${userId}/delete`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+  }
   const users = normalizeUsersList(await apiRequest("/users", { method: "GET", headers: authHeaders() }));
   syncCurrentSessionUser(users);
   return users;

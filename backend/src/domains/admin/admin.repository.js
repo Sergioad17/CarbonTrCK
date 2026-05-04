@@ -1,4 +1,5 @@
 import { query, withTransaction } from "../../shared/db/pool.js";
+import { AppError } from "../../shared/errors/app-error.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 import {
   DEFAULT_INSTITUTIONAL_CONFIG,
@@ -265,7 +266,52 @@ export async function revokeSession(actor, sessionId, auditContext) {
       entityId: sessionId,
     });
 
+    if (result.rowCount < 1) {
+      throw new AppError({
+        statusCode: 404,
+        code: "SESSION_NOT_FOUND",
+        message: "The session does not exist, is expired, or was already revoked.",
+      });
+    }
+
     return { revoked: result.rowCount > 0 };
+  });
+}
+
+export async function revokeOtherSessions(actor, currentSessionId, auditContext) {
+  if (!currentSessionId) {
+    throw new AppError({
+      statusCode: 401,
+      code: "CURRENT_SESSION_REQUIRED",
+      message: "The current session is required to close remote sessions.",
+    });
+  }
+
+  return withTransaction(async (client) => {
+    const result = await client.query(
+      `
+        UPDATE auth_sessions
+        SET revoked_at = now()
+        WHERE organization_id = $1
+          AND id <> $2
+          AND revoked_at IS NULL
+          AND expires_at > now()
+      `,
+      [actor.organizationId, currentSessionId],
+    );
+
+    await insertAuditEvent(client, {
+      ...buildAuditPayload(actor, auditContext, {
+        currentSessionId,
+        revokedCount: result.rowCount,
+        description: `Cerró ${result.rowCount} sesiones remotas activas`,
+      }),
+      eventType: "admin.security.sessions_revoke_all",
+      entityType: "session",
+      entityId: currentSessionId,
+    });
+
+    return { revokedCount: result.rowCount };
   });
 }
 
@@ -280,6 +326,26 @@ function inferAuditSeverity(eventType, status) {
   if (status === "error") return "high";
   if (value.includes(".status_change") || value.includes(".remove") || value.includes(".delete")) return "medium";
   return "low";
+}
+
+function auditSeverityExpression() {
+  return `
+    COALESCE(
+      e.details->>'severity',
+      CASE
+        WHEN COALESCE(e.details->>'status', '') = 'error'
+          OR e.event_type ILIKE '%.failure'
+          OR e.event_type ILIKE '%.locked'
+          OR e.event_type ILIKE '%.inactive_user'
+        THEN 'high'
+        WHEN e.event_type ILIKE '%.status_change'
+          OR e.event_type ILIKE '%.remove'
+          OR e.event_type ILIKE '%.delete'
+        THEN 'medium'
+        ELSE 'low'
+      END
+    )
+  `;
 }
 
 export async function listAuditEvents(actor, filters = {}) {
@@ -301,12 +367,34 @@ export async function listAuditEvents(actor, filters = {}) {
     where.push(`COALESCE(e.details->>'status', 'success') = $${params.length}`);
   }
 
+  if (filters.severity && filters.severity !== "all") {
+    params.push(filters.severity);
+    where.push(`${auditSeverityExpression()} = $${params.length}`);
+  }
+
+  if (filters.user && filters.user !== "all") {
+    params.push(`%${filters.user}%`);
+    where.push(`(u.full_name ILIKE $${params.length} OR u.email::text ILIKE $${params.length})`);
+  }
+
+  if (filters.dateFrom) {
+    params.push(filters.dateFrom);
+    where.push(`e.created_at >= $${params.length}::date`);
+  }
+
+  if (filters.dateTo) {
+    params.push(filters.dateTo);
+    where.push(`e.created_at < ($${params.length}::date + interval '1 day')`);
+  }
+
   if (filters.search) {
     params.push(`%${filters.search}%`);
     where.push(`(
       u.full_name ILIKE $${params.length}
+      OR u.email::text ILIKE $${params.length}
       OR e.event_type ILIKE $${params.length}
       OR e.entity_type ILIKE $${params.length}
+      OR e.entity_id::text ILIKE $${params.length}
       OR e.details::text ILIKE $${params.length}
     )`);
   }
@@ -322,9 +410,26 @@ export async function listAuditEvents(actor, filters = {}) {
         e.user_agent,
         e.details,
         e.created_at,
-        COALESCE(u.full_name, 'Sistema') AS user_name
+        COALESCE(u.full_name, 'Sistema') AS user_name,
+        COALESCE(role_data.role_name, e.details->>'actorRole', 'Sistema') AS user_role
       FROM audit_events e
       LEFT JOIN users u ON u.id = e.user_id AND u.organization_id = e.organization_id
+      LEFT JOIN LATERAL (
+        SELECT r.name AS role_name
+        FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id = u.id
+          AND ur.organization_id = e.organization_id
+        ORDER BY
+          CASE lower(r.name)
+            WHEN 'admin' THEN 1
+            WHEN 'directivo' THEN 2
+            WHEN 'operativo' THEN 3
+            ELSE 9
+          END,
+          r.name
+        LIMIT 1
+      ) role_data ON true
       WHERE ${where.join(" AND ")}
       ORDER BY e.created_at DESC
       LIMIT 300
@@ -333,16 +438,17 @@ export async function listAuditEvents(actor, filters = {}) {
   );
 
   return result.rows.map((row) => {
-    const [modulePart, actionPart = "system"] = String(row.event_type || "").split(".");
+    const [modulePart, actionPart = "system", subActionPart = ""] = String(row.event_type || "").split(".");
     const details = compactObject(row.details);
     const status = details.status || inferAuditStatus(row.event_type);
     return {
       id: row.id,
       eventType: row.event_type,
       moduleKey: modulePart,
-      actionKey: actionPart,
+      actionKey: subActionPart || actionPart,
       user: row.user_name,
-      action: details.action || actionPart,
+      role: row.user_role,
+      action: details.action || subActionPart || actionPart,
       module: details.module || row.entity_type || modulePart,
       description: details.description || row.event_type,
       target: details.target || row.entity_id || row.entity_type || "",
@@ -354,6 +460,36 @@ export async function listAuditEvents(actor, filters = {}) {
       details,
     };
   });
+}
+
+export async function createAdminAuditEvent(actor, payload = {}, auditContext) {
+  const eventType = String(payload.eventType || "").trim();
+  if (!/^[a-z0-9_]+(\.[a-z0-9_]+){1,3}$/i.test(eventType)) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "eventType must be a valid audit event key.",
+      details: { field: "eventType" },
+    });
+  }
+
+  const entityType = String(payload.entityType || "").trim() || eventType.split(".")[0];
+  const details = compactObject(payload.details);
+
+  await withTransaction(async (client) => {
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType,
+      entityType,
+      entityId: payload.entityId || null,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details,
+    });
+  });
+
+  return { recorded: true };
 }
 
 function intValue(row, key) {
@@ -372,8 +508,9 @@ function serviceStatus(label, status, latencyMs = null) {
 
 const AUDIT_MODULE_LABELS = Object.freeze({
   actions: "Acciones",
-  admin: "Administracion",
-  auth: "Autenticacion",
+  admin: "Administración",
+  ai: "Inteligencia artificial",
+  auth: "Autenticación",
   dashboard: "Dashboard",
   devices: "Dispositivos",
   equipment: "Equipo",
@@ -383,7 +520,8 @@ const AUDIT_MODULE_LABELS = Object.freeze({
   notifications: "Notificaciones",
   profile: "Perfil",
   records: "Registros",
-  settings: "Configuracion",
+  reports: "Reportes",
+  settings: "Configuración",
   targets: "Metas",
   users: "Usuarios",
 });
@@ -391,6 +529,7 @@ const AUDIT_MODULE_LABELS = Object.freeze({
 const AUDIT_ICON_MAP = Object.freeze({
   actions: "calendar",
   admin: "shield",
+  ai: "zap",
   auth: "shield",
   dashboard: "database",
   devices: "zap",
@@ -401,6 +540,7 @@ const AUDIT_ICON_MAP = Object.freeze({
   notifications: "file",
   profile: "user",
   records: "zap",
+  reports: "file",
   settings: "database",
   targets: "calendar",
   users: "user",
@@ -429,8 +569,18 @@ function auditActionText(row) {
       return "actualizo la configuracion de gobierno";
     case "admin.security.session_revoke":
       return "cerro una sesion remota";
+    case "admin.security.sessions_revoke_all":
+      return `cerro ${details.revokedCount || 0} sesiones remotas activas`;
+    case "ai.engine.update":
+      return "actualizo el motor IA";
+    case "ai.module.update":
+      return "actualizo un modulo IA";
+    case "ai.model.execute":
+      return details.description || "ejecuto un modelo IA";
     case "auth.login.success":
       return "inicio sesion";
+    case "auth.logout.success":
+      return "cerro sesion";
     case "auth.login.failure":
       return "tuvo un intento de acceso fallido";
     case "auth.forgot_password.requested":
@@ -469,6 +619,8 @@ function auditActionText(row) {
       return `capturo un registro${details.category ? ` de ${details.category}` : ""}`;
     case "records.archive":
       return "archivo un registro";
+    case "reports.export":
+      return `exporto un reporte${details.target ? `: ${details.target}` : ""}`;
     case "records.files_attached":
       return "adjunto evidencia a un registro";
     case "settings.update":

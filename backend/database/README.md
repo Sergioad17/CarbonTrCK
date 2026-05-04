@@ -3,7 +3,6 @@
 Este directorio contiene la version base del modelo de datos en PostgreSQL para CarbonTrCK, incluyendo:
 
 - `database.sql`: esquema inicial completo en PostgreSQL.
-- `seed_catalogs.sql`: catalogos base recomendados.
 - `MODELO_BD.md`: modelo conceptual, logico y fisico.
 - `OPERACION_Y_SEGURIDAD.md`: reglas de seguridad, transacciones, respaldo y operacion.
 - `MIGRACIONES_Y_PRUEBAS.md`: control de cambios, pruebas funcionales y validacion tecnica.
@@ -33,6 +32,6 @@ La base esta disenada para:
 
 1. Revisar `MODELO_BD.md`.
 2. Ejecutar `database.sql` en una base vacia.
-3. Ejecutar `seed_catalogs.sql`.
+3. Configurar organizacion, campus, areas, roles y usuarios desde el sistema.
 4. Aplicar roles y politicas operativas descritas en `OPERACION_Y_SEGURIDAD.md`.
 5. Adoptar el flujo de cambios definido en `MIGRACIONES_Y_PRUEBAS.md`.

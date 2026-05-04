@@ -27,7 +27,20 @@ export async function fetchAdminSessions() {
 
 export async function revokeAdminSession(id) {
   const payload = await apiRequest(`/admin/security/sessions/${id}`, { method: "DELETE" });
-  return payload?.result || payload;
+  const result = payload?.result || payload;
+  if (!result?.revoked) {
+    throw new Error("La sesión no fue revocada por el backend.");
+  }
+  return result;
+}
+
+export async function revokeOtherAdminSessions() {
+  const payload = await apiRequest("/admin/security/sessions", { method: "DELETE" });
+  const result = payload?.result || payload;
+  if (!Number.isFinite(Number(result?.revokedCount))) {
+    throw new Error("El backend no confirmó el cierre de sesiones remotas.");
+  }
+  return { revokedCount: Number(result.revokedCount) };
 }
 
 export async function fetchAdminAuditEvents(filters = {}) {
@@ -38,4 +51,12 @@ export async function fetchAdminAuditEvents(filters = {}) {
   const suffix = params.toString() ? `?${params}` : "";
   const payload = await apiRequest(`/admin/audit-events${suffix}`);
   return payload?.events || payload?.data?.events || [];
+}
+
+export async function recordAdminAuditEvent(event) {
+  const payload = await apiRequest("/admin/audit-events", {
+    method: "POST",
+    body: JSON.stringify(event),
+  });
+  return payload?.result || payload;
 }
