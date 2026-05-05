@@ -46,7 +46,31 @@ export function assertPasswordComplexity(password, policy = defaultPolicy) {
   }
 }
 
-export function generateTemporaryPassword() {
-  // Guarantees uppercase, lowercase and numeric characters for the default policy.
-  return `Ct-${crypto.randomBytes(6).toString("hex")}A1`;
+export function generateTemporaryPassword(policy = defaultPolicy) {
+  const minPasswordLength = Math.max(8, Number(policy.minPasswordLength) || defaultPolicy.minPasswordLength);
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const special = "!@#$%";
+  const required = [
+    uppercase[crypto.randomInt(uppercase.length)],
+    lowercase[crypto.randomInt(lowercase.length)],
+    numbers[crypto.randomInt(numbers.length)],
+  ];
+
+  if (policy.requireSpecialChar) {
+    required.push(special[crypto.randomInt(special.length)]);
+  }
+
+  const pool = `${uppercase}${lowercase}${numbers}${policy.requireSpecialChar ? special : ""}`;
+  while (required.length < minPasswordLength) {
+    required.push(pool[crypto.randomInt(pool.length)]);
+  }
+
+  for (let index = required.length - 1; index > 0; index -= 1) {
+    const swapIndex = crypto.randomInt(index + 1);
+    [required[index], required[swapIndex]] = [required[swapIndex], required[index]];
+  }
+
+  return required.join("");
 }

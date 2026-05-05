@@ -16,17 +16,55 @@ import AdminTabs from "../components/AdminTabs";
 import AdminStatusBadge from "../components/AdminStatusBadge";
 import {
   roles as mockRoles,
-  permissionModules,
+  permissionModules as basePermissionModules,
   permissionActions,
-  permissionMatrix,
+  permissionMatrix as basePermissionMatrix,
 } from "../mocks/adminMocks";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
+const MODULE_ACTIONS = {
+  audit: ["view", "export"],
+  dashboard: ["view", "export"],
+  equipment: ["view", "create", "edit", "export"],
+};
+const permissionModules = [
+  ...basePermissionModules.slice(0, 4),
+  { id: "equipment", label: "Equipos", icon: "Monitor" },
+  ...basePermissionModules.slice(4),
+];
+const permissionMatrix = {
+  admin: {
+    ...basePermissionMatrix.admin,
+    equipment: { view: "active", create: "active", edit: "active", delete: "blocked", validate: "blocked", export: "active", approve: "blocked" },
+  },
+  directivo: {
+    ...basePermissionMatrix.directivo,
+    equipment: { view: "active", create: "blocked", edit: "blocked", delete: "blocked", validate: "blocked", export: "active", approve: "blocked" },
+  },
+  operativo: {
+    ...basePermissionMatrix.operativo,
+    equipment: { view: "active", create: "active", edit: "active", delete: "blocked", validate: "blocked", export: "blocked", approve: "blocked" },
+  },
+  consulta: {
+    ...basePermissionMatrix.consulta,
+    equipment: { view: "active", create: "blocked", edit: "blocked", delete: "blocked", validate: "blocked", export: "blocked", approve: "blocked" },
+  },
+};
 
 function cloneMatrix(matrix) {
   return JSON.parse(JSON.stringify(matrix));
+}
+
+function getModulePermissionActions(moduleId) {
+  const allowedActions = MODULE_ACTIONS[moduleId];
+  if (!allowedActions) return permissionActions;
+  return permissionActions.filter((action) => allowedActions.includes(action.id));
+}
+
+function isModuleActionAvailable(moduleId, actionId) {
+  return getModulePermissionActions(moduleId).some((action) => action.id === actionId);
 }
 
 function areEqualMatrix(a, b) {
@@ -201,7 +239,7 @@ export default function RolesPage() {
     let blocked = 0;
 
     permissionModules.forEach((module) => {
-      permissionActions.forEach((action) => {
+      getModulePermissionActions(module.id).forEach((action) => {
         const status = rolePerms[module.id]?.[action.id] || "blocked";
         if (status === "active") active += 1;
         if (status === "inherited") inherited += 1;
@@ -246,7 +284,10 @@ export default function RolesPage() {
 
   function countEnabled(moduleId) {
     const permissions = rolePerms[moduleId] || {};
-    return Object.values(permissions).filter((value) => value === "active" || value === "inherited").length;
+    return getModulePermissionActions(moduleId).filter((action) => {
+      const value = permissions[action.id];
+      return value === "active" || value === "inherited";
+    }).length;
   }
 
   return (
@@ -485,8 +526,9 @@ export default function RolesPage() {
             {permissionModules.map((module, index) => {
               const expanded = expandedModules[module.id];
               const permissions = rolePerms[module.id] || {};
+              const moduleActions = getModulePermissionActions(module.id);
               const enabledCount = countEnabled(module.id);
-              const total = permissionActions.length;
+              const total = moduleActions.length;
 
               return (
                 <div
@@ -565,7 +607,7 @@ export default function RolesPage() {
                       flexWrap: "wrap",
                       gap: 8,
                     }}>
-                      {permissionActions.map((action) => {
+                      {moduleActions.map((action) => {
                         const status = permissions[action.id] || "blocked";
                         return (
                           <div
@@ -665,16 +707,39 @@ export default function RolesPage() {
                     }}>
                       {module.label}
                     </td>
-                    {permissionActions.map((action) => (
-                      <td key={action.id} style={{ padding: "6px 10px", textAlign: "center" }}>
-                        <div style={{ display: "flex", justifyContent: "center" }}>
-                          <PermCell
-                            status={rolePerms[module.id]?.[action.id] || "blocked"}
-                            onChange={(nextStatus) => handlePermChange(module.id, action.id, nextStatus)}
-                          />
-                        </div>
-                      </td>
-                    ))}
+                    {permissionActions.map((action) => {
+                      const available = isModuleActionAvailable(module.id, action.id);
+                      return (
+                        <td key={action.id} style={{ padding: "6px 10px", textAlign: "center" }}>
+                          <div style={{ display: "flex", justifyContent: "center" }}>
+                            {available ? (
+                              <PermCell
+                                status={rolePerms[module.id]?.[action.id] || "blocked"}
+                                onChange={(nextStatus) => handlePermChange(module.id, action.id, nextStatus)}
+                              />
+                            ) : (
+                              <span
+                                title="No aplica"
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 7,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "var(--eco-card-muted, #F8FAFC)",
+                                  color: "var(--eco-text-soft, #94A3B8)",
+                                  fontFamily: fm,
+                                  fontSize: 13,
+                                }}
+                              >
+                                -
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

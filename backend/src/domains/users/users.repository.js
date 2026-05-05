@@ -337,24 +337,174 @@ export async function listUsers(actor, filters) {
   return users;
 }
 
-export async function listRolesCatalog(actor) {
+export async function listRolesCatalog(actor, options = {}) {
   const result = await query(
     `
-      SELECT id, name
-      FROM roles
-      WHERE organization_id = $1
-      ORDER BY name
+      SELECT
+        r.id,
+        r.name,
+        r.description,
+        r.is_system,
+        COUNT(DISTINCT ur.user_id)::int AS user_count,
+        COALESCE(
+          jsonb_agg(DISTINCT p.code ORDER BY p.code) FILTER (WHERE p.code IS NOT NULL),
+          '[]'::jsonb
+        ) AS permissions
+      FROM roles r
+      LEFT JOIN user_roles ur ON ur.role_id = r.id
+      LEFT JOIN role_permissions rp ON rp.role_id = r.id
+      LEFT JOIN permissions p ON p.id = rp.permission_id
+      WHERE r.organization_id = $1
+      GROUP BY r.id, r.name, r.description, r.is_system
+      ORDER BY r.name
     `,
     [actor.organizationId],
   );
 
+  return result.rows.map((row) => {
+    const baseRole = {
+      id: row.id,
+      key: normalizeRoleKey(row.name),
+      value: normalizeRoleKey(row.name),
+      label: row.name,
+      name: row.name,
+    };
+
+    if (!options.includeDetails) {
+      return baseRole;
+    }
+
+    return {
+      ...baseRole,
+      description: row.description || "",
+      enabled: true,
+      isSystem: Boolean(row.is_system),
+      userCount: Number(row.user_count) || 0,
+      permissions: row.permissions || [],
+    };
+  });
+}
+
+function mapPermissionCode(code) {
+  const [module = "general", action = "access"] = String(code || "").split(":");
+  return {
+    module,
+    action,
+    label: action
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase()),
+  };
+}
+
+export async function listPermissionsCatalog() {
+  const result = await query(
+    `
+      SELECT id, code, description
+      FROM permissions
+      ORDER BY code
+    `,
+  );
+
   return result.rows.map((row) => ({
     id: row.id,
-    key: normalizeRoleKey(row.name),
-    value: normalizeRoleKey(row.name),
-    label: row.name,
-    name: row.name,
+    code: row.code,
+    description: row.description || "",
+    ...mapPermissionCode(row.code),
   }));
+}
+
+export async function updateRolePermissions(actor, roleId, permissionCodes, auditContext) {
+  const uniqueCodes = Array.from(new Set((permissionCodes || []).map((code) => String(code || "").trim()).filter(Boolean)));
+
+  await withTransaction(async (client) => {
+    const roleResult = await client.query(
+      `
+        SELECT id, name
+        FROM roles
+        WHERE id = $1
+          AND organization_id = $2
+        LIMIT 1
+      `,
+      [roleId, actor.organizationId],
+    );
+
+    if (roleResult.rowCount < 1) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Role not found.",
+      });
+    }
+
+    if (normalizeRoleKey(roleResult.rows[0].name) === "admin" && !uniqueCodes.includes("users:manage")) {
+      throw new AppError({
+        statusCode: 409,
+        code: "ADMIN_PERMISSION_REQUIRED",
+        message: "The admin role must keep users:manage.",
+      });
+    }
+
+    const permissionResult = await client.query(
+      `
+        SELECT id, code
+        FROM permissions
+        WHERE code = ANY($1::text[])
+      `,
+      [uniqueCodes],
+    );
+
+    if (permissionResult.rowCount !== uniqueCodes.length) {
+      throw new AppError({
+        statusCode: 422,
+        code: "INVALID_PERMISSIONS",
+        message: "All permissions must exist.",
+      });
+    }
+
+    const before = await client.query(
+      `
+        SELECT p.code
+        FROM role_permissions rp
+        JOIN permissions p ON p.id = rp.permission_id
+        WHERE rp.role_id = $1
+        ORDER BY p.code
+      `,
+      [roleId],
+    );
+
+    await client.query(`DELETE FROM role_permissions WHERE role_id = $1`, [roleId]);
+
+    for (const permission of permissionResult.rows) {
+      await client.query(
+        `
+          INSERT INTO role_permissions (role_id, permission_id)
+          VALUES ($1, $2)
+          ON CONFLICT (role_id, permission_id) DO NOTHING
+        `,
+        [roleId, permission.id],
+      );
+    }
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "roles.permissions_update",
+      entityType: "role",
+      entityId: roleId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: {
+        role: normalizeRoleKey(roleResult.rows[0].name),
+        before: before.rows.map((row) => row.code),
+        after: uniqueCodes.sort(),
+      },
+    });
+  });
+
+  return {
+    roles: await listRolesCatalog(actor, { includeDetails: true }),
+    permissions: await listPermissionsCatalog(),
+  };
 }
 
 export async function createUser(actor, payload, auditContext) {
@@ -825,10 +975,10 @@ export async function deleteUser(actor, userId, auditContext) {
   });
 }
 
-export async function resetUserPassword(actor, userId, auditContext) {
+export async function resetUserPassword(actor, userId, auditContext, nextTemporaryPassword = null) {
   return withTransaction(async (client) => {
     const existingUser = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND organization_id = $2 LIMIT 1`,
+      `SELECT id, is_active FROM users WHERE id = $1 AND organization_id = $2 LIMIT 1`,
       [userId, actor.organizationId],
     );
 
@@ -840,7 +990,15 @@ export async function resetUserPassword(actor, userId, auditContext) {
       });
     }
 
-    const temporaryPassword = generateTemporaryPassword();
+    if (!existingUser.rows[0].is_active) {
+      throw new AppError({
+        statusCode: 409,
+        code: "USER_INACTIVE",
+        message: "User is inactive.",
+      });
+    }
+
+    const temporaryPassword = nextTemporaryPassword || generateTemporaryPassword();
     const passwordHash = await hashPassword(temporaryPassword);
 
     await client.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, userId]);

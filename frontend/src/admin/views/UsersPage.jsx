@@ -8,11 +8,13 @@ import {
   Shield,
   Building2,
   Users as UsersIcon,
+  Check,
   CheckCircle2,
   Download,
   Bell,
   X,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
@@ -21,23 +23,24 @@ import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
 import { AdminToggleField } from "../components/AdminFormSection";
-import { roles, campuses } from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
 import { exportRowsToCsv } from "../../lib/csvExport";
-import { fetchProfileChangeRequests, subscribeProfileChangeRequests } from "../../api/profileRequests";
-import { fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../../api/users";
+import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../../api/profileRequests";
+import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../../api/users";
+import { fetchAreas } from "../../api/areas";
 
 const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
 
-function mapApiUser(apiUser) {
+function mapApiUser(apiUser, campusOptions = []) {
   if (!apiUser) return null;
   const fullName = apiUser.fullName
     || [apiUser.firstName, apiUser.paternalLastName, apiUser.maternalLastName].filter(Boolean).join(" ").trim()
     || apiUser.email
     || "Usuario";
   const role = apiUser.roleKey || apiUser.role || "operativo";
-  const campusName = campuses.find((item) => item.code === apiUser.campusCode || item.id === apiUser.campusCode)?.name
-    || campuses[0]?.name
-    || "Campus Central";
+  const campusCode = apiUser.campusCode || DEFAULT_CAMPUS_CODE;
+  const campusName = campusOptions.find((item) => item.code === campusCode || item.id === campusCode)?.name
+    || campusCode;
   const areas = apiUser.areaAccess?.mode === "custom" && Array.isArray(apiUser.areaAccess?.areaCodes)
     ? apiUser.areaAccess.areaCodes
     : [];
@@ -52,7 +55,7 @@ function mapApiUser(apiUser) {
     identifier: apiUser.numericId ? String(apiUser.numericId) : "",
     role,
     campus: campusName,
-    campusCode: apiUser.campusCode || DEFAULT_CAMPUS_CODE,
+    campusCode,
     areas,
     status: apiUser.isActive ? "active" : "inactive",
     createdAt: apiUser.createdAt || null,
@@ -93,7 +96,7 @@ function emptyUserForm(user) {
     email: user?.email || "",
     identifier: user?.identifier || "",
     role: user?.role || "operativo",
-    campus: user?.campus || "Campus Central",
+    campus: user?.campusCode || user?.campus || DEFAULT_CAMPUS_CODE,
     areas: user?.areas || [],
     status: user?.status || "active",
     forcePasswordChange: typeof user?.forcePasswordChange === "boolean" ? user.forcePasswordChange : false,
@@ -102,19 +105,6 @@ function emptyUserForm(user) {
   };
 }
 
-const ALL_AREAS = [
-  "Dirección General",
-  "TI",
-  "Sustentabilidad",
-  "Mantenimiento",
-  "Rectoría",
-  "Laboratorios",
-  "Instalaciones",
-  "Dirección Académica",
-  "Administración",
-  "Investigación",
-  "Dirección Administrativa",
-];
 
 const PAGE_STYLES = `
 @keyframes ctOverlay{from{opacity:0}to{opacity:1}}
@@ -375,12 +365,12 @@ function FeedbackBanner({ feedback, onClose }) {
 }
 
 function fmtDate(iso) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function fmtDateTime(iso) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("es-MX", {
     day: "2-digit",
     month: "short",
@@ -391,8 +381,22 @@ function fmtDateTime(iso) {
 }
 
 function createTemporaryPassword() {
-  const block = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `CT-${block}-${new Date().getMinutes().toString().padStart(2, "0")}`;
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const special = "!@#$%";
+  const pick = (alphabet) => alphabet[Math.floor(Math.random() * alphabet.length)];
+  const chars = [
+    pick(uppercase),
+    pick(lowercase),
+    pick(numbers),
+    pick(special),
+  ];
+  const pool = `${uppercase}${lowercase}${numbers}`;
+  while (chars.length < 10) {
+    chars.push(pick(pool));
+  }
+  return chars.sort(() => Math.random() - 0.5).join("");
 }
 
 function requestTypeLabel(type) {
@@ -563,12 +567,12 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
   const { user, form, errors, saving, setForm } = state;
   const isEdit = Boolean(user);
 
-  function toggleArea(area) {
+  function toggleArea(areaCode) {
     setForm((current) => ({
       ...current,
-      areas: current.areas.includes(area)
-        ? current.areas.filter((item) => item !== area)
-        : [...current.areas, area],
+      areas: current.areas.includes(areaCode)
+        ? current.areas.filter((item) => item !== areaCode)
+        : [...current.areas, areaCode],
     }));
   }
 
@@ -652,14 +656,14 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
               <Field label="Rol">
                 <StyledSelect value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}>
                   {roleOptions.map((role) => (
-                    <option key={role.id} value={role.id}>{role.label}</option>
+                    <option key={role.id} value={role.key || role.id}>{role.label}</option>
                   ))}
                 </StyledSelect>
               </Field>
               <Field label="Campus">
-                <StyledSelect value={form.campus} onChange={(event) => setForm((current) => ({ ...current, campus: event.target.value }))}>
+                <StyledSelect value={form.campus} onChange={(event) => setForm((current) => ({ ...current, campus: event.target.value, areas: [] }))}>
                   {campusOptions.map((campus) => (
-                    <option key={campus.id} value={campus.name}>{campus.name}</option>
+                    <option key={campus.id} value={campus.code}>{campus.name}</option>
                   ))}
                 </StyledSelect>
               </Field>
@@ -667,13 +671,13 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
             <div style={{ padding: "0 16px 16px" }}>
               <p style={{ ...sectionLabel, marginBottom: 10 }}>Áreas asignadas</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {areaOptions.map((area) => {
-                  const selected = form.areas.includes(area);
+                {areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campus).map((area) => {
+                  const selected = form.areas.includes(area.value);
                   return (
                     <button
-                      key={area}
+                      key={area.value}
                       type="button"
-                      onClick={() => toggleArea(area)}
+                      onClick={() => toggleArea(area.value)}
                       style={{
                         padding: "8px 12px",
                         borderRadius: 999,
@@ -686,7 +690,7 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
                         cursor: "pointer",
                       }}
                     >
-                      {area}
+                      {area.label}
                     </button>
                   );
                 })}
@@ -745,88 +749,142 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
   );
 }
 
-function RequestsPanel({ open, requests, onClose }) {
+function RequestsPanel({ open, requests, onClose, onApprove, onReject, resolvingId }) {
   if (!open) return null;
+  const pendingCount = requests.filter((item) => item.status === "pending").length;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 125, display: "grid", placeItems: "start end", padding: 16 }}>
-      <div style={{ position: "absolute", inset: 0, background: "var(--eco-overlay, rgba(15,23,42,.45))", backdropFilter: "blur(4px)", animation: "ctOverlay .18s ease-out" }} onClick={onClose} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(2,6,23,.46)", backdropFilter: "blur(4px)", animation: "ctOverlay .18s ease-out" }} onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         style={{
           position: "relative",
-          width: "min(460px, calc(100vw - 32px))",
-          maxHeight: "min(78vh, 720px)",
+          width: "min(410px, calc(100vw - 16px))",
+          maxHeight: "min(82vh, 720px)",
           marginTop: 72,
-          background: "var(--eco-card, #fff)",
-          border: "1px solid var(--eco-border, #E2E8F0)",
-          borderRadius: 22,
-          boxShadow: "var(--eco-shadow-xl, 0 24px 64px rgba(15,23,42,.18))",
+          background: "#111827",
+          border: "1px solid #26354A",
+          borderRadius: 12,
+          boxShadow: "0 24px 70px rgba(2,6,23,.45)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
           animation: "ctPop .2s ease-out",
         }}
       >
-        <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--eco-border, #E2E8F0)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "16px 14px 14px", borderBottom: "1px solid #26354A", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 12, background: ICON_GRADIENT, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: "#4ADE80", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Bell size={15} />
             </div>
             <div>
-              <p style={{ margin: 0, fontFamily: fd, fontSize: 16, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Peticiones</p>
-              <p style={{ ...subtleText, marginTop: 2 }}>{requests.filter((item) => item.status === "pending").length} pendientes</p>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 16, lineHeight: 1.05, fontWeight: 800, color: "#F8FAFC" }}>Peticiones</p>
+              <p style={{ margin: "3px 0 0", fontFamily: fb, fontSize: 12, color: "#94A3B8" }}>{pendingCount} pendientes</p>
             </div>
           </div>
-          <IconButton label="Cerrar" onClick={onClose} icon={<X size={16} />} />
+          <button type="button" aria-label="Cerrar" title="Cerrar" onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #334155", background: "#162235", color: "#94A3B8", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={16} />
+          </button>
         </div>
-        <div style={{ padding: 8, overflowY: "auto", flex: 1 }}>
+        <div style={{ padding: 10, overflowY: "auto", flex: 1 }}>
           {requests.length === 0 ? (
-            <div style={{ padding: "28px 18px", textAlign: "center" }}>
-              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>Sin peticiones registradas</p>
-              <p style={{ ...subtleText, marginTop: 6 }}>Las solicitudes de perfil y contraseña aparecerán aquí para seguimiento administrativo.</p>
+            <div style={{ padding: "28px 18px", textAlign: "center", border: "1px solid #26354A", borderRadius: 12, background: "#0F172A" }}>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 800, color: "#F8FAFC" }}>Sin peticiones registradas</p>
+              <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 12, color: "#9FB2CA" }}>Las solicitudes de perfil y contraseña aparecerán aquí para seguimiento administrativo.</p>
             </div>
           ) : (
             requests.map((request) => {
               const pending = request.status === "pending";
               const toneStyles = pending
-                ? { color: "var(--eco-warning, #CA8A04)", background: "rgba(234,179,8,.12)" }
+                ? { color: "#FDE047", background: "rgba(234,179,8,.12)", borderColor: "rgba(253,224,71,.35)" }
                 : request.status === "approved"
-                  ? { color: "var(--eco-success, #16A34A)", background: "rgba(34,197,94,.12)" }
-                  : { color: "var(--eco-danger, #DC2626)", background: "rgba(239,68,68,.10)" };
+                  ? { color: "#86EFAC", background: "rgba(34,197,94,.12)", borderColor: "rgba(134,239,172,.28)" }
+                  : { color: "#FCA5A5", background: "rgba(239,68,68,.10)", borderColor: "rgba(252,165,165,.28)" };
+              const resolving = resolvingId === request.id;
 
               return (
-                <div key={request.id} style={{ border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 16, padding: 14, marginBottom: 8, background: "var(--eco-card-muted, #F8FAFC)" }}>
+                <div key={request.id} style={{ border: "1px solid #26354A", borderRadius: 12, padding: 12, marginBottom: 8, background: "#0F172A" }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
                     <div>
-                      <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 800, color: "var(--eco-text-strong, #0F172A)" }}>{requestTypeLabel(request.type)}</p>
-                      <p style={{ ...subtleText, marginTop: 4 }}>{request.userName}</p>
+                      <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 800, color: "#F8FAFC" }}>{requestTypeLabel(request.type)}</p>
+                      <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 11, color: "#93C5FD" }}>{request.userName}</p>
                     </div>
-                    <span style={{ padding: "4px 10px", borderRadius: 999, fontFamily: fb, fontSize: 11, fontWeight: 700, ...toneStyles }}>
+                    <span style={{ padding: "4px 9px", borderRadius: 999, border: "1px solid", fontFamily: fb, fontSize: 10.5, fontWeight: 800, ...toneStyles }}>
                       {pending ? "Pendiente" : request.status === "approved" ? "Aprobada" : "Rechazada"}
                     </span>
                   </div>
                   <div style={{ display: "grid", gap: 6 }}>
-                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Actual:</strong> {request.currentValue || "Sin dato"}</p>
-                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Solicitado:</strong> {request.requestedValue || "Sin dato"}</p>
-                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text, #0F172A)" }}><strong>Motivo:</strong> {request.reason || "Sin motivo"}</p>
-                    <p style={{ ...subtleText, fontSize: 11 }}>Creada: {fmtDateTime(request.createdAt)}</p>
-                    {request.resolvedAt ? <p style={{ ...subtleText, fontSize: 11 }}>Resuelta: {fmtDateTime(request.resolvedAt)}</p> : null}
-                    {request.resolutionDetail ? <p style={{ ...subtleText, fontSize: 11 }}>{request.resolutionDetail}</p> : null}
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "#E2E8F0" }}><strong style={{ color: "#F8FAFC" }}>Actual:</strong> {request.currentValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "#E2E8F0" }}><strong style={{ color: "#F8FAFC" }}>Solicitado:</strong> {request.requestedValue || "Sin dato"}</p>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "#E2E8F0" }}><strong style={{ color: "#F8FAFC" }}>Motivo:</strong> {request.reason || "Sin motivo"}</p>
+                    <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11, color: "#94A3B8" }}>Creada: {fmtDateTime(request.createdAt)}</p>
+                    {request.resolvedAt ? <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "#94A3B8" }}>Resuelta: {fmtDateTime(request.resolvedAt)}</p> : null}
+                    {request.resolutionDetail ? <p style={{ margin: 0, fontFamily: fb, fontSize: 11, color: "#9FB2CA" }}>{request.resolutionDetail}</p> : null}
                   </div>
                   {(request.history || []).length > 0 ? (
                     <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
                       {(request.history || []).map((entry) => (
                         <div key={entry.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--eco-primary-500, #22C55E)", marginTop: 5, flexShrink: 0 }} />
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", marginTop: 5, flexShrink: 0 }} />
                           <div>
-                            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 700, color: "var(--eco-text, #0F172A)" }}>{entry.actorName}</p>
-                            <p style={{ ...subtleText, marginTop: 2 }}>{entry.detail}</p>
-                            <p style={{ ...subtleText, marginTop: 2, fontSize: 11 }}>{fmtDateTime(entry.createdAt)}</p>
+                            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 800, color: "#F8FAFC" }}>{entry.actorName}</p>
+                            <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11, color: "#9FB2CA" }}>{entry.detail}</p>
+                            <p style={{ margin: "5px 0 0", fontFamily: fb, fontSize: 11, color: "#93C5FD" }}>{fmtDateTime(entry.createdAt)}</p>
                           </div>
                         </div>
                       ))}
+                    </div>
+                  ) : null}
+                  {pending ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+                      <button
+                        type="button"
+                        onClick={() => onApprove(request)}
+                        disabled={resolving}
+                        style={{
+                          height: 36,
+                          padding: "0 14px",
+                          borderRadius: 8,
+                          border: "1px solid #4ADE80",
+                          background: "#4ADE80",
+                          color: "#fff",
+                          fontFamily: fb,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: resolving ? "not-allowed" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          opacity: resolving ? 0.72 : 1,
+                        }}
+                      >
+                        <Check size={14} /> Aprobar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onReject(request)}
+                        disabled={resolving}
+                        style={{
+                          height: 36,
+                          padding: "0 14px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(248,113,113,.4)",
+                          background: "rgba(127,29,29,.45)",
+                          color: "#F87171",
+                          fontFamily: fb,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: resolving ? "not-allowed" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          opacity: resolving ? 0.72 : 1,
+                        }}
+                      >
+                        <X size={14} /> Rechazar
+                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -882,7 +940,7 @@ function ResetPasswordModal({ user, tempPassword, loading = false, onCancel, onC
             </h3>
             <p style={{ ...subtleText, marginTop: 4 }}>
               {tempPassword
-                ? "Copia la contraseña temporal ahora — solo se mostrará una vez. La contraseña anterior fue invalidada y las sesiones activas del usuario fueron cerradas."
+                ? "Copia la contraseña temporal ahora - solo se mostrará una vez. La contraseña anterior fue invalidada y las sesiones activas del usuario fueron cerradas."
                 : `Se generará una nueva contraseña temporal para ${user.name}. La actual quedará invalidada de inmediato.`}
             </p>
           </div>
@@ -923,14 +981,44 @@ export default function UsersPage() {
   const [passwordResetState, setPasswordResetState] = React.useState({ user: null, password: "", loading: false });
   const [requests, setRequests] = React.useState(() => fetchProfileChangeRequests());
   const [requestsOpen, setRequestsOpen] = React.useState(false);
+  const [resolvingRequestId, setResolvingRequestId] = React.useState(null);
   const [feedback, setFeedback] = React.useState(null);
+  const [roleOptions, setRoleOptions] = React.useState([]);
+  const [campusOptions, setCampusOptions] = React.useState([]);
+  const [areaOptions, setAreaOptions] = React.useState([]);
 
   const reloadUsers = React.useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const { users } = await fetchUsersModuleData();
-      setUsersList(users.map(mapApiUser).filter(Boolean));
+      const [{ users, roles: fetchedRoles }, fetchedAreas] = await Promise.all([
+        fetchUsersModuleData(),
+        fetchAreas(),
+      ]);
+      const nextCampusOptions = Array.from(
+        new Map(
+          [
+            ...users.map((user) => [user.campusCode || DEFAULT_CAMPUS_CODE, {
+              id: user.campusCode || DEFAULT_CAMPUS_CODE,
+              code: user.campusCode || DEFAULT_CAMPUS_CODE,
+              name: user.campusCode || DEFAULT_CAMPUS_CODE,
+            }]),
+            ...fetchedAreas.map((area) => [area.campusCode || DEFAULT_CAMPUS_CODE, {
+              id: area.campusCode || DEFAULT_CAMPUS_CODE,
+              code: area.campusCode || DEFAULT_CAMPUS_CODE,
+              name: area.campusCode || DEFAULT_CAMPUS_CODE,
+            }]),
+          ].filter(([code]) => code)
+        ).values()
+      );
+      const nextAreaOptions = fetchedAreas
+        .filter((area) => area.isActive !== false)
+        .map((area) => ({ value: area.code, label: area.name || area.code, campusCode: area.campusCode || DEFAULT_CAMPUS_CODE }));
+
+      setRoleOptions(fetchedRoles.filter((role) => role.enabled !== false));
+      setCampusOptions(nextCampusOptions.length ? nextCampusOptions : [{ id: DEFAULT_CAMPUS_CODE, code: DEFAULT_CAMPUS_CODE, name: DEFAULT_CAMPUS_CODE }]);
+      setAreaOptions(nextAreaOptions);
+      setUsersList(users.map((user) => mapApiUser(user, nextCampusOptions)).filter(Boolean));
     } catch (error) {
       setLoadError(error?.payload?.message || error?.message || "No se pudo cargar la lista de usuarios.");
     } finally {
@@ -942,12 +1030,22 @@ export default function UsersPage() {
     reloadUsers();
   }, [reloadUsers]);
 
-  const areaOptions = React.useMemo(() => {
-    return Array.from(new Set([
-      ...ALL_AREAS,
-      ...usersList.flatMap((user) => user.areas || []),
-    ])).sort((a, b) => a.localeCompare(b));
-  }, [usersList]);
+  const visibleAreaOptions = React.useMemo(() => {
+    const labelsByCode = new Map(areaOptions.map((area) => [area.value, area.label]));
+    usersList.flatMap((user) => user.areas || []).forEach((code) => {
+      if (!labelsByCode.has(code)) labelsByCode.set(code, code);
+    });
+    return Array.from(labelsByCode, ([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label, "es"));
+  }, [areaOptions, usersList]);
+
+  const roleLabels = React.useMemo(() => {
+    return Object.fromEntries(roleOptions.map((role) => [role.key || role.id, role.label]));
+  }, [roleOptions]);
+
+  const areaLabels = React.useMemo(() => {
+    return Object.fromEntries(visibleAreaOptions.map((area) => [area.value, area.label]));
+  }, [visibleAreaOptions]);
 
   const filtered = React.useMemo(() => {
     let list = [...usersList];
@@ -968,7 +1066,7 @@ export default function UsersPage() {
       list = list.filter((user) => user.status === filters.status);
     }
     if (filters.campus && filters.campus !== "all") {
-      list = list.filter((user) => user.campus === filters.campus);
+      list = list.filter((user) => user.campusCode === filters.campus);
     }
     if (filters.area && filters.area !== "all") {
       list = list.filter((user) => (user.areas || []).includes(filters.area));
@@ -1058,8 +1156,10 @@ export default function UsersPage() {
       fullName,
       email: trimmedEmail,
       role: form.role,
-      campusCode: user?.apiUser?.campusCode || DEFAULT_CAMPUS_CODE,
-      areaAccess: { mode: "all", areaCodes: [] },
+      campusCode: form.campus || user?.apiUser?.campusCode || DEFAULT_CAMPUS_CODE,
+      areaAccess: form.areas.length > 0
+        ? { mode: "custom", areaCodes: form.areas }
+        : { mode: "all", areaCodes: [] },
       isActive,
       notes: form.notes.trim(),
       numericId: numericIdPayload,
@@ -1072,7 +1172,7 @@ export default function UsersPage() {
 
     try {
       const result = await saveUser(payload);
-      const mappedUsers = (result.users || []).map(mapApiUser).filter(Boolean);
+      const mappedUsers = (result.users || []).map((item) => mapApiUser(item, campusOptions)).filter(Boolean);
       setUsersList(mappedUsers);
       const updated = mappedUsers.find((item) => item.id === (result.user?.id || user?.id)) || null;
       if (updated) syncSelectedUser(updated.id, () => updated);
@@ -1095,7 +1195,7 @@ export default function UsersPage() {
       const message = error?.payload?.message || error?.message || "";
       const nextErrors = {};
       if (code === "INVALID_PASSWORD") {
-        nextErrors.tempPassword = "La contraseña no cumple la política (mínimo 8 caracteres, mayúscula y número).";
+        nextErrors.tempPassword = "La contraseña no cumple la política de seguridad vigente.";
       } else if (/email/i.test(message) || /correo/i.test(message)) {
         nextErrors.email = message || "Este correo ya está registrado.";
       }
@@ -1112,7 +1212,7 @@ export default function UsersPage() {
     const nextActive = user.status !== "active";
     try {
       const apiUsers = await updateUserStatus({ id: user.id }, nextActive);
-      const mappedUsers = (apiUsers || []).map(mapApiUser).filter(Boolean);
+      const mappedUsers = (apiUsers || []).map((item) => mapApiUser(item, campusOptions)).filter(Boolean);
       setUsersList(mappedUsers);
       const updated = mappedUsers.find((item) => item.id === user.id);
       if (updated) syncSelectedUser(user.id, () => updated);
@@ -1129,6 +1229,37 @@ export default function UsersPage() {
         tone: "info",
         title: "No se pudo actualizar el estado",
         message,
+      });
+    } finally {
+      setConfirmAction(null);
+    }
+  }
+
+  async function handleDeleteUser(user) {
+    if (!user?.id) return;
+    try {
+      const apiUsers = await deleteUser(user.id);
+      const mappedUsers = (apiUsers || []).map((item) => mapApiUser(item, campusOptions)).filter(Boolean);
+      setUsersList(mappedUsers);
+      setDrawerUser(null);
+      setPasswordResetState((current) => (current.user?.id === user.id ? { user: null, password: "", loading: false } : current));
+      setFeedback({
+        tone: "success",
+        title: "Usuario eliminado",
+        message: `La cuenta de ${user.name} fue eliminada correctamente porque no tenía datos operativos asociados.`,
+      });
+    } catch (error) {
+      const code = error?.payload?.code || error?.code || "";
+      const fallback = error?.payload?.message || error?.message || "No se pudo eliminar el usuario.";
+      const messages = {
+        USER_HAS_ACTIVITY: "Este usuario tiene datos operativos asociados. Para proteger el historial del sistema, no se puede eliminar; puedes darlo de baja.",
+        SELF_DELETE_FORBIDDEN: "No puedes eliminar tu propia cuenta desde esta pantalla.",
+        LAST_ADMIN_CONFLICT: "No se puede eliminar el último administrador activo del sistema.",
+      };
+      setFeedback({
+        tone: "info",
+        title: "No se pudo eliminar el usuario",
+        message: messages[code] || fallback,
       });
     } finally {
       setConfirmAction(null);
@@ -1156,11 +1287,71 @@ export default function UsersPage() {
       reloadUsers();
     } catch (error) {
       setPasswordResetState((prev) => ({ ...prev, loading: false }));
+      const code = error?.payload?.code || error?.code || "";
+      const messages = {
+        USER_INACTIVE: "Activa el usuario antes de generar una nueva contraseña.",
+      };
       setFeedback({
         tone: "info",
         title: "No se pudo restablecer la contraseña",
+        message: messages[code] || error?.payload?.message || error?.message || "Intenta de nuevo en unos segundos.",
+      });
+    }
+  }
+
+  async function handleApproveRequest(request) {
+    if (!request?.id) return;
+    const resolutionDetail = request.type === "email"
+      ? `Se aprobó sustituir ${request.currentValue || "el dato actual"} por ${request.requestedValue || "el dato solicitado"}.`
+      : "Se autorizó sustituir la contraseña anterior por una nueva credencial protegida.";
+    setResolvingRequestId(request.id);
+    try {
+      await updateProfileChangeRequest(request.id, (current) => ({
+        ...current,
+        status: "approved",
+        resolutionDetail,
+      }));
+      setFeedback({
+        tone: "success",
+        title: "Petición aprobada",
+        message: `${request.userName || "Usuario"}: ${requestTypeLabel(request.type)} aprobada.`,
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "info",
+        title: "No se pudo aprobar la petición",
         message: error?.payload?.message || error?.message || "Intenta de nuevo en unos segundos.",
       });
+    } finally {
+      setResolvingRequestId(null);
+    }
+  }
+
+  async function handleRejectRequest(request) {
+    if (!request?.id) return;
+    const resolutionDetail = request.type === "email"
+      ? `Se rechazó sustituir ${request.currentValue || "el dato actual"} por ${request.requestedValue || "el dato solicitado"}.`
+      : "Se rechazó el cambio de contraseña solicitado.";
+    setResolvingRequestId(request.id);
+    try {
+      await updateProfileChangeRequest(request.id, (current) => ({
+        ...current,
+        status: "rejected",
+        resolutionDetail,
+      }));
+      setFeedback({
+        tone: "info",
+        title: "Petición rechazada",
+        message: `${request.userName || "Usuario"}: ${requestTypeLabel(request.type)} rechazada.`,
+      });
+    } catch (error) {
+      setFeedback({
+        tone: "info",
+        title: "No se pudo rechazar la petición",
+        message: error?.payload?.message || error?.message || "Intenta de nuevo en unos segundos.",
+      });
+    } finally {
+      setResolvingRequestId(null);
     }
   }
 
@@ -1172,7 +1363,7 @@ export default function UsersPage() {
         { label: "Nombre", get: (user) => user.name },
         { label: "Correo", get: (user) => user.email },
         { label: "Identificador", get: (user) => user.identifier },
-        { label: "Rol", get: (user) => ROLE_LABELS[user.role] || user.role },
+        { label: "Rol", get: (user) => roleLabels[user.role] || ROLE_LABELS[user.role] || user.role },
         { label: "Campus", get: (user) => user.campus },
         { label: "Estado", get: (user) => (user.status === "active" ? "Activo" : "Inactivo") },
       ],
@@ -1224,7 +1415,7 @@ export default function UsersPage() {
       render: (value = []) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           <span style={{ fontSize: 12.5, fontWeight: 500 }}>
-            {value[0] || "Sin área"}
+            {areaLabels[value[0]] || value[0] || "Sin área"}
           </span>
           {value.length > 1 && (
             <span style={{ fontSize: 11, color: "var(--eco-text-soft, #94A3B8)" }}>
@@ -1290,12 +1481,25 @@ export default function UsersPage() {
               openPasswordReset(row);
             }}
           />
+          <AdminActionButton
+            icon={Trash2}
+            label="Eliminar"
+            accent="danger"
+            onClick={(event) => {
+              event.stopPropagation();
+              setConfirmAction({ type: "delete", user: row });
+            }}
+          />
         </div>
       ),
     },
   ];
 
   const pendingRequests = requests.filter((item) => item.status === "pending");
+
+  if (loading && usersList.length === 0) {
+    return <AdminLoadingScreen />;
+  }
 
   return (
     <>
@@ -1328,10 +1532,10 @@ export default function UsersPage() {
           onSearchChange={setSearch}
           searchPlaceholder="Buscar por nombre, correo o ID..."
           filters={[
-            { key: "role", label: "Rol", options: roles.filter((role) => role.enabled).map((role) => ({ value: role.id, label: role.label })) },
+            { key: "role", label: "Rol", options: roleOptions.map((role) => ({ value: role.key || role.id, label: role.label })) },
             { key: "status", label: "Estado", options: [{ value: "active", label: "Activo" }, { value: "inactive", label: "Inactivo" }] },
-            { key: "campus", label: "Campus", options: campuses.map((campus) => ({ value: campus.name, label: campus.name })) },
-            { key: "area", label: "Área", options: areaOptions.map((area) => ({ value: area, label: area })) },
+            { key: "campus", label: "Campus", options: campusOptions.map((campus) => ({ value: campus.code, label: campus.name })) },
+            { key: "area", label: "Área", options: visibleAreaOptions.map((area) => ({ value: area.value, label: area.label })) },
           ]}
           filterValues={filters}
           onFilterChange={(key, value) => setFilters((prev) => ({ ...prev, [key]: value }))}
@@ -1418,6 +1622,12 @@ export default function UsersPage() {
             <AdminActionButton icon={Edit3} label="Editar" onClick={() => openEditModal(drawerUser)} />
             <AdminActionButton icon={KeyRound} label="Restablecer clave" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
             <AdminActionButton
+              icon={Trash2}
+              label="Eliminar"
+              accent="danger"
+              onClick={() => setConfirmAction({ type: "delete", user: drawerUser })}
+            />
+            <AdminActionButton
               icon={drawerUser.status === "active" ? UserMinus : ToggleRight}
               label={drawerUser.status === "active" ? "Dar de baja" : "Reactivar"}
               accent={drawerUser.status === "active" ? "danger" : "success"}
@@ -1465,6 +1675,7 @@ export default function UsersPage() {
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <AdminActionButton icon={KeyRound} label="Restablecer contraseña" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
+                <AdminActionButton icon={Trash2} label="Eliminar usuario" accent="danger" onClick={() => setConfirmAction({ type: "delete", user: drawerUser })} />
               </div>
             </div>
 
@@ -1493,7 +1704,7 @@ export default function UsersPage() {
                       color: "var(--eco-text, #1E293B)",
                     }}
                   >
-                    {area}
+                    {areaLabels[area] || area}
                   </span>
                 )) : <span style={{ opacity: 0.4, fontSize: 12 }}>Sin áreas asignadas</span>}
               </div>
@@ -1508,8 +1719,8 @@ export default function UsersPage() {
 
       <UserFormModal
         state={formState}
-        roles={roles.filter((role) => role.enabled)}
-        campuses={campuses}
+        roles={roleOptions}
+        campuses={campusOptions}
         areaOptions={areaOptions}
         onClose={() => setFormState(null)}
         onSubmit={handleSaveUser}
@@ -1518,7 +1729,14 @@ export default function UsersPage() {
         }}
       />
 
-      <RequestsPanel open={requestsOpen} requests={requests} onClose={() => setRequestsOpen(false)} />
+      <RequestsPanel
+        open={requestsOpen}
+        requests={requests}
+        onClose={() => setRequestsOpen(false)}
+        onApprove={handleApproveRequest}
+        onReject={handleRejectRequest}
+        resolvingId={resolvingRequestId}
+      />
 
       <ResetPasswordModal
         user={passwordResetState.user}
@@ -1539,6 +1757,16 @@ export default function UsersPage() {
         }
         confirmLabel={confirmAction?.user?.status === "active" ? "Dar de baja" : "Reactivar"}
         danger={confirmAction?.user?.status === "active"}
+      />
+
+      <AdminConfirmDialog
+        open={confirmAction?.type === "delete"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => handleDeleteUser(confirmAction.user)}
+        title="Eliminar usuario"
+        message={`¿Eliminar definitivamente la cuenta de ${confirmAction?.user?.name}? Solo se borrará si el backend confirma que no tiene datos operativos asociados. Si existen registros, equipos, metas o acciones relacionadas, el sistema bloqueará la eliminación para evitar datos huérfanos.`}
+        confirmLabel="Eliminar"
+        danger
       />
     </>
   );

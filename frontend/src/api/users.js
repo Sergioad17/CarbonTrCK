@@ -66,6 +66,36 @@ function normalizeRolesList(payload) {
   return Array.isArray(rawItems) && rawItems.length ? rawItems : USER_ROLE_OPTIONS;
 }
 
+function normalizeRoleCatalogItem(input = {}) {
+  const key = normalizeRole(input.key || input.value || input.name || input.label);
+  return {
+    id: String(input.id || key),
+    key,
+    value: key,
+    label: String(input.label || input.name || key).trim(),
+    name: String(input.name || input.label || key).trim(),
+    description: String(input.description || "").trim(),
+    enabled: input.enabled !== false,
+    isSystem: Boolean(input.isSystem),
+    userCount: Number(input.userCount || input.user_count || 0),
+    permissions: Array.isArray(input.permissions) ? input.permissions.map(String) : [],
+  };
+}
+
+function normalizeRolesPermissionsPayload(payload) {
+  const roles = (payload?.roles || payload?.data?.roles || []).map(normalizeRoleCatalogItem);
+  const permissions = (payload?.permissions || payload?.data?.permissions || []).map((permission) => ({
+    id: String(permission.id || permission.code || ""),
+    code: String(permission.code || ""),
+    module: String(permission.module || String(permission.code || "").split(":")[0] || "general"),
+    action: String(permission.action || String(permission.code || "").split(":")[1] || "access"),
+    label: String(permission.label || permission.description || permission.code || ""),
+    description: String(permission.description || ""),
+  })).filter((permission) => permission.code);
+
+  return { roles, permissions };
+}
+
 function syncCurrentSessionUser(users) {
   const session = getSession();
   if (!session?.userId || !Array.isArray(users)) return;
@@ -92,9 +122,26 @@ export async function fetchUsersModuleData() {
   ]);
 
   const users = normalizeUsersList(usersPayload);
-  const roles = normalizeRolesList(rolesPayload);
+  const roles = normalizeRolesList(rolesPayload).map(normalizeRoleCatalogItem);
   syncCurrentSessionUser(users);
   return { users, roles, meta: { initializedEmpty: false } };
+}
+
+export async function fetchRolesPermissions() {
+  const payload = await apiRequest("/users/roles-permissions", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  return normalizeRolesPermissionsPayload(payload);
+}
+
+export async function saveRolePermissions(roleId, permissions) {
+  const payload = await apiRequest(`/users/roles/${roleId}/permissions`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify({ permissions }),
+  });
+  return normalizeRolesPermissionsPayload(payload);
 }
 
 export async function saveUser(payload) {

@@ -124,6 +124,14 @@ export async function loginService(payload, auditContext, env) {
         AND user_id = $2
         AND event_type = 'auth.login.failure'
         AND created_at >= now() - $3::interval
+        AND created_at > COALESCE((
+          SELECT max(reset_event.created_at)
+          FROM audit_events reset_event
+          WHERE reset_event.organization_id = audit_events.organization_id
+            AND reset_event.entity_id = audit_events.user_id
+            AND reset_event.event_type = 'users.password_reset'
+            AND reset_event.entity_type = 'user'
+        ), '-infinity'::timestamptz)
     `,
     [userRecord.organization_id, userRecord.id, lockoutWindow],
   );

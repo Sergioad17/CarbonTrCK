@@ -1,9 +1,11 @@
 import {
   createUserService,
   deleteUserService,
+  listRolesPermissionsService,
   listRolesService,
   listUsersService,
   resetUserPasswordService,
+  updateRolePermissionsService,
   updateUserService,
   updateUserStatusService,
 } from "./users.service.js";
@@ -25,6 +27,10 @@ export async function listRolesController(request, response) {
   response.json({ roles });
 }
 
+export async function listRolesPermissionsController(request, response) {
+  response.json(await listRolesPermissionsService(request.user));
+}
+
 export async function createUserController(request, response) {
   const result = await createUserService(request.user, request.body, auditContextFromRequest(request));
   response.status(201).json({
@@ -41,6 +47,15 @@ export async function updateUserController(request, response) {
 export async function updateUserStatusController(request, response) {
   const user = await updateUserStatusService(request.user, request.params.id, request.body, auditContextFromRequest(request));
   response.json({ user });
+}
+
+export async function updateRolePermissionsController(request, response) {
+  response.json(await updateRolePermissionsService(
+    request.user,
+    request.params.id,
+    request.body,
+    auditContextFromRequest(request),
+  ));
 }
 
 export async function deleteUserController(request, response) {

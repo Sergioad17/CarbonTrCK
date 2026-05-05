@@ -11,5 +11,6 @@ frontend/.env.local
 frontend/.env.production
 .docker/
 docker-data/
+tools/
 *.log
 .env.prod

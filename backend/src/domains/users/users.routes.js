@@ -4,9 +4,11 @@ import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createUserController,
   deleteUserController,
+  listRolesPermissionsController,
   listRolesController,
   listUsersController,
   resetUserPasswordController,
+  updateRolePermissionsController,
   updateUserController,
   updateUserStatusController,
 } from "./users.controller.js";
@@ -18,7 +20,9 @@ export function registerUsersRoutes(router) {
 
   usersRouter.get("/", requireRole("admin", "directivo"), asyncHandler(listUsersController));
   usersRouter.get("/roles", requireRole("admin", "directivo"), asyncHandler(listRolesController));
+  usersRouter.get("/roles-permissions", requireRole("admin"), asyncHandler(listRolesPermissionsController));
   usersRouter.use(requirePermission("users:manage"));
+  usersRouter.put("/roles/:id/permissions", asyncHandler(updateRolePermissionsController));
   usersRouter.post("/", asyncHandler(createUserController));
   usersRouter.patch("/:id", asyncHandler(updateUserController));
   usersRouter.patch("/:id/status", asyncHandler(updateUserStatusController));

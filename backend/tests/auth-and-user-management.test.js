@@ -752,6 +752,84 @@ if (!hasDb) {
     assert.equal(freshLogin.response.status, 200);
   });
 
+  test("reset de password administrativo desbloquea intentos fallidos previos", async () => {
+    const auth = await login();
+    const target = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Bloqueo",
+        paternalLastName: "Reset",
+        maternalLastName: "Demo",
+        fullName: "Bloqueo Reset Demo",
+        email: `test.reset.lockout.${Date.now()}@itsmante.edu.mx`,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: true,
+        notes: "",
+      }),
+    });
+    assert.equal(target.response.status, 201);
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const failedLogin = await login(target.body.user.email, `ClaveIncorrecta${attempt}A`);
+      assert.equal(failedLogin.response.status, 401);
+    }
+
+    const lockedLogin = await login(target.body.user.email, target.body.temporaryPassword);
+    assert.equal(lockedLogin.response.status, 423);
+    assert.equal(lockedLogin.body.code, "ACCOUNT_LOCKED");
+
+    const reset = await request(`/users/${target.body.user.id}/password-reset`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+    });
+    assert.equal(reset.response.status, 200);
+    assert.ok(reset.body.temporaryPassword);
+
+    const loginWithResetPassword = await login(target.body.user.email, reset.body.temporaryPassword);
+    assert.equal(loginWithResetPassword.response.status, 200);
+  });
+
+  test("reset de password administrativo rechaza usuario inactivo", async () => {
+    const auth = await login();
+    const target = await request("/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+      body: JSON.stringify({
+        firstName: "Reset",
+        paternalLastName: "Inactivo",
+        maternalLastName: "Demo",
+        fullName: "Reset Inactivo Demo",
+        email: `test.reset.inactive.${Date.now()}@itsmante.edu.mx`,
+        role: "operativo",
+        campusCode: "CAMPUS-CT",
+        areaAccess: { mode: "all", areaCodes: [] },
+        isActive: false,
+        notes: "",
+      }),
+    });
+    assert.equal(target.response.status, 201);
+
+    const reset = await request(`/users/${target.body.user.id}/password-reset`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+      },
+    });
+    assert.equal(reset.response.status, 409);
+    assert.equal(reset.body.code, "USER_INACTIVE");
+  });
+
   test("cambio de password propio", async () => {
     const auth = await login();
     const email = `test.profile.password.${Date.now()}@itsmante.edu.mx`;

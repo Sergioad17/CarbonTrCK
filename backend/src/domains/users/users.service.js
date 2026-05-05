@@ -5,9 +5,11 @@ import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 import {
   createUser,
   deleteUser,
+  listPermissionsCatalog,
   listRolesCatalog,
   listUsers,
   resetUserPassword,
+  updateRolePermissions,
   updateUser,
   updateUserStatus,
 } from "./users.repository.js";
@@ -48,10 +50,32 @@ export async function listRolesService(actor) {
   return listRolesCatalog(actor);
 }
 
+export async function listRolesPermissionsService(actor) {
+  const [roles, permissions] = await Promise.all([
+    listRolesCatalog(actor, { includeDetails: true }),
+    listPermissionsCatalog(),
+  ]);
+
+  return { roles, permissions };
+}
+
+export async function updateRolePermissionsService(actor, roleId, payload, auditContext) {
+  if (!Array.isArray(payload.permissions)) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "permissions must be an array.",
+    });
+  }
+
+  return updateRolePermissions(actor, roleId, payload.permissions, auditContext);
+}
+
 export async function createUserService(actor, payload, auditContext) {
   validateUserPayload(payload);
-  const temporaryPassword = payload.temporaryPassword || generateTemporaryPassword();
-  assertPasswordComplexity(temporaryPassword, await getSecurityConfigForOrganization(actor.organizationId));
+  const securityConfig = await getSecurityConfigForOrganization(actor.organizationId);
+  const temporaryPassword = payload.temporaryPassword || generateTemporaryPassword(securityConfig);
+  assertPasswordComplexity(temporaryPassword, securityConfig);
   return createUser(actor, { ...payload, temporaryPassword }, auditContext);
 }
 
@@ -77,5 +101,8 @@ export async function deleteUserService(actor, userId, auditContext) {
 }
 
 export async function resetUserPasswordService(actor, userId, auditContext) {
-  return resetUserPassword(actor, userId, auditContext);
+  const securityConfig = await getSecurityConfigForOrganization(actor.organizationId);
+  const temporaryPassword = generateTemporaryPassword(securityConfig);
+  assertPasswordComplexity(temporaryPassword, securityConfig);
+  return resetUserPassword(actor, userId, auditContext, temporaryPassword);
 }
