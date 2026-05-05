@@ -10,51 +10,199 @@ import {
   Save,
   RotateCcw,
   Clock3,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminTabs from "../components/AdminTabs";
 import AdminStatusBadge from "../components/AdminStatusBadge";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
 import {
-  roles as mockRoles,
-  permissionModules as basePermissionModules,
-  permissionActions,
-  permissionMatrix as basePermissionMatrix,
-} from "../mocks/adminMocks";
+  createRole,
+  deleteRole,
+  fetchRolesPermissions,
+  saveRolePermissions,
+} from "../../api/users";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
 const fm = "var(--eco-font-mono)";
 const MODULE_ACTIONS = {
-  audit: ["view", "export"],
-  dashboard: ["view", "export"],
+  audit: ["view", "edit"],
+  areas: ["view", "export"],
+  catalogs: ["view"],
+  dashboard: ["view"],
+  devices: ["view", "create", "edit", "delete", "export"],
+  electricity: ["view", "create", "delete", "export"],
+  emissions: ["view", "export"],
   equipment: ["view", "create", "edit", "export"],
+  factors: ["view", "create", "edit", "delete", "export"],
+  fuel: ["view", "create", "delete", "export"],
+  reports: ["view", "create", "export"],
+  settings: ["view", "edit"],
+  targets: ["view", "create", "edit", "delete", "validate", "export", "approve"],
+  users: ["view", "create", "edit", "delete", "export"],
+};
+const permissionActions = [
+  { id: "view", label: "Ver" },
+  { id: "create", label: "Crear" },
+  { id: "edit", label: "Editar" },
+  { id: "delete", label: "Eliminar" },
+  { id: "validate", label: "Validar" },
+  { id: "export", label: "Exportar" },
+  { id: "approve", label: "Aprobar" },
+];
+const MODULE_LABEL_OVERRIDES = {
+  audit: "Panel admin",
+  reports: "Reportes",
+  targets: "Metas",
 };
 const permissionModules = [
-  ...basePermissionModules.slice(0, 4),
+  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard" },
+  { id: "electricity", label: "Electricidad", icon: "Zap" },
+  { id: "fuel", label: "Combustible", icon: "Flame" },
+  { id: "areas", label: "Áreas", icon: "Building2" },
+  { id: "emissions", label: "Emisiones", icon: "Calculator" },
+  { id: "factors", label: "Factores", icon: "FlaskConical" },
   { id: "equipment", label: "Equipos", icon: "Monitor" },
-  ...basePermissionModules.slice(4),
+  { id: "devices", label: "Dispositivos", icon: "Cpu" },
+  { id: "targets", label: "Metas", icon: "Target" },
+  { id: "reports", label: "Reportes", icon: "FileBarChart" },
+  { id: "users", label: "Usuarios", icon: "Users" },
+  { id: "catalogs", label: "Catálogo", icon: "BookOpen" },
+  { id: "settings", label: "Configuración", icon: "SlidersHorizontal" },
+  { id: "audit", label: MODULE_LABEL_OVERRIDES.audit, icon: "ScrollText" },
 ];
-const permissionMatrix = {
-  admin: {
-    ...basePermissionMatrix.admin,
-    equipment: { view: "active", create: "active", edit: "active", delete: "blocked", validate: "blocked", export: "active", approve: "blocked" },
-  },
-  directivo: {
-    ...basePermissionMatrix.directivo,
-    equipment: { view: "active", create: "blocked", edit: "blocked", delete: "blocked", validate: "blocked", export: "active", approve: "blocked" },
-  },
-  operativo: {
-    ...basePermissionMatrix.operativo,
-    equipment: { view: "active", create: "active", edit: "active", delete: "blocked", validate: "blocked", export: "blocked", approve: "blocked" },
-  },
-  consulta: {
-    ...basePermissionMatrix.consulta,
-    equipment: { view: "active", create: "blocked", edit: "blocked", delete: "blocked", validate: "blocked", export: "blocked", approve: "blocked" },
-  },
+const ROLE_COLORS = ["#7C3AED", "#2563EB", "#059669", "#64748B", "#EA580C", "#0891B2", "#CA8A04", "#DC2626"];
+const LEGACY_PERMISSION_TO_UI = {
+  "records:create": ["electricity:create", "fuel:create"],
+  "records:delete_soft": ["electricity:delete", "fuel:delete"],
+  "records:approve": ["electricity:validate", "fuel:validate"],
+  "exports:run": ["electricity:export", "fuel:export", "areas:export", "emissions:export", "factors:export", "equipment:export", "devices:export", "targets:export", "reports:export", "users:export"],
+  "targets:manage": ["targets:create", "targets:edit", "targets:delete", "targets:validate", "targets:approve"],
+  "catalogs:manage": ["catalogs:view"],
+  "users:manage": ["users:create", "users:edit", "users:delete"],
 };
+const REMOVED_ROLE_PERMISSION_CODES = new Set([
+  "dashboard:export",
+  "electricity:edit",
+  "fuel:edit",
+  "ai:view",
+  "ai:create",
+  "ai:edit",
+  "ai:export",
+  "ai:approve",
+  "ml:run",
+  "ml:review_anomalies",
+]);
+const UI_PERMISSION_CODES = new Set(
+  permissionModules.flatMap((module) => (
+    getModulePermissionActions(module.id).map((action) => `${module.id}:${action.id}`)
+  )),
+);
+const LEGACY_PERMISSION_CODES = new Set(Object.keys(LEGACY_PERMISSION_TO_UI));
 
 function cloneMatrix(matrix) {
   return JSON.parse(JSON.stringify(matrix));
+}
+
+function buildModulePermissions(activeActions = []) {
+  const activeSet = new Set(activeActions);
+  return Object.fromEntries(permissionActions.map((action) => [
+    action.id,
+    activeSet.has(action.id) ? "active" : "blocked",
+  ]));
+}
+
+function buildEmptyRoleMatrix() {
+  return Object.fromEntries(permissionModules.map((module) => [
+    module.id,
+    buildModulePermissions([]),
+  ]));
+}
+
+function roleColor(role, index) {
+  return role.color || ROLE_COLORS[index % ROLE_COLORS.length];
+}
+
+function normalizeRoleForView(role, index) {
+  const key = String(role.key || role.value || role.name || role.label || "").toLowerCase();
+  const isLecturista = key === "consulta" || String(role.label || role.name || "").toLowerCase() === "solo lectura";
+
+  return {
+    id: String(role.id || key || `role-${index}`),
+    key,
+    label: isLecturista ? "Lecturista" : String(role.label || role.name || key || "Rol").trim(),
+    description: isLecturista
+      ? "Lectura y consulta de información operativa sin capacidad de edición."
+      : String(role.description || "Rol con permisos configurables.").trim(),
+    color: roleColor(role, index),
+    userCount: Number(role.userCount || 0),
+    enabled: role.enabled !== false,
+    isSystem: Boolean(role.isSystem),
+    permissions: Array.isArray(role.permissions) ? role.permissions.map(String) : [],
+  };
+}
+
+function permissionCode(moduleId, actionId) {
+  return `${moduleId}:${actionId}`;
+}
+
+function expandBackendPermissions(permissionCodes = []) {
+  const expanded = new Set(permissionCodes);
+
+  permissionCodes.forEach((code) => {
+    if (REMOVED_ROLE_PERMISSION_CODES.has(code)) return;
+    (LEGACY_PERMISSION_TO_UI[code] || []).forEach((uiCode) => expanded.add(uiCode));
+  });
+
+  return expanded;
+}
+
+function buildMatrixFromRoles(roles) {
+  return Object.fromEntries(roles.map((role) => {
+    const expandedPermissions = expandBackendPermissions(role.permissions);
+    return [
+      role.id,
+      Object.fromEntries(permissionModules.map((module) => [
+        module.id,
+        Object.fromEntries(permissionActions.map((action) => [
+          action.id,
+          expandedPermissions.has(permissionCode(module.id, action.id)) ? "active" : "blocked",
+        ])),
+      ])),
+    ];
+  }));
+}
+
+function matrixToPermissionCodes(roleMatrix = {}) {
+  const codes = [];
+
+  permissionModules.forEach((module) => {
+    getModulePermissionActions(module.id).forEach((action) => {
+      const status = roleMatrix[module.id]?.[action.id];
+      if (status === "active" || status === "inherited") {
+        codes.push(permissionCode(module.id, action.id));
+      }
+    });
+  });
+
+  return Array.from(new Set(codes));
+}
+
+function addOperationalBridgePermissions(codes) {
+  const codeSet = new Set(codes);
+  const hasAny = (items) => items.some((code) => codeSet.has(code));
+
+  if (hasAny(["electricity:create", "fuel:create"])) codeSet.add("records:create");
+  if (hasAny(["electricity:delete", "fuel:delete"])) codeSet.add("records:delete_soft");
+  if (hasAny(["electricity:validate", "fuel:validate"])) codeSet.add("records:approve");
+  if (Array.from(codeSet).some((code) => code.endsWith(":export"))) codeSet.add("exports:run");
+  if (hasAny(["targets:create", "targets:edit", "targets:delete", "targets:validate", "targets:approve"])) codeSet.add("targets:manage");
+  if (codeSet.has("catalogs:view")) codeSet.add("catalogs:manage");
+  if (hasAny(["users:create", "users:edit", "users:delete"])) codeSet.add("users:manage");
+
+  return Array.from(codeSet).filter((code) => !REMOVED_ROLE_PERMISSION_CODES.has(code)).sort();
 }
 
 function getModulePermissionActions(moduleId) {
@@ -129,11 +277,11 @@ function RoleCard({ role, active, dirty, onClick }) {
         boxShadow: active ? `0 0 0 3px ${role.color}20` : "none",
         position: "relative",
       }}
-      onMouseEnter={(event) => {
-        if (!active) event.currentTarget.style.borderColor = role.color;
-      }}
-      onMouseLeave={(event) => {
-        if (!active) event.currentTarget.style.borderColor = "var(--eco-border, #E2E8F0)";
+        onMouseEnter={(event) => {
+          if (!active) event.currentTarget.style.borderColor = role.color;
+        }}
+        onMouseLeave={(event) => {
+          if (!active) event.currentTarget.style.borderColor = "var(--eco-border, #E2E8F0)";
       }}
     >
       {dirty && (
@@ -213,22 +361,75 @@ function RoleCard({ role, active, dirty, onClick }) {
 }
 
 export default function RolesPage() {
-  const [activeRole, setActiveRole] = React.useState("admin");
-  const [savedMatrix, setSavedMatrix] = React.useState(() => cloneMatrix(permissionMatrix));
-  const [draftMatrix, setDraftMatrix] = React.useState(() => cloneMatrix(permissionMatrix));
+  const [rolesList, setRolesList] = React.useState([]);
+  const [activeRole, setActiveRole] = React.useState("");
+  const [savedMatrix, setSavedMatrix] = React.useState({});
+  const [draftMatrix, setDraftMatrix] = React.useState({});
   const [viewMode, setViewMode] = React.useState("summary");
   const [expandedModules, setExpandedModules] = React.useState({});
+  const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [lastSavedAt, setLastSavedAt] = React.useState(new Date().toISOString());
+  const [creatingRole, setCreatingRole] = React.useState(false);
+  const [roleForm, setRoleForm] = React.useState({
+    label: "",
+    description: "",
+    color: "#22C55E",
+    baseRoleId: "blank",
+  });
+  const [roleFormError, setRoleFormError] = React.useState("");
+  const [deleteRoleMessage, setDeleteRoleMessage] = React.useState("");
+  const [loadError, setLoadError] = React.useState("");
 
-  const role = mockRoles.find((item) => item.id === activeRole);
+  const applyRolesPayload = React.useCallback((payload, preferredRoleId = "") => {
+    const nextRoles = (payload.roles || []).map(normalizeRoleForView);
+    const nextMatrix = buildMatrixFromRoles(nextRoles);
+    setRolesList(nextRoles);
+    setSavedMatrix(cloneMatrix(nextMatrix));
+    setDraftMatrix(cloneMatrix(nextMatrix));
+    setActiveRole((current) => (
+      preferredRoleId && nextRoles.some((item) => item.id === preferredRoleId)
+        ? preferredRoleId
+        : nextRoles.some((item) => item.id === current)
+          ? current
+          : nextRoles[0]?.id || ""
+    ));
+    setLastSavedAt(new Date().toISOString());
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoles() {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const payload = await fetchRolesPermissions();
+        if (!cancelled) applyRolesPayload(payload);
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error?.payload?.message || error?.message || "No se pudo cargar roles y permisos.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadRoles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyRolesPayload]);
+
+  const role = rolesList.find((item) => item.id === activeRole);
   const rolePerms = draftMatrix[activeRole] || {};
 
   const dirtyRoleIds = React.useMemo(() => {
-    return mockRoles
+    return rolesList
       .filter((item) => !areEqualMatrix(draftMatrix[item.id], savedMatrix[item.id]))
       .map((item) => item.id);
-  }, [draftMatrix, savedMatrix]);
+  }, [rolesList, draftMatrix, savedMatrix]);
 
   const hasUnsavedChanges = dirtyRoleIds.length > 0;
   const roleHasUnsavedChanges = dirtyRoleIds.includes(activeRole);
@@ -267,19 +468,119 @@ export default function RolesPage() {
     }));
   }
 
-  function handleSaveChanges() {
+  async function handleSaveChanges() {
     if (!hasUnsavedChanges) return;
     setSaving(true);
-    setTimeout(() => {
-      setSavedMatrix(cloneMatrix(draftMatrix));
+    setLoadError("");
+    try {
+      const changedRoleIds = dirtyRoleIds;
+      let latestPayload = null;
+
+      for (const roleId of changedRoleIds) {
+        const roleSnapshot = rolesList.find((item) => item.id === roleId);
+        const hiddenPermissions = (roleSnapshot?.permissions || []).filter((code) => (
+          !UI_PERMISSION_CODES.has(code) && !LEGACY_PERMISSION_CODES.has(code) && !REMOVED_ROLE_PERMISSION_CODES.has(code)
+        ));
+        const permissions = addOperationalBridgePermissions([
+          ...matrixToPermissionCodes(draftMatrix[roleId]),
+          ...hiddenPermissions,
+        ]);
+        latestPayload = await saveRolePermissions(roleId, permissions);
+      }
+
+      if (latestPayload) {
+        applyRolesPayload(latestPayload, activeRole);
+      } else {
+        setSavedMatrix(cloneMatrix(draftMatrix));
+      }
       setLastSavedAt(new Date().toISOString());
+    } catch (error) {
+      setLoadError(error?.payload?.message || error?.message || "No se pudieron guardar los permisos.");
+    } finally {
       setSaving(false);
-    }, 450);
+    }
   }
 
   function handleRestoreChanges() {
     if (!hasUnsavedChanges) return;
     setDraftMatrix(cloneMatrix(savedMatrix));
+  }
+
+  async function handleCreateRole(event) {
+    event.preventDefault();
+    const label = roleForm.label.trim();
+    const description = roleForm.description.trim();
+
+    if (!label) {
+      setRoleFormError("Escribe el nombre del rol.");
+      return;
+    }
+
+    if (rolesList.some((item) => item.label.trim().toLowerCase() === label.toLowerCase())) {
+      setRoleFormError("Ya existe un rol con ese nombre.");
+      return;
+    }
+
+    const baseMatrix = roleForm.baseRoleId === "blank"
+      ? buildEmptyRoleMatrix()
+      : cloneMatrix(draftMatrix[roleForm.baseRoleId] || buildEmptyRoleMatrix());
+    const permissions = addOperationalBridgePermissions(matrixToPermissionCodes(baseMatrix));
+
+    setSaving(true);
+    try {
+      const payload = await createRole({
+        name: label,
+        description: description || "Rol personalizado con permisos configurables.",
+        color: roleForm.color,
+        permissions,
+      });
+      const createdRole = payload.roles.find((item) => String(item.label || item.name || "").toLowerCase() === label.toLowerCase());
+      applyRolesPayload(payload, createdRole?.id);
+      setCreatingRole(false);
+      setRoleForm({
+        label: "",
+        description: "",
+        color: "#22C55E",
+        baseRoleId: "blank",
+      });
+      setRoleFormError("");
+      setDeleteRoleMessage("");
+    } catch (error) {
+      setRoleFormError(error?.payload?.message || error?.message || "No se pudo crear el rol.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteRole() {
+    if (!role) return;
+
+    if (role.isSystem) {
+      setDeleteRoleMessage(`No se puede dar de baja el rol ${role.label} porque es un rol del sistema.`);
+      return;
+    }
+
+    if (role.userCount > 0) {
+      setDeleteRoleMessage(`No se puede dar de baja el rol ${role.label} porque tiene ${role.userCount} usuario${role.userCount === 1 ? "" : "s"} asignado${role.userCount === 1 ? "" : "s"}.`);
+      return;
+    }
+
+    if (rolesList.length <= 1) {
+      setDeleteRoleMessage("No se puede dar de baja el último rol disponible.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const deletedRoleLabel = role.label;
+      const payload = await deleteRole(role.id);
+      applyRolesPayload(payload);
+      setDeleteRoleMessage(`El rol ${deletedRoleLabel} fue dado de baja correctamente.`);
+    } catch (error) {
+      setDeleteRoleMessage(error?.payload?.message || error?.message || "No se pudo dar de baja el rol.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function countEnabled(moduleId) {
@@ -288,6 +589,10 @@ export default function RolesPage() {
       const value = permissions[action.id];
       return value === "active" || value === "inherited";
     }).length;
+  }
+
+  if (loading) {
+    return <AdminLoadingScreen />;
   }
 
   return (
@@ -303,19 +608,205 @@ export default function RolesPage() {
         saving={saving}
       />
 
+      {loadError && (
+        <div style={{
+          marginBottom: 16,
+          padding: "12px 14px",
+          borderRadius: 10,
+          border: "1px solid rgba(220,38,38,.2)",
+          background: "rgba(239,68,68,.08)",
+          color: "var(--eco-danger, #DC2626)",
+          fontFamily: fb,
+          fontSize: 12.5,
+          fontWeight: 600,
+        }}>
+          {loadError}
+        </div>
+      )}
+
+      <div style={{
+        marginBottom: 16,
+        display: "flex",
+        justifyContent: "flex-end",
+      }}>
+        <button
+          onClick={() => {
+            setCreatingRole((prev) => !prev);
+            setRoleFormError("");
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "9px 14px",
+            borderRadius: 8,
+            border: "none",
+            background: "var(--eco-primary-500, #22C55E)",
+            color: "#fff",
+            fontFamily: fb,
+            fontSize: 12.5,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} /> Crear rol
+        </button>
+      </div>
+
+      {creatingRole && (
+        <form
+          onSubmit={handleCreateRole}
+          style={{
+            marginBottom: 18,
+            padding: 18,
+            background: "var(--eco-card, #fff)",
+            border: "1px solid var(--eco-border, #E2E8F0)",
+            borderRadius: 12,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 12,
+            alignItems: "end",
+          }}
+        >
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft, #64748B)", textTransform: "uppercase" }}>
+              Nombre del rol
+            </span>
+            <input
+              value={roleForm.label}
+              onChange={(event) => {
+                setRoleForm((prev) => ({ ...prev, label: event.target.value }));
+                setRoleFormError("");
+              }}
+              placeholder="Ej. Supervisor"
+              style={{
+                height: 38,
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                padding: "0 12px",
+                fontFamily: fb,
+                fontSize: 13,
+                color: "var(--eco-text, #1E293B)",
+                background: "var(--eco-card, #fff)",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft, #64748B)", textTransform: "uppercase" }}>
+              Descripción
+            </span>
+            <input
+              value={roleForm.description}
+              onChange={(event) => setRoleForm((prev) => ({ ...prev, description: event.target.value }))}
+              placeholder="Describe el alcance del rol"
+              style={{
+                height: 38,
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                padding: "0 12px",
+                fontFamily: fb,
+                fontSize: 13,
+                color: "var(--eco-text, #1E293B)",
+                background: "var(--eco-card, #fff)",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft, #64748B)", textTransform: "uppercase" }}>
+              Color
+            </span>
+            <input
+              type="color"
+              value={roleForm.color}
+              onChange={(event) => setRoleForm((prev) => ({ ...prev, color: event.target.value }))}
+              style={{
+                height: 38,
+                width: "100%",
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                padding: 4,
+                background: "var(--eco-card, #fff)",
+                cursor: "pointer",
+              }}
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 700, color: "var(--eco-text-soft, #64748B)", textTransform: "uppercase" }}>
+              Permisos base
+            </span>
+            <select
+              value={roleForm.baseRoleId}
+              onChange={(event) => setRoleForm((prev) => ({ ...prev, baseRoleId: event.target.value }))}
+              style={{
+                height: 38,
+                borderRadius: 8,
+                border: "1px solid var(--eco-border, #E2E8F0)",
+                padding: "0 10px",
+                fontFamily: fb,
+                fontSize: 13,
+                color: "var(--eco-text, #1E293B)",
+                background: "var(--eco-card, #fff)",
+              }}
+            >
+              <option value="blank">Sin permisos</option>
+              {rolesList.map((item) => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            style={{
+              height: 38,
+              padding: "0 14px",
+              borderRadius: 8,
+              border: "none",
+              background: "var(--eco-primary-500, #22C55E)",
+              color: "#fff",
+              fontFamily: fb,
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Guardar rol
+          </button>
+
+          {roleFormError && (
+            <div style={{
+              gridColumn: "1 / -1",
+              fontFamily: fb,
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: "var(--eco-danger, #DC2626)",
+            }}>
+              {roleFormError}
+            </div>
+          )}
+        </form>
+      )}
+
       <div style={{
         display: "flex",
         gap: 12,
         marginBottom: 22,
         flexWrap: "wrap",
       }}>
-        {mockRoles.map((item) => (
+        {rolesList.map((item) => (
           <RoleCard
             key={item.id}
             role={item}
             active={activeRole === item.id}
             dirty={dirtyRoleIds.includes(item.id)}
-            onClick={() => setActiveRole(item.id)}
+            onClick={() => {
+              setActiveRole(item.id);
+              setDeleteRoleMessage("");
+            }}
           />
         ))}
       </div>
@@ -360,6 +851,19 @@ export default function RolesPage() {
           }}>
             {role?.description}
           </div>
+          {deleteRoleMessage && (
+            <div style={{
+              marginTop: 10,
+              fontFamily: fb,
+              fontSize: 12,
+              fontWeight: 600,
+              color: deleteRoleMessage.includes("correctamente")
+                ? "var(--eco-success, #16A34A)"
+                : "var(--eco-danger, #DC2626)",
+            }}>
+              {deleteRoleMessage}
+            </div>
+          )}
           <div style={{
             marginTop: 10,
             display: "flex",
@@ -379,6 +883,31 @@ export default function RolesPage() {
               minute: "2-digit",
             })}
           </div>
+          <button
+            onClick={handleDeleteRole}
+            title={role?.isSystem
+              ? "No se puede dar de baja un rol del sistema"
+              : role?.userCount > 0
+                ? "Solo se puede dar de baja un rol sin usuarios asignados"
+                : "Dar de baja rol"}
+            style={{
+              marginTop: 12,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid rgba(220,38,38,.25)",
+              background: role?.isSystem || role?.userCount > 0 ? "var(--eco-card-muted, #F8FAFC)" : "rgba(239,68,68,.08)",
+              color: role?.isSystem || role?.userCount > 0 ? "var(--eco-text-soft, #94A3B8)" : "var(--eco-danger, #DC2626)",
+              fontFamily: fb,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            <Trash2 size={13} /> Dar de baja rol
+          </button>
         </div>
 
         {[

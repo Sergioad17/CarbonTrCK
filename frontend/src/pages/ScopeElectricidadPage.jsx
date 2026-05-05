@@ -16,6 +16,7 @@ import { buildApiUrl } from "../api/config";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
 import { getSession } from "../lib/sessionStore";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -338,7 +339,7 @@ function Toast({ toast, onDismiss }) {
    MAIN PAGE COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 
-export default function Scope2Page({ onOpenRecord }) {
+export default function Scope2Page({ user, onOpenRecord }) {
   const today = new Date();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -362,7 +363,15 @@ export default function Scope2Page({ onOpenRecord }) {
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
   const PER_PAGE = 8;
-  const archivePermission = useMemo(() => canArchiveRecord(), []);
+  const archivePermission = useMemo(() => {
+    const base = canArchiveRecord();
+    if (!canUse(user, "electricity:delete")) {
+      return { ...base, allowed: false, message: "Tu rol no permite eliminar registros de electricidad." };
+    }
+    return base;
+  }, [user]);
+  const canCreate = canUse(user, "electricity:create");
+  const canExport = canUse(user, "electricity:export");
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -428,7 +437,7 @@ export default function Scope2Page({ onOpenRecord }) {
   const statusDonut = useMemo(() => { const re = filtered.filter(r => r.status === "real").length; const es = filtered.filter(r => r.status === "est").length; const t = re + es || 1; return [{ name: "Real", value: re, pct: Math.round((re / t) * 100), color: "#22C55E" }, { name: "Estimado", value: es, pct: Math.round((es / t) * 100), color: "#EAB308" }].filter(d => d.value > 0); }, [filtered]);
 
   const clearFilters = () => { setPeriodMode("todos"); setMonth(today.getMonth() + 1); setYear(today.getFullYear()); setFromDate(""); setToDate(""); setFArea(""); setFStatus(""); setFSource(""); setPage(0); setToast({ title: "Filtros reiniciados", message: "Se restauraron los filtros." }); };
-  const exportCsv = () => { const csv = buildCsv(filtered); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `scope2-electricidad-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url); setToast({ title: "Exportación lista", message: `${filtered.length} registros exportados.` }); };
+  const exportCsv = () => { if (!canExport) { denyAction(setToast, "Tu rol no permite exportar registros de electricidad."); return; } const csv = buildCsv(filtered); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `scope2-electricidad-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url); setToast({ title: "Exportación lista", message: `${filtered.length} registros exportados.` }); };
   const openTrace = row => { if (row) { setDrill(row); return; } if (filtered.length) { setDrill(filtered[0]); return; } setToast({ title: "Sin registros", message: "No hay registros para mostrar." }); };
   const openArchiveDialog = row => { if (!archivePermission.allowed) { setToast({ title: "Accion restringida", message: archivePermission.message }); return; } setArchiveDialog(row); };
   const handleArchiveConfirm = async ({ reason }) => {
@@ -483,8 +492,8 @@ export default function Scope2Page({ onOpenRecord }) {
             </div>
           </div>
           <div className="ct-hdr-acts" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={onOpenRecord} style={btnPrimary} onMouseEnter={e => { e.currentTarget.style.background = "var(--eco-primary-600)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseLeave={e => { e.currentTarget.style.background = "var(--eco-primary-500)"; e.currentTarget.style.transform = "translateY(0)"; }}><Plus size={14} />Nuevo registro</button>
-            <button onClick={exportCsv} style={btnSec} onMouseEnter={hoverSec} onMouseLeave={leaveSec}><Download size={14} />Exportar</button>
+            <button onClick={() => { if (!canCreate) { denyAction(setToast, "Tu rol no permite crear registros de electricidad."); return; } onOpenRecord?.(); }} style={disabledActionStyle(canCreate, btnPrimary)} onMouseEnter={e => { if (!canCreate) return; e.currentTarget.style.background = "var(--eco-primary-600)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseLeave={e => { e.currentTarget.style.background = "var(--eco-primary-500)"; e.currentTarget.style.transform = "translateY(0)"; }}><Plus size={14} />Nuevo registro</button>
+            <button onClick={exportCsv} style={disabledActionStyle(canExport, btnSec)} onMouseEnter={e => { if (canExport) hoverSec(e); }} onMouseLeave={leaveSec}><Download size={14} />Exportar</button>
             <button onClick={() => openTrace()} style={btnSec} onMouseEnter={hoverSec} onMouseLeave={leaveSec}><Eye size={14} />Trazabilidad</button>
           </div>
         </div>

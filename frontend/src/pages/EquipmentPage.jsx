@@ -30,6 +30,7 @@ import EquipmentModal, {
   validateEquipmentForm,
 } from "../components/EquipmentModal";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 import { createNotification } from "../api/notifications";
 import {
   EQUIPMENT_AREA_OPTIONS,
@@ -277,21 +278,25 @@ function IconActionButton({ label, onClick, icon, tone }) {
   const toneColors = {
     danger: { hover: "var(--eco-danger-bg, #FEE2E2)", color: "var(--eco-danger)", border: "#FECACA" },
     success: { hover: "var(--eco-success-bg)", color: "var(--eco-success)", border: "#BBF7D0" },
+    disabled: { hover: "var(--eco-card)", color: "var(--eco-gray-300)", border: "var(--eco-border)" },
   };
   const t = toneColors[tone];
+  const disabled = tone === "disabled";
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       title={label}
-      style={iconButtonStyle}
+      style={{ ...iconButtonStyle, color: disabled ? "var(--eco-gray-300)" : iconButtonStyle.color, cursor: disabled ? "not-allowed" : iconButtonStyle.cursor }}
       onMouseEnter={(event) => {
+        if (disabled) return;
         event.currentTarget.style.borderColor = t ? t.border : "var(--eco-primary-300)";
         event.currentTarget.style.color = t ? t.color : "var(--eco-primary-600)";
         event.currentTarget.style.background = t ? t.hover : "var(--eco-primary-50)";
       }}
       onMouseLeave={(event) => {
+        if (disabled) return;
         event.currentTarget.style.borderColor = "var(--eco-border)";
         event.currentTarget.style.color = "var(--eco-gray-500)";
         event.currentTarget.style.background = "var(--eco-card)";
@@ -711,7 +716,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
 /* ---------------------------------------------------------------
    MAIN PAGE
    --------------------------------------------------------------- */
-export default function EquipmentPage() {
+export default function EquipmentPage({ user }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -728,6 +733,9 @@ export default function EquipmentPage() {
   const [modalState, setModalState] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [detailState, setDetailState] = useState(null);
+  const canCreate = canUse(user, "equipment:create");
+  const canEdit = canUse(user, "equipment:edit");
+  const canExport = canUse(user, "equipment:export");
 
   const loadEquipment = useCallback(async () => {
     try {
@@ -793,10 +801,18 @@ export default function EquipmentPage() {
   }, [filters]);
 
   const openCreate = () => {
+    if (!canCreate) {
+      denyAction(setToast, "Tu rol no permite crear equipos.");
+      return;
+    }
     setModalState({ equipment: null, form: createEmptyEquipmentForm(), errors: {}, saving: false });
   };
 
   const openEdit = (equipment) => {
+    if (!canEdit) {
+      denyAction(setToast, "Tu rol no permite editar equipos.");
+      return;
+    }
     setModalState({ equipment, form: createEmptyEquipmentForm(equipment), errors: {}, saving: false });
   };
 
@@ -834,6 +850,10 @@ export default function EquipmentPage() {
   };
 
   const toggleActive = async (equipment) => {
+    if (!canEdit) {
+      denyAction(setToast, "Tu rol no permite editar equipos.");
+      return;
+    }
     const next = await updateEquipmentStatus(equipment.id, !equipment.isActive).catch(() => null);
     if (!next) {
       setError("No se pudo actualizar el estado del equipo.");
@@ -848,6 +868,10 @@ export default function EquipmentPage() {
   };
 
   const handleDuplicate = async (equipment) => {
+    if (!canCreate) {
+      denyAction(setToast, "Tu rol no permite crear equipos.");
+      return;
+    }
     const result = await duplicateEquipment(equipment.id).catch(() => ({ ok: false }));
     if (!result.ok) return;
     setItems(result.items);
@@ -855,6 +879,10 @@ export default function EquipmentPage() {
   };
 
   const exportCsv = () => {
+    if (!canExport) {
+      denyAction(setToast, "Tu rol no permite exportar equipos.");
+      return;
+    }
     exportRowsToCsv({
       filename: `equipment-${new Date().toISOString().slice(0, 10)}.csv`,
       rows: filtered.map((item) => ({
@@ -969,15 +997,16 @@ export default function EquipmentPage() {
               <Upload size={14} />
               Importar
             </button>
-            <button type="button" onClick={exportCsv} style={secondaryButtonStyle}>
+            <button type="button" onClick={exportCsv} style={disabledActionStyle(canExport, secondaryButtonStyle)}>
               <Download size={14} />
               Exportar
             </button>
             <button
               type="button"
               onClick={openCreate}
-              style={primaryButtonStyle}
+              style={disabledActionStyle(canCreate, primaryButtonStyle)}
               onMouseEnter={(e) => {
+                if (!canCreate) return;
                 e.currentTarget.style.transform = "translateY(-1px)";
                 e.currentTarget.style.boxShadow = "0 6px 16px rgba(34,197,94,.22)";
               }}
@@ -1356,13 +1385,13 @@ export default function EquipmentPage() {
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <IconActionButton label="Ver detalle" onClick={() => openDetail(equipment)} icon={<Eye size={14} />} />
-                            <IconActionButton label="Editar" onClick={() => openEdit(equipment)} icon={<Pencil size={14} />} />
-                            <IconActionButton label="Duplicar" onClick={() => handleDuplicate(equipment)} icon={<Copy size={14} />} />
+                            <IconActionButton label="Editar" onClick={() => openEdit(equipment)} icon={<Pencil size={14} />} tone={canEdit ? undefined : "disabled"} />
+                            <IconActionButton label="Duplicar" onClick={() => handleDuplicate(equipment)} icon={<Copy size={14} />} tone={canCreate ? undefined : "disabled"} />
                             <IconActionButton
                               label={equipment.isActive ? "Desactivar" : "Activar"}
                               onClick={() => toggleActive(equipment)}
                               icon={<Power size={14} />}
-                              tone={equipment.isActive ? "danger" : "success"}
+                              tone={!canEdit ? "disabled" : equipment.isActive ? "danger" : "success"}
                             />
                           </div>
                         </td>

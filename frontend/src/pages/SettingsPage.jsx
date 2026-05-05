@@ -24,6 +24,7 @@ import { getBindingsMap } from "../lib/deviceBinding";
 import { fetchDefaultFactorValue } from "../api/factors";
 import { applySettings, fetchSettings, normalizeSettings, persistSettings, resetSettings } from "../api/settings";
 import { isBackendConfigured } from "../api/config";
+import { canUse } from "../lib/permissions";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -425,7 +426,7 @@ function StyledSelect(props) {
 /* ═══════════════════════════════════════════════════════
    SettingsPage
    ═══════════════════════════════════════════════════════ */
-export default function SettingsPage() {
+export default function SettingsPage({ user }) {
   const navigate = useNavigate();
   const saveTimerRef = useRef(null);
   const initializedRef = useRef(false);
@@ -439,6 +440,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const savedTimerRef = useRef(null);
+  const canEditSettings = canUse(user, "settings:edit");
 
   useEffect(() => {
     let active = true;
@@ -486,6 +488,10 @@ export default function SettingsPage() {
 
   const handleManualSave = async () => {
     if (!dirty || saving) return;
+    if (!canEditSettings) {
+      setToast({ tone: "info", title: "Permiso insuficiente", message: "Tu rol no permite realizar esta acción." });
+      return;
+    }
     setSaving(true);
     window.clearTimeout(saveTimerRef.current);
     window.clearTimeout(savedTimerRef.current);
@@ -526,6 +532,10 @@ export default function SettingsPage() {
   }, [settings]);
 
   const updateSettings = (updater) => {
+    if (!canEditSettings) {
+      setToast({ tone: "info", title: "Permiso insuficiente", message: "Tu rol no permite realizar esta acción." });
+      return;
+    }
     setSettings((current) => {
       const next = normalizeSettings(typeof updater === "function" ? updater(current) : updater);
       applySettings(next);
@@ -534,6 +544,10 @@ export default function SettingsPage() {
   };
 
   const restoreDefaults = async () => {
+    if (!canEditSettings) {
+      setToast({ tone: "info", title: "Permiso insuficiente", message: "Tu rol no permite realizar esta acción." });
+      return;
+    }
     try {
       const next = await resetSettings();
       setSettings(next);
@@ -636,10 +650,10 @@ export default function SettingsPage() {
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <ActionButton type="button" tone="primary" icon={saving ? null : Check} onClick={handleManualSave} disabled={!dirty || saving}>
+            <ActionButton type="button" tone="primary" icon={saving ? null : Check} onClick={handleManualSave} disabled={!dirty || saving || !canEditSettings}>
               {saving ? "Guardando..." : "Guardar cambios"}
             </ActionButton>
-            <ActionButton type="button" icon={RefreshCcw} onClick={restoreDefaults}>
+            <ActionButton type="button" icon={RefreshCcw} onClick={restoreDefaults} disabled={!canEditSettings}>
               Restablecer preferencias
             </ActionButton>
           </div>
@@ -667,7 +681,7 @@ export default function SettingsPage() {
               <p style={{ margin: 0, fontFamily: fd, fontSize: 15, fontWeight: 700, color: "var(--eco-danger)" }}>Error de configuración</p>
               <p style={{ ...subtleText, color: "var(--eco-danger)", marginTop: 4, opacity: 0.85 }}>{error}</p>
             </div>
-            <ActionButton type="button" tone="danger" icon={RefreshCcw} onClick={restoreDefaults}>Usar valores por defecto</ActionButton>
+            <ActionButton type="button" tone="danger" icon={RefreshCcw} onClick={restoreDefaults} disabled={!canEditSettings}>Usar valores por defecto</ActionButton>
           </div>
         )}
 

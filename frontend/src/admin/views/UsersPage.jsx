@@ -28,6 +28,7 @@ import { exportRowsToCsv } from "../../lib/csvExport";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../../api/profileRequests";
 import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../../api/users";
 import { fetchAreas } from "../../api/areas";
+import { canUse, disabledActionStyle } from "../../lib/permissions";
 
 const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
 
@@ -213,7 +214,7 @@ function RoleBadge({ role }) {
   );
 }
 
-function AdminActionButton({ icon: Icon, label, onClick, accent = "default" }) {
+function AdminActionButton({ icon: Icon, label, onClick, accent = "default", disabled = false }) {
   const styles = {
     default: {
       border: "1px solid var(--eco-border, #E2E8F0)",
@@ -252,7 +253,7 @@ function AdminActionButton({ icon: Icon, label, onClick, accent = "default" }) {
   return (
     <button
       onClick={onClick}
-      style={{
+      style={disabledActionStyle(!disabled, {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
@@ -266,11 +267,13 @@ function AdminActionButton({ icon: Icon, label, onClick, accent = "default" }) {
         transition: "all .12s",
         whiteSpace: "nowrap",
         ...style,
-      }}
+      })}
       onMouseEnter={(event) => {
+        if (disabled) return;
         event.currentTarget.style.background = style.hover;
       }}
       onMouseLeave={(event) => {
+        if (disabled) return;
         event.currentTarget.style.background = style.background;
       }}
     >
@@ -969,7 +972,7 @@ function ResetPasswordModal({ user, tempPassword, loading = false, onCancel, onC
   );
 }
 
-export default function UsersPage() {
+export default function UsersPage({ user }) {
   const [usersList, setUsersList] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState(null);
@@ -986,6 +989,18 @@ export default function UsersPage() {
   const [roleOptions, setRoleOptions] = React.useState([]);
   const [campusOptions, setCampusOptions] = React.useState([]);
   const [areaOptions, setAreaOptions] = React.useState([]);
+  const canCreateUser = canUse(user, "users:create");
+  const canEditUser = canUse(user, "users:edit");
+  const canDeleteUser = canUse(user, "users:delete");
+  const canExportUser = canUse(user, "users:export");
+
+  function denyUserAction() {
+    setFeedback({
+      tone: "info",
+      title: "Permiso insuficiente",
+      message: "Tu rol no permite realizar esta acción.",
+    });
+  }
 
   const reloadUsers = React.useCallback(async () => {
     setLoading(true);
@@ -1083,6 +1098,10 @@ export default function UsersPage() {
   }
 
   function openCreateModal() {
+    if (!canCreateUser) {
+      denyUserAction();
+      return;
+    }
     setFormState({
       user: null,
       form: emptyUserForm(),
@@ -1099,6 +1118,10 @@ export default function UsersPage() {
   }
 
   function openEditModal(user) {
+    if (!canEditUser) {
+      denyUserAction();
+      return;
+    }
     setDrawerUser(null);
     setFormState({
       user,
@@ -1135,6 +1158,14 @@ export default function UsersPage() {
     event.preventDefault();
     if (!formState) return;
     const { user, form } = formState;
+    if (user && !canEditUser) {
+      denyUserAction();
+      return;
+    }
+    if (!user && !canCreateUser) {
+      denyUserAction();
+      return;
+    }
     const errors = validateForm(form, user?.id);
     if (Object.keys(errors).length > 0) {
       setFormState((prev) => (prev ? { ...prev, errors } : prev));
@@ -1209,6 +1240,11 @@ export default function UsersPage() {
   }
 
   async function handleToggleStatus(user) {
+    if (!canDeleteUser) {
+      denyUserAction();
+      setConfirmAction(null);
+      return;
+    }
     const nextActive = user.status !== "active";
     try {
       const apiUsers = await updateUserStatus({ id: user.id }, nextActive);
@@ -1237,6 +1273,11 @@ export default function UsersPage() {
 
   async function handleDeleteUser(user) {
     if (!user?.id) return;
+    if (!canDeleteUser) {
+      denyUserAction();
+      setConfirmAction(null);
+      return;
+    }
     try {
       const apiUsers = await deleteUser(user.id);
       const mappedUsers = (apiUsers || []).map((item) => mapApiUser(item, campusOptions)).filter(Boolean);
@@ -1267,11 +1308,19 @@ export default function UsersPage() {
   }
 
   function openPasswordReset(user) {
+    if (!canEditUser) {
+      denyUserAction();
+      return;
+    }
     setPasswordResetState({ user, password: "", loading: false });
   }
 
   async function handleResetPassword() {
     if (!passwordResetState.user) return;
+    if (!canEditUser) {
+      denyUserAction();
+      return;
+    }
     setPasswordResetState((prev) => ({ ...prev, loading: true }));
     try {
       const result = await resetUserPassword(passwordResetState.user.id);
@@ -1356,6 +1405,10 @@ export default function UsersPage() {
   }
 
   function handleExportCsv() {
+    if (!canExportUser) {
+      denyUserAction();
+      return;
+    }
     exportRowsToCsv({
       filename: `carbontrack-admin-usuarios-${new Date().toISOString().slice(0, 10)}.csv`,
       rows: filtered,
@@ -1467,6 +1520,7 @@ export default function UsersPage() {
           <AdminActionButton
             icon={Edit3}
             label="Editar"
+            disabled={!canEditUser}
             onClick={(event) => {
               event.stopPropagation();
               openEditModal(row);
@@ -1476,6 +1530,7 @@ export default function UsersPage() {
             icon={KeyRound}
             label="Clave"
             accent="warning"
+            disabled={!canEditUser}
             onClick={(event) => {
               event.stopPropagation();
               openPasswordReset(row);
@@ -1485,9 +1540,11 @@ export default function UsersPage() {
             icon={Trash2}
             label="Eliminar"
             accent="danger"
+            disabled={!canDeleteUser}
             onClick={(event) => {
               event.stopPropagation();
-              setConfirmAction({ type: "delete", user: row });
+              if (!canDeleteUser) denyUserAction();
+              else setConfirmAction({ type: "delete", user: row });
             }}
           />
         </div>
@@ -1511,10 +1568,10 @@ export default function UsersPage() {
         breadcrumb={["Operación", "Usuarios"]}
         actions={(
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={openCreateModal} style={primaryHeaderBtn}>
+            <button onClick={openCreateModal} style={disabledActionStyle(canCreateUser, primaryHeaderBtn)}>
               <UserPlus size={14} /> Nuevo usuario
             </button>
-            <button onClick={handleExportCsv} style={secondaryHeaderBtn}>
+            <button onClick={handleExportCsv} style={disabledActionStyle(canExportUser, secondaryHeaderBtn)}>
               <Download size={14} /> Exportar CSV
             </button>
             <button onClick={() => setRequestsOpen(true)} style={secondaryHeaderBtn}>
@@ -1619,19 +1676,21 @@ export default function UsersPage() {
         width={470}
         actions={drawerUser && (
           <>
-            <AdminActionButton icon={Edit3} label="Editar" onClick={() => openEditModal(drawerUser)} />
-            <AdminActionButton icon={KeyRound} label="Restablecer clave" accent="warning" onClick={() => openPasswordReset(drawerUser)} />
+            <AdminActionButton icon={Edit3} label="Editar" disabled={!canEditUser} onClick={() => openEditModal(drawerUser)} />
+            <AdminActionButton icon={KeyRound} label="Restablecer clave" accent="warning" disabled={!canEditUser} onClick={() => openPasswordReset(drawerUser)} />
             <AdminActionButton
               icon={Trash2}
               label="Eliminar"
               accent="danger"
-              onClick={() => setConfirmAction({ type: "delete", user: drawerUser })}
+              disabled={!canDeleteUser}
+              onClick={() => { if (!canDeleteUser) denyUserAction(); else setConfirmAction({ type: "delete", user: drawerUser }); }}
             />
             <AdminActionButton
               icon={drawerUser.status === "active" ? UserMinus : ToggleRight}
               label={drawerUser.status === "active" ? "Dar de baja" : "Reactivar"}
               accent={drawerUser.status === "active" ? "danger" : "success"}
-              onClick={() => setConfirmAction({ type: "toggle", user: drawerUser })}
+              disabled={!canDeleteUser}
+              onClick={() => { if (!canDeleteUser) denyUserAction(); else setConfirmAction({ type: "toggle", user: drawerUser }); }}
             />
           </>
         )}

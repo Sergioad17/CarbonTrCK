@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, BarChart3, Building2, Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, ExternalLink, Eye, FileX, Filter, Flame, Leaf, Paperclip, Plus, RotateCcw, TrendingDown, TrendingUp, Minus, X, Zap } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart as RPieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { fetchAreasRecords } from "../api/areas";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd = "var(--eco-font-display)", fb = "var(--eco-font-body)", fm = "var(--eco-font-mono)";
 const MONTHS_ES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -222,7 +223,7 @@ const lS = e => { e.currentTarget.style.borderColor = "var(--eco-border)"; e.cur
 /* ═══════════════════════════════════════════════════════════════
    SHARED FILTERS + HEADER
    ═══════════════════════════════════════════════════════════════ */
-function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, onTrace, filters, setFilters, showFuelFilter, onClear, filtersOpen, setFiltersOpen, activeFC }) {
+function FiltersHeader({ title, titleIcon, microcopy, onExport, onTrace, filters, setFilters, showFuelFilter, onClear, filtersOpen, setFiltersOpen, activeFC, canExport }) {
   return (<>
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 20, animation: "ctUp .4s cubic-bezier(.33,1,.68,1)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -230,8 +231,7 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
         <div><h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-gray-900)", letterSpacing: "-0.02em" }}>{title}</h1><p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 13, color: "var(--eco-gray-500)" }}>{microcopy}</p></div>
       </div>
       <div className="ct-hdr-a" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button onClick={onOpenRecord} style={btnP} onMouseEnter={e => { e.currentTarget.style.background = "var(--eco-primary-600)"; e.currentTarget.style.transform = "translateY(-1px)"; }} onMouseLeave={e => { e.currentTarget.style.background = "var(--eco-primary-500)"; e.currentTarget.style.transform = "translateY(0)"; }}><Plus size={14} />Nuevo registro</button>
-        <button onClick={onExport} style={btnS} onMouseEnter={hS} onMouseLeave={lS}><Download size={14} />Exportar</button>
+        <button onClick={onExport} style={disabledActionStyle(canExport, btnS)} onMouseEnter={e => { if (canExport) hS(e); }} onMouseLeave={lS}><Download size={14} />Exportar</button>
         <button onClick={onTrace} style={btnS} onMouseEnter={hS} onMouseLeave={lS}><Eye size={14} />Trazabilidad</button>
       </div>
     </div>
@@ -261,11 +261,12 @@ function FiltersHeader({ title, titleIcon, microcopy, onOpenRecord, onExport, on
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════ */
-export default function AreasPage({ onOpenRecord }) {
+export default function AreasPage({ user, onOpenRecord }) {
   const navigate = useNavigate(), location = useLocation(), today = new Date();
   const [records, setRecords] = useState([]); const [areas, setAreas] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [toast, setToast] = useState(null); const [drill, setDrill] = useState(null);
   const [filters, setFilters] = useState({ periodMode: "todos", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", areaId: "", fuelType: "" });
   const [filtersOpen, setFiltersOpen] = useState(true); const [hovRow, setHovRow] = useState(null);
+  const canExport = canUse(user, "areas:export");
 
   const areaId = useMemo(() => { const m = location.pathname.match(/^\/areas\/([^/]+)/); return m ? m[1] : null; }, [location.pathname]);
   const isDetail = Boolean(areaId); const activeArea = areas.find(a => a.code === areaId) || null;
@@ -314,10 +315,10 @@ export default function AreasPage({ onOpenRecord }) {
   const sortedDR = useMemo(() => [...detailF].sort((a, b) => b.dateISO.localeCompare(a.dateISO)), [detailF]);
 
   const clearF = () => setFilters(p => ({ ...p, periodMode: "todos", month: today.getMonth() + 1, year: today.getFullYear(), fromDate: "", toDate: "", category: "", status: "", source: "", fuelType: "" }));
-  const exportCur = () => { const rows = isDetail ? sortedDR : listF; const name = isDetail ? `areas-${areaId}-${new Date().toISOString().slice(0, 10)}.csv` : `areas-resumen-${new Date().toISOString().slice(0, 10)}.csv`; dlCsv(name, rows); setToast({ title: "Exportación", message: "CSV exportado." }); };
+  const exportCur = () => { if (!canExport) { denyAction(setToast, "Tu rol no permite exportar información de áreas."); return; } const rows = isDetail ? sortedDR : listF; const name = isDetail ? `areas-${areaId}-${new Date().toISOString().slice(0, 10)}.csv` : `areas-resumen-${new Date().toISOString().slice(0, 10)}.csv`; dlCsv(name, rows); setToast({ title: "Exportación", message: "CSV exportado." }); };
   const openTrace = (row = null) => setDrill({ row: row || curRows[0] || null });
   const navCat = cat => { navigate(cat === "combustible" ? "/scope/combustible" : "/scope/electricidad"); setDrill(null); };
-  const fhProps = { onOpenRecord, onExport: exportCur, onTrace: () => openTrace(null), filters, setFilters, onClear: clearF, filtersOpen, setFiltersOpen, activeFC };
+  const fhProps = { onOpenRecord, onExport: exportCur, onTrace: () => openTrace(null), filters, setFilters, onClear: clearF, filtersOpen, setFiltersOpen, activeFC, canExport };
 
   /* ═══ LIST VIEW ═══ */
   const renderList = () => (<>

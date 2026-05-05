@@ -67,6 +67,7 @@ import {
 import { archiveEmissionRecord, fetchEmissionRecords } from "../api/records";
 import RecordArchiveDialog from "../components/RecordArchiveDialog";
 import { buildArchiveAuditPayload, canArchiveRecord } from "../lib/recordArchive";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd = "var(--eco-font-display)",
   fb = "var(--eco-font-body)",
@@ -791,6 +792,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   const [toast, setToast] = useState(null);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const canExport = canUse(user, "emissions:export");
   const [archiveDialog, setArchiveDialog] = useState(null);
   const [archivingId, setArchivingId] = useState("");
   const [removingIds, setRemovingIds] = useState([]);
@@ -987,6 +989,10 @@ export default function EmissionsPage({ user, onOpenRecord }) {
 
   /* ─── CSV export ─── */
   const exportCSV = () => {
+    if (!canExport) {
+      denyAction(setToast, "Tu rol no permite exportar emisiones.");
+      return;
+    }
     const hdr = ["Fecha", "Área", "Categoría", "Actividad", "Valor", "Unidad", "Factor", "CO₂e (kg)", "CO₂e (t)", "Estado", "Fuente", "Capturó"];
     const rows = filtered.map(r =>
       [
@@ -1080,7 +1086,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
               onClick={exportCSV}
-              style={{
+              style={disabledActionStyle(canExport, {
                 height: 34,
                 padding: "0 12px",
                 borderRadius: "var(--eco-radius-md)",
@@ -1095,8 +1101,9 @@ export default function EmissionsPage({ user, onOpenRecord }) {
                 alignItems: "center",
                 gap: 6,
                 transition: "all 150ms",
-              }}
+              })}
               onMouseEnter={e => {
+                if (!canExport) return;
                 e.currentTarget.style.borderColor = "var(--eco-primary-300)";
                 e.currentTarget.style.background = "var(--eco-primary-50)";
               }}
@@ -1109,37 +1116,6 @@ export default function EmissionsPage({ user, onOpenRecord }) {
               Exportar CSV
             </button>
 
-            <button
-              onClick={() => onOpenRecord?.()}
-              style={{
-                height: 34,
-                padding: "0 14px",
-                borderRadius: "var(--eco-radius-md)",
-                background: "var(--eco-primary-500)",
-                color: "white",
-                border: "none",
-                fontFamily: fb,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                boxShadow: "var(--eco-shadow-sm)",
-                transition: "all 150ms",
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "var(--eco-primary-600)";
-                e.currentTarget.style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "var(--eco-primary-500)";
-                e.currentTarget.style.transform = "translateY(0)";
-              }}
-            >
-              <Plus size={14} />
-              Nuevo registro
-            </button>
           </div>
         </div>
 

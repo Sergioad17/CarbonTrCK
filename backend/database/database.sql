@@ -209,6 +209,7 @@ CREATE TABLE roles (
   organization_id uuid NOT NULL REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
   name varchar(80) NOT NULL,
   description text,
+  color varchar(20),
   is_system boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT roles_id_organization_uq UNIQUE (id,organization_id),

@@ -34,6 +34,7 @@ import FactorModal, {
   scopeOptions,
 } from "../components/FactorModal";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 import {
   createNotification,
 } from "../api/notifications";
@@ -337,8 +338,10 @@ function IconActionButton({ label, onClick, icon, tone }) {
   const toneColors = {
     danger: { hover: "var(--eco-danger-bg, #FEE2E2)", color: "var(--eco-danger)", border: "#FECACA" },
     success: { hover: "var(--eco-success-bg)", color: "var(--eco-success)", border: "#BBF7D0" },
+    disabled: { hover: "var(--eco-card)", color: "var(--eco-gray-300)", border: "var(--eco-border)" },
   };
   const t = toneColors[tone];
+  const disabled = tone === "disabled";
   return (
     <button
       type="button"
@@ -351,19 +354,21 @@ function IconActionButton({ label, onClick, icon, tone }) {
         borderRadius: "var(--eco-radius-sm)",
         border: "1px solid var(--eco-border)",
         background: "var(--eco-card)",
-        color: "var(--eco-gray-500)",
-        cursor: "pointer",
+        color: disabled ? "var(--eco-gray-300)" : "var(--eco-gray-500)",
+        cursor: disabled ? "not-allowed" : "pointer",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         transition: "all 140ms",
       }}
       onMouseEnter={(event) => {
+        if (disabled) return;
         event.currentTarget.style.borderColor = t ? t.border : "var(--eco-primary-300)";
         event.currentTarget.style.color = t ? t.color : "var(--eco-primary-600)";
         event.currentTarget.style.background = t ? t.hover : "var(--eco-primary-50)";
       }}
       onMouseLeave={(event) => {
+        if (disabled) return;
         event.currentTarget.style.borderColor = "var(--eco-border)";
         event.currentTarget.style.color = "var(--eco-gray-500)";
         event.currentTarget.style.background = "var(--eco-card)";
@@ -768,7 +773,7 @@ function PageSkeleton() {
 /* ---------------------------------------------------------------
    MAIN PAGE
    --------------------------------------------------------------- */
-export default function FactorsPage() {
+export default function FactorsPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [factors, setFactors] = useState([]);
@@ -784,6 +789,10 @@ export default function FactorsPage() {
     onlyActive: true,
     onlyCurrent: true,
   });
+  const canCreate = canUse(user, "factors:create");
+  const canEdit = canUse(user, "factors:edit");
+  const canDelete = canUse(user, "factors:delete");
+  const canExport = canUse(user, "factors:export");
 
   const loadFactors = async () => {
     try {
@@ -821,6 +830,10 @@ export default function FactorsPage() {
   }, [factors]);
 
   const openCreate = () => {
+    if (!canCreate) {
+      denyAction(setToast, "Tu rol no permite crear factores.");
+      return;
+    }
     const setForm = (updater) => setModalState((prev) => {
       const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
       return { ...prev, form: nextForm };
@@ -829,6 +842,10 @@ export default function FactorsPage() {
   };
 
   const openEdit = async (factor, mode = "newVersion") => {
+    if (!canEdit) {
+      denyAction(setToast, "Tu rol no permite editar factores.");
+      return;
+    }
     const usageCount = await fetchFactorUsageCount(factor.id).catch(() => 0);
     const setForm = (updater) => setModalState((prev) => {
       const nextForm = typeof updater === "function" ? updater(prev.form) : updater;
@@ -996,6 +1013,10 @@ export default function FactorsPage() {
   };
 
   const toggleActive = async (factor) => {
+    if (!canDelete) {
+      denyAction(setToast, "Tu rol no permite desactivar factores.");
+      return;
+    }
     const next = await updateFactorStatus(factor.id, !factor.isActive).catch(() => null);
     if (!next) {
       setToast({ title: "No se pudo actualizar", message: "Intenta de nuevo en un momento." });
@@ -1006,6 +1027,10 @@ export default function FactorsPage() {
   };
 
   const exportCsv = () => {
+    if (!canExport) {
+      denyAction(setToast, "Tu rol no permite exportar factores.");
+      return;
+    }
     exportRowsToCsv({
       filename: `factors-${todayIso()}.csv`,
       rows: filtered,
@@ -1105,15 +1130,16 @@ export default function FactorsPage() {
               <Upload size={14} />
               Importar
             </button>
-            <button type="button" onClick={exportCsv} style={secondaryButtonStyle}>
+            <button type="button" onClick={exportCsv} style={disabledActionStyle(canExport, secondaryButtonStyle)}>
               <Download size={14} />
               Exportar
             </button>
             <button
               type="button"
               onClick={openCreate}
-              style={primaryButtonStyle}
+              style={disabledActionStyle(canCreate, primaryButtonStyle)}
               onMouseEnter={(e) => {
+                if (!canCreate) return;
                 e.currentTarget.style.transform = "translateY(-1px)";
                 e.currentTarget.style.boxShadow = "0 6px 16px rgba(34,197,94,.22)";
               }}
@@ -1500,8 +1526,8 @@ export default function FactorsPage() {
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <IconActionButton label="Ver detalle" onClick={() => setSelectedFactor(factor)} icon={<Eye size={14} />} />
-                            <IconActionButton label="Editar" onClick={() => openEdit(factor, "edit")} icon={<Pencil size={14} />} />
-                            <IconActionButton label="Nueva versión" onClick={() => openEdit(factor, "newVersion")} icon={<Copy size={14} />} />
+                            <IconActionButton label="Editar" onClick={() => openEdit(factor, "edit")} icon={<Pencil size={14} />} tone={canEdit ? undefined : "disabled"} />
+                            <IconActionButton label="Nueva versión" onClick={() => openEdit(factor, "newVersion")} icon={<Copy size={14} />} tone={canEdit ? undefined : "disabled"} />
                             {!factor.isDefault && factor.isActive && !factor.validTo ? (
                               <IconActionButton label="Marcar predeterminado" onClick={() => handleDefault(factor)} icon={<CheckCircle2 size={14} />} />
                             ) : null}
@@ -1509,7 +1535,7 @@ export default function FactorsPage() {
                               label={factor.isActive ? "Desactivar" : "Activar"}
                               onClick={() => toggleActive(factor)}
                               icon={<Power size={14} />}
-                              tone={factor.isActive ? "danger" : "success"}
+                              tone={!canDelete ? "disabled" : factor.isActive ? "danger" : "success"}
                             />
                           </div>
                         </td>
@@ -1537,12 +1563,12 @@ export default function FactorsPage() {
               <button
                 type="button"
                 onClick={exportCsv}
-                style={{
+                style={disabledActionStyle(canExport, {
                   ...secondaryButtonStyle,
                   height: 30,
                   fontSize: 11,
                   padding: "0 10px",
-                }}
+                })}
               >
                 <Download size={12} />
                 CSV

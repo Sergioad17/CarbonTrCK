@@ -40,6 +40,7 @@ import {
   updateDeviceStatus,
 } from "../api/devices";
 import { API_URL } from "../api/config";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -976,6 +977,10 @@ export default function DevicePage({ user }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteInput, setDeleteInput] = useState("");
+  const canCreateDevice = canUse(user, "devices:create");
+  const canEditDevice = canUse(user, "devices:edit");
+  const canDeleteDevice = canUse(user, "devices:delete");
+  const canSubmitDevice = selectedId ? canEditDevice : canCreateDevice;
 
   useEffect(() => {
     let mounted = true;
@@ -1098,6 +1103,10 @@ export default function DevicePage({ user }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!canSubmitDevice) {
+      denyAction(setToast);
+      return;
+    }
     if (!form.name.trim() || !form.code.trim() || !form.backendUrl.trim()) {
       setToast({ title: "Campos obligatorios", message: "Completa nombre, codigo y backend URL antes de guardar." });
       return;
@@ -1146,12 +1155,20 @@ export default function DevicePage({ user }) {
   };
 
   const handleEdit = (device) => {
+    if (!canEditDevice) {
+      denyAction(setToast);
+      return;
+    }
     setSelectedId(device.id);
     setForm(createFormFromDevice(device));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDuplicate = async (device) => {
+    if (!canCreateDevice) {
+      denyAction(setToast);
+      return;
+    }
     try {
       const duplicate = await duplicateDevice(device.id);
       setDevices((current) => [duplicate, ...current]);
@@ -1171,6 +1188,10 @@ export default function DevicePage({ user }) {
   };
 
   const handleToggleDevice = async (device) => {
+    if (!canDeleteDevice) {
+      denyAction(setToast);
+      return;
+    }
     const nextEnabled = !device.enabled;
     try {
       const updated = await updateDeviceStatus(device.id, nextEnabled);
@@ -1184,12 +1205,20 @@ export default function DevicePage({ user }) {
   };
 
   const openDeleteConfirm = (device) => {
+    if (!canDeleteDevice) {
+      denyAction(setToast);
+      return;
+    }
     setDeleteConfirm(device);
     setDeleteInput("");
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm || deleteInput.trim() !== deleteConfirm.name.trim()) return;
+    if (!canDeleteDevice) {
+      denyAction(setToast);
+      return;
+    }
     const deletedName = deleteConfirm.name;
     try {
       await removeDevice(deleteConfirm.id);
@@ -1301,10 +1330,10 @@ export default function DevicePage({ user }) {
                 selectedId ? (
                   <button
                     type="button"
-                    style={{ ...secondaryButtonStyle, height: 36 }}
+                    style={disabledActionStyle(canCreateDevice, { ...secondaryButtonStyle, height: 36 })}
                     onClick={resetForm}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--eco-primary-300)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--eco-border)"; }}
+                    onMouseEnter={(e) => { if (canCreateDevice) e.currentTarget.style.borderColor = "var(--eco-primary-300)"; }}
+                    onMouseLeave={(e) => { if (canCreateDevice) e.currentTarget.style.borderColor = "var(--eco-border)"; }}
                   >
                     <Pencil size={14} />
                     Nuevo
@@ -1414,9 +1443,9 @@ export default function DevicePage({ user }) {
               <div className="ct-device-actions" style={{ display: "flex", flexWrap: "wrap", gap: 10, paddingTop: 4 }}>
                 <button
                   type="submit"
-                  style={primaryButtonStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16,185,129,.3)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16,185,129,.22)"; }}
+                  style={disabledActionStyle(canSubmitDevice, primaryButtonStyle)}
+                  onMouseEnter={(e) => { if (canSubmitDevice) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16,185,129,.3)"; } }}
+                  onMouseLeave={(e) => { if (canSubmitDevice) { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16,185,129,.22)"; } }}
                 >
                   <Save size={15} />
                   {selectedId ? "Guardar cambios" : "Registrar dispositivo"}
@@ -1622,28 +1651,30 @@ export default function DevicePage({ user }) {
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "flex-start", justifyContent: "flex-end" }}>
                   {[
-                    { label: "Editar", icon: Pencil, onClick: () => handleEdit(device) },
-                    { label: "Duplicar", icon: Package, onClick: () => handleDuplicate(device) },
-                    { label: device.enabled ? "Desactivar" : "Activar", icon: device.enabled ? WifiOff : Wifi, onClick: () => handleToggleDevice(device) },
-                    { label: "Eliminar", icon: Trash2, onClick: () => openDeleteConfirm(device), danger: true },
+                    { label: "Editar", icon: Pencil, onClick: () => handleEdit(device), allowed: canEditDevice },
+                    { label: "Duplicar", icon: Package, onClick: () => handleDuplicate(device), allowed: canCreateDevice },
+                    { label: device.enabled ? "Desactivar" : "Activar", icon: device.enabled ? WifiOff : Wifi, onClick: () => handleToggleDevice(device), allowed: canDeleteDevice },
+                    { label: "Eliminar", icon: Trash2, onClick: () => openDeleteConfirm(device), danger: true, allowed: canDeleteDevice },
                   ].map((action) => (
                     <button
                       key={action.label}
                       type="button"
-                      style={{
+                      style={disabledActionStyle(action.allowed !== false, {
                         ...secondaryButtonStyle,
                         height: 36,
                         padding: "0 12px",
                         fontSize: 12,
                         ...(action.danger ? { color: "#B91C1C", borderColor: "rgba(239,68,68,.3)" } : {}),
-                      }}
+                      })}
                       onClick={action.onClick}
                       onMouseEnter={(e) => {
+                        if (action.allowed === false) return;
                         e.currentTarget.style.borderColor = action.danger ? "rgba(239,68,68,.5)" : "var(--eco-primary-300)";
                         e.currentTarget.style.transform = "translateY(-1px)";
                         if (action.danger) e.currentTarget.style.background = "rgba(239,68,68,.06)";
                       }}
                       onMouseLeave={(e) => {
+                        if (action.allowed === false) return;
                         e.currentTarget.style.borderColor = action.danger ? "rgba(239,68,68,.3)" : "var(--eco-border)";
                         e.currentTarget.style.transform = "translateY(0)";
                         if (action.danger) e.currentTarget.style.background = "var(--eco-card)";

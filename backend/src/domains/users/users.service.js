@@ -4,6 +4,8 @@ import { assertEmail, assertRequiredString } from "../../shared/utils/validation
 import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
 import {
   createUser,
+  createRole,
+  deleteRole,
   deleteUser,
   listPermissionsCatalog,
   listRolesCatalog,
@@ -69,6 +71,41 @@ export async function updateRolePermissionsService(actor, roleId, payload, audit
   }
 
   return updateRolePermissions(actor, roleId, payload.permissions, auditContext);
+}
+
+export async function createRoleService(actor, payload, auditContext) {
+  assertRequiredString(payload.name || payload.label, "name");
+  const name = String(payload.name || payload.label || "").trim();
+
+  if (name.length > 80) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "name must be 80 characters or fewer.",
+    });
+  }
+
+  if (payload.permissions !== undefined && !Array.isArray(payload.permissions)) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "permissions must be an array.",
+    });
+  }
+
+  if (payload.color && !/^#[0-9a-fA-F]{6}$/.test(String(payload.color).trim())) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "color must be a valid hex color.",
+    });
+  }
+
+  return createRole(actor, { ...payload, name }, auditContext);
+}
+
+export async function deleteRoleService(actor, roleId, auditContext) {
+  return deleteRole(actor, roleId, auditContext);
 }
 
 export async function createUserService(actor, payload, auditContext) {

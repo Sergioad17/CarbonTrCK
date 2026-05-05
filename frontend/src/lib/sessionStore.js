@@ -9,7 +9,7 @@ function normalizeRole(value) {
   if (normalized === "admin" || normalized === "administrador") return "admin";
   if (normalized === "directivo") return "directivo";
   if (normalized === "operativo" || normalized === "capturista") return "operativo";
-  return "operativo";
+  return normalized || "operativo";
 }
 
 function normalizeAreaAccess(areaAccess) {
@@ -30,6 +30,8 @@ function toViewUser(user) {
     role,
     roleKey: role,
     areaAccess: normalizeAreaAccess(user.areaAccess),
+    permissions: Array.isArray(user.permissions) ? user.permissions.map(String) : [],
+    roles: Array.isArray(user.roles) ? user.roles : [],
   };
 }
 

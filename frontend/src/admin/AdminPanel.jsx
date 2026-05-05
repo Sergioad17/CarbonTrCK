@@ -33,14 +33,14 @@ function viewFromSearch(search) {
 }
 
 /* ─── View router ─────────────────────────────────────────────────────── */
-function AdminViewRouter({ view }) {
+function AdminViewRouter({ view, user }) {
   switch (view) {
     case "admin-home":           return <AdminHomePage />;
     case "admin-institutional":  return <InstitutionalConfigPage />;
     case "admin-system":         return <SystemConfigPage />;
     case "admin-security":       return <SecurityPage />;
     case "admin-audit":          return <AuditLogPage />;
-    case "admin-users":          return <UsersPage />;
+    case "admin-users":          return <UsersPage user={user} />;
     case "admin-roles":          return <RolesPage />;
     case "admin-org":            return <OrgStructurePage />;
     case "admin-catalogs":       return <CatalogsPage />;
@@ -73,7 +73,7 @@ function AdminViewRouter({ view }) {
   }
 }
 
-export default function AdminPanel() {
+export default function AdminPanel({ user }) {
   const location = useLocation();
   const navigate = useNavigate();
   const activeView = viewFromSearch(location.search);
@@ -85,7 +85,7 @@ export default function AdminPanel() {
   return (
     <AdminProvider value={{ navigate: handleNavigate }}>
       <AdminShell activeView={activeView} onNavigate={handleNavigate}>
-        <AdminViewRouter view={activeView} />
+        <AdminViewRouter view={activeView} user={user} />
       </AdminShell>
     </AdminProvider>
   );

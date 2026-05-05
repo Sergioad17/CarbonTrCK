@@ -43,6 +43,8 @@ import DiagnosticoInteligentePage from './DiagnosticoInteligentePage'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import { createEmissionRecord } from "../api/records"
 import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
+import { hydrateCurrentUser } from "../api/auth"
+import { canUse } from "../lib/permissions"
 
 
 const fd = "var(--eco-font-display)",
@@ -291,6 +293,48 @@ const NAV_TO_PATH = {
   advanced: "/admin/avanzado",
 }
 
+const NAV_PERMISSIONS = {
+  dashboard: ["dashboard:view"],
+  emissions: ["emissions:view"],
+  scope2: ["electricity:view"],
+  scope1: ["fuel:view"],
+  areas: ["areas:view"],
+  goals: ["targets:view"],
+  reports: ["reports:view"],
+  factors: ["factors:view"],
+  equipment: ["equipment:view"],
+  devices: ["devices:view"],
+  users: ["users:view"],
+  settings: ["settings:view"],
+  advanced: ["audit:view"],
+}
+
+function canAccessNav(user, navId) {
+  if (navId === "profile") return true;
+  const required = NAV_PERMISSIONS[navId];
+  if (!required?.length) return true;
+  return required.some((permission) => canUse(user, permission));
+}
+
+function canAccessNavItem(user, item) {
+  if (item.type === "div") return true;
+  if (item.children?.length) return item.children.some((child) => canAccessNavItem(user, child));
+  return canAccessNav(user, item.id);
+}
+
+function firstAccessibleNavId(user) {
+  for (const item of navItems) {
+    if (item.type === "div") continue;
+    if (item.children?.length) {
+      const child = item.children.find((entry) => canAccessNav(user, entry.id));
+      if (child) return child.id;
+      continue;
+    }
+    if (canAccessNav(user, item.id)) return item.id;
+  }
+  return "profile";
+}
+
 const getModuleMeta = (category) => {
   if (category === "combustible") return { path: NAV_TO_PATH.scope1, navId: "scope1", actionLabel: "Ir a Combustible" };
   if (category === "electricidad") return { path: NAV_TO_PATH.scope2, navId: "scope2", actionLabel: "Ir a Electricidad" };
@@ -464,10 +508,10 @@ function DonutTooltip({ active, payload }) {
     </div>)
 }
 
-function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
+function SidebarNav({ collapsed, onToggle, activeId, onNav, user }) {
   const [expanded, setExpanded] = useState(["scopes", "catalog"]);
   const toggle = id => setExpanded(p => p.includes(id) ? p.filter(g => g !== id) : [...p, id]);
-  const visibleItems = navItems.filter(it => !it.tag || (it.tag === "ADM" && isAdmin));
+  const visibleItems = navItems.filter(it => canAccessNavItem(user, it));
   const isActive = it => it.id === activeId || it.children?.some(c => c.id === activeId)
   const renderItem = (it, depth = 0) => {
     if (it.type === "div")
@@ -626,7 +670,7 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, isAdmin }) {
           style={{
             animation: "eco-fadeIn 0.2s ease-out"
           }}>
-          {it.children.map(c => renderItem(c, 1))}
+          {it.children.filter(c => canAccessNavItem(user, c)).map(c => renderItem(c, 1))}
         </div>}
     </div>
     )
@@ -1593,15 +1637,49 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   }, [activity]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const refreshUserPermissions = () => {
+      hydrateCurrentUser()
+        .then((nextUser) => {
+          if (!cancelled && nextUser) onUserChange?.(nextUser);
+        })
+        .catch(() => {});
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshUserPermissions();
+    };
+
+    window.addEventListener("focus", refreshUserPermissions);
+    document.addEventListener("visibilitychange", handleVisibility);
+    const interval = window.setInterval(refreshUserPermissions, 30000);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshUserPermissions);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(interval);
+    };
+  }, [onUserChange]);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const t = setTimeout(() => setToast(null), 2500);
     return () => clearTimeout(t);
   }, [toast]);
 
   useEffect(() => {
-    setActiveNav(navFromPath(location.pathname));
+    const nextNav = navFromPath(location.pathname);
+    if (!canAccessNav(user, nextNav)) {
+      const fallbackNav = firstAccessibleNavId(user);
+      setActiveNav(fallbackNav);
+      if (NAV_TO_PATH[fallbackNav]) navigate(NAV_TO_PATH[fallbackNav], { replace: true });
+      return;
+    }
+    setActiveNav(nextNav);
     setSelectedActivity(null);
-  }, [location.pathname]);
+  }, [location.pathname, navigate, user]);
 
   const handleLogout = () => {
     try {
@@ -1614,6 +1692,13 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   };
 
   const handleNav = (id) => {
+    if (!canAccessNav(user, id)) {
+      setToast({
+        title: "Permiso insuficiente",
+        message: "Tu rol no permite acceder a este apartado."
+      });
+      return;
+    }
     setActiveNav(id);
     if (NAV_TO_PATH[id]) navigate(NAV_TO_PATH[id]);
   };
@@ -1626,7 +1711,6 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
   const initials =
     (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
-  const isAdmin = (String(user?.roleKey || user?.role || "").trim().toLowerCase() === "admin" || String(user?.roleKey || user?.role || "").trim().toLowerCase() === "administrador");
   const visibleActivity = activity.slice(0, 6);
 
   const openActivityDetail = (item) => {
@@ -1802,7 +1886,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
         onToggle={() => setCollapsed(!collapsed)}
         activeId={activeNav}
         onNav={handleNav}
-        isAdmin={isAdmin}
+        user={user}
       />
 
       {mobileOpen && (
@@ -1820,7 +1904,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 setMobileOpen(false);
               }}
               onToggle={() => {}}
-              isAdmin={isAdmin}
+              user={user}
             />
           </div>
         </div>
@@ -2110,46 +2194,46 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
           ) : activeNav === "areas" ? (
-            <AreasPage onOpenRecord={() => {
+            <AreasPage user={user} onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
           ) : activeNav === "scope2" ? (
-            <ScopeElectricidadPage onOpenRecord={() => {
+            <ScopeElectricidadPage user={user} onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
           ) : activeNav === "scope1" ? (
-            <ScopeCombustiblePage onOpenRecord={() => {
+            <ScopeCombustiblePage user={user} onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
           ) : activeNav === "reports" ? (
-            <ReportsPage onOpenRecord={() => {
+            <ReportsPage user={user} onOpenRecord={() => {
               if (NewRecordModalComponent) { setNewRecordOpen(true); return; }
               setToast({ title: "Modal no disponible", message: "NewRecordModal.jsx no exporta un componente utilizable." });
             }} />
           ) : activeNav === "factors" ? (
-            <FactorsPage />
+            <FactorsPage user={user} />
           ) : activeNav === "equipment" ? (
-            <EquipmentPage />
+            <EquipmentPage user={user} />
           ) : activeNav === "devices" ? (
             <DevicePage user={user} />
           ) : activeNav === "users" ? (
-            <UsersPage />
+            <UsersPage user={user} />
           ) : activeNav === "settings" ? (
-            <SettingsPage />
+            <SettingsPage user={user} />
           ) : activeNav === "profile" ? (
             <ProfilePage user={user} onLogout={handleLogout} onUserChange={onUserChange} />
           ) : activeNav === "advanced" ? (
-            <AdminPanel />
+            <AdminPanel user={user} />
           ) : activeNav === "diagnostico" ? (
             <DiagnosticoInteligentePage />
           ) : activeNav === "goals" ? (
             location.pathname?.startsWith("/metas/") ? (
               <MetasDetailPage />
             ) : (
-              <MetasPage />
+              <MetasPage user={user} />
             )
           ) : loading ? (
             <DashboardSkeleton />

@@ -3,6 +3,8 @@ import { requireAuth, requirePermission, requireRole } from "../../shared/middle
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createUserController,
+  createRoleController,
+  deleteRoleController,
   deleteUserController,
   listRolesPermissionsController,
   listRolesController,
@@ -22,7 +24,9 @@ export function registerUsersRoutes(router) {
   usersRouter.get("/roles", requireRole("admin", "directivo"), asyncHandler(listRolesController));
   usersRouter.get("/roles-permissions", requireRole("admin"), asyncHandler(listRolesPermissionsController));
   usersRouter.use(requirePermission("users:manage"));
+  usersRouter.post("/roles", asyncHandler(createRoleController));
   usersRouter.put("/roles/:id/permissions", asyncHandler(updateRolePermissionsController));
+  usersRouter.delete("/roles/:id", asyncHandler(deleteRoleController));
   usersRouter.post("/", asyncHandler(createUserController));
   usersRouter.patch("/:id", asyncHandler(updateUserController));
   usersRouter.patch("/:id/status", asyncHandler(updateUserStatusController));

@@ -1,5 +1,7 @@
 import {
   createUserService,
+  createRoleService,
+  deleteRoleService,
   deleteUserService,
   listRolesPermissionsService,
   listRolesService,
@@ -54,6 +56,22 @@ export async function updateRolePermissionsController(request, response) {
     request.user,
     request.params.id,
     request.body,
+    auditContextFromRequest(request),
+  ));
+}
+
+export async function createRoleController(request, response) {
+  response.status(201).json(await createRoleService(
+    request.user,
+    request.body,
+    auditContextFromRequest(request),
+  ));
+}
+
+export async function deleteRoleController(request, response) {
+  response.json(await deleteRoleService(
+    request.user,
+    request.params.id,
     auditContextFromRequest(request),
   ));
 }

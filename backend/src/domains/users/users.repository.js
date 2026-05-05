@@ -5,6 +5,109 @@ import { buildNormalizedUserShape } from "../../shared/utils/user-shape.js";
 import { generateTemporaryPassword, hashPassword } from "../../shared/utils/password.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
+const ROLE_PERMISSION_DEFINITIONS = [
+  ["dashboard:view", "Ver dashboard"],
+  ["electricity:view", "Ver electricidad"],
+  ["electricity:create", "Crear electricidad"],
+  ["electricity:delete", "Eliminar electricidad"],
+  ["electricity:export", "Exportar electricidad"],
+  ["fuel:view", "Ver combustible"],
+  ["fuel:create", "Crear combustible"],
+  ["fuel:delete", "Eliminar combustible"],
+  ["fuel:export", "Exportar combustible"],
+  ["areas:view", "Ver areas"],
+  ["areas:export", "Exportar areas"],
+  ["emissions:view", "Ver emisiones"],
+  ["emissions:export", "Exportar emisiones"],
+  ["factors:view", "Ver factores"],
+  ["factors:create", "Crear factores"],
+  ["factors:edit", "Editar factores"],
+  ["factors:delete", "Eliminar factores"],
+  ["factors:export", "Exportar factores"],
+  ["equipment:view", "Ver equipos"],
+  ["equipment:create", "Crear equipos"],
+  ["equipment:edit", "Editar equipos"],
+  ["equipment:export", "Exportar equipos"],
+  ["devices:view", "Ver dispositivos"],
+  ["devices:create", "Crear dispositivos"],
+  ["devices:edit", "Editar dispositivos"],
+  ["devices:delete", "Eliminar dispositivos"],
+  ["devices:export", "Exportar dispositivos"],
+  ["targets:view", "Ver metas"],
+  ["targets:create", "Crear metas"],
+  ["targets:edit", "Editar metas"],
+  ["targets:delete", "Eliminar metas"],
+  ["targets:validate", "Validar metas"],
+  ["targets:export", "Exportar metas"],
+  ["targets:approve", "Aprobar metas"],
+  ["reports:view", "Ver reportes"],
+  ["reports:create", "Crear reportes"],
+  ["reports:export", "Exportar reportes"],
+  ["users:view", "Ver usuarios"],
+  ["users:create", "Crear usuarios"],
+  ["users:edit", "Editar usuarios"],
+  ["users:delete", "Eliminar usuarios"],
+  ["users:export", "Exportar usuarios"],
+  ["catalogs:view", "Ver catalogos"],
+  ["settings:view", "Ver configuracion"],
+  ["settings:edit", "Editar configuracion"],
+  ["audit:view", "Ver panel admin"],
+  ["audit:edit", "Editar panel admin"],
+  ["records:create", "Crear registros"],
+  ["records:update", "Actualizar registros"],
+  ["records:approve", "Aprobar registros"],
+  ["records:delete_soft", "Eliminar logicamente registros"],
+  ["exports:run", "Ejecutar exportaciones"],
+  ["targets:manage", "Gestionar metas"],
+  ["catalogs:manage", "Gestionar catalogos"],
+  ["users:manage", "Gestionar usuarios"],
+];
+const REMOVED_ROLE_PERMISSION_CODES = [
+  "dashboard:export",
+  "electricity:edit",
+  "fuel:edit",
+  "ai:view",
+  "ai:create",
+  "ai:edit",
+  "ai:export",
+  "ai:approve",
+  "ml:run",
+  "ml:review_anomalies",
+];
+
+async function ensureRolePermissionCatalog(client = { query }) {
+  await client.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS color varchar(20)`);
+  await client.query(
+    `
+      DELETE FROM role_permissions rp
+      USING permissions p
+      WHERE p.id = rp.permission_id
+        AND p.code = ANY($1::text[])
+    `,
+    [REMOVED_ROLE_PERMISSION_CODES],
+  );
+  await client.query(
+    `
+      DELETE FROM permissions
+      WHERE code = ANY($1::text[])
+    `,
+    [REMOVED_ROLE_PERMISSION_CODES],
+  );
+  await client.query(
+    `
+      INSERT INTO permissions (code, description)
+      SELECT permission_code, permission_description
+      FROM unnest($1::text[], $2::text[]) AS item(permission_code, permission_description)
+      ON CONFLICT (code) DO UPDATE
+        SET description = EXCLUDED.description
+    `,
+    [
+      ROLE_PERMISSION_DEFINITIONS.map(([code]) => code),
+      ROLE_PERMISSION_DEFINITIONS.map(([, description]) => description),
+    ],
+  );
+}
+
 function mapUserRow(row, authorization = {}) {
   return buildNormalizedUserShape({
     id: row.id,
@@ -338,12 +441,14 @@ export async function listUsers(actor, filters) {
 }
 
 export async function listRolesCatalog(actor, options = {}) {
+  await ensureRolePermissionCatalog();
   const result = await query(
     `
       SELECT
         r.id,
         r.name,
         r.description,
+        r.color,
         r.is_system,
         COUNT(DISTINCT ur.user_id)::int AS user_count,
         COALESCE(
@@ -355,7 +460,7 @@ export async function listRolesCatalog(actor, options = {}) {
       LEFT JOIN role_permissions rp ON rp.role_id = r.id
       LEFT JOIN permissions p ON p.id = rp.permission_id
       WHERE r.organization_id = $1
-      GROUP BY r.id, r.name, r.description, r.is_system
+      GROUP BY r.id, r.name, r.description, r.color, r.is_system
       ORDER BY r.name
     `,
     [actor.organizationId],
@@ -377,6 +482,7 @@ export async function listRolesCatalog(actor, options = {}) {
     return {
       ...baseRole,
       description: row.description || "",
+      color: row.color || "",
       enabled: true,
       isSystem: Boolean(row.is_system),
       userCount: Number(row.user_count) || 0,
@@ -397,6 +503,7 @@ function mapPermissionCode(code) {
 }
 
 export async function listPermissionsCatalog() {
+  await ensureRolePermissionCatalog();
   const result = await query(
     `
       SELECT id, code, description
@@ -414,9 +521,15 @@ export async function listPermissionsCatalog() {
 }
 
 export async function updateRolePermissions(actor, roleId, permissionCodes, auditContext) {
-  const uniqueCodes = Array.from(new Set((permissionCodes || []).map((code) => String(code || "").trim()).filter(Boolean)));
+  const removedCodeSet = new Set(REMOVED_ROLE_PERMISSION_CODES);
+  const uniqueCodes = Array.from(new Set(
+    (permissionCodes || [])
+      .map((code) => String(code || "").trim())
+      .filter((code) => code && !removedCodeSet.has(code)),
+  ));
 
   await withTransaction(async (client) => {
+    await ensureRolePermissionCatalog(client);
     const roleResult = await client.query(
       `
         SELECT id, name
@@ -497,6 +610,171 @@ export async function updateRolePermissions(actor, roleId, permissionCodes, audi
         role: normalizeRoleKey(roleResult.rows[0].name),
         before: before.rows.map((row) => row.code),
         after: uniqueCodes.sort(),
+      },
+    });
+  });
+
+  return {
+    roles: await listRolesCatalog(actor, { includeDetails: true }),
+    permissions: await listPermissionsCatalog(),
+  };
+}
+
+export async function createRole(actor, payload, auditContext) {
+  const name = String(payload.name || payload.label || "").trim();
+  const description = String(payload.description || "").trim();
+  const color = String(payload.color || "").trim();
+  const removedCodeSet = new Set(REMOVED_ROLE_PERMISSION_CODES);
+  const permissionCodes = Array.from(new Set(
+    (payload.permissions || [])
+      .map((code) => String(code || "").trim())
+      .filter((code) => code && !removedCodeSet.has(code)),
+  ));
+
+  const createdRoleId = await withTransaction(async (client) => {
+    await ensureRolePermissionCatalog(client);
+
+    const existing = await client.query(
+      `
+        SELECT id
+        FROM roles
+        WHERE organization_id = $1
+          AND lower(name) = lower($2)
+        LIMIT 1
+      `,
+      [actor.organizationId, name],
+    );
+
+    if (existing.rowCount > 0) {
+      throw new AppError({
+        statusCode: 409,
+        code: "ROLE_ALREADY_EXISTS",
+        message: "Role already exists.",
+      });
+    }
+
+    const created = await client.query(
+      `
+        INSERT INTO roles (organization_id, name, description, color, is_system)
+        VALUES ($1, $2, $3, $4, false)
+        RETURNING id, name
+      `,
+      [actor.organizationId, name, description || null, color || null],
+    );
+
+    const roleId = created.rows[0].id;
+
+    if (permissionCodes.length > 0) {
+      const permissionResult = await client.query(
+        `
+          SELECT id, code
+          FROM permissions
+          WHERE code = ANY($1::text[])
+        `,
+        [permissionCodes],
+      );
+
+      if (permissionResult.rowCount !== permissionCodes.length) {
+        throw new AppError({
+          statusCode: 422,
+          code: "INVALID_PERMISSIONS",
+          message: "All permissions must exist.",
+        });
+      }
+
+      for (const permission of permissionResult.rows) {
+        await client.query(
+          `
+            INSERT INTO role_permissions (role_id, permission_id)
+            VALUES ($1, $2)
+            ON CONFLICT (role_id, permission_id) DO NOTHING
+          `,
+          [roleId, permission.id],
+        );
+      }
+    }
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "roles.create",
+      entityType: "role",
+      entityId: roleId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: {
+        role: normalizeRoleKey(created.rows[0].name),
+        permissions: permissionCodes.sort(),
+      },
+    });
+
+    return roleId;
+  });
+
+  return {
+    roleId: createdRoleId,
+    roles: await listRolesCatalog(actor, { includeDetails: true }),
+    permissions: await listPermissionsCatalog(),
+  };
+}
+
+export async function deleteRole(actor, roleId, auditContext) {
+  await withTransaction(async (client) => {
+    const roleResult = await client.query(
+      `
+        SELECT
+          r.id,
+          r.name,
+          r.is_system,
+          COUNT(DISTINCT ur.user_id)::int AS user_count
+        FROM roles r
+        LEFT JOIN user_roles ur ON ur.role_id = r.id
+        WHERE r.id = $1
+          AND r.organization_id = $2
+        GROUP BY r.id, r.name, r.is_system
+        LIMIT 1
+      `,
+      [roleId, actor.organizationId],
+    );
+
+    if (roleResult.rowCount < 1) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "Role not found.",
+      });
+    }
+
+    const role = roleResult.rows[0];
+
+    if (role.is_system) {
+      throw new AppError({
+        statusCode: 409,
+        code: "SYSTEM_ROLE",
+        message: "System roles cannot be deleted.",
+      });
+    }
+
+    if (Number(role.user_count) > 0) {
+      throw new AppError({
+        statusCode: 409,
+        code: "ROLE_HAS_USERS",
+        message: "Role has assigned users.",
+      });
+    }
+
+    await client.query(`DELETE FROM roles WHERE id = $1 AND organization_id = $2`, [roleId, actor.organizationId]);
+
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "roles.delete",
+      entityType: "role",
+      entityId: roleId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: {
+        role: normalizeRoleKey(role.name),
       },
     });
   });

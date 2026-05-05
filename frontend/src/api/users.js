@@ -49,6 +49,8 @@ function normalizeUser(input = {}) {
     campusCode: String(input.campusCode || "CAMPUS-CT").trim(),
     areaAccess: normalizeAreaAccess(input.areaAccess),
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
+    permissions: Array.isArray(input.permissions) ? input.permissions.map(String) : [],
+    roles: Array.isArray(input.roles) ? input.roles : [],
     lastLoginAt: input.lastLoginAt || null,
     createdAt: input.createdAt || null,
     updatedAt: input.updatedAt || null,
@@ -75,6 +77,7 @@ function normalizeRoleCatalogItem(input = {}) {
     label: String(input.label || input.name || key).trim(),
     name: String(input.name || input.label || key).trim(),
     description: String(input.description || "").trim(),
+    color: String(input.color || "").trim(),
     enabled: input.enabled !== false,
     isSystem: Boolean(input.isSystem),
     userCount: Number(input.userCount || input.user_count || 0),
@@ -142,6 +145,23 @@ export async function saveRolePermissions(roleId, permissions) {
     body: JSON.stringify({ permissions }),
   });
   return normalizeRolesPermissionsPayload(payload);
+}
+
+export async function createRole(payload) {
+  const response = await apiRequest("/users/roles", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return normalizeRolesPermissionsPayload(response);
+}
+
+export async function deleteRole(roleId) {
+  const response = await apiRequest(`/users/roles/${roleId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return normalizeRolesPermissionsPayload(response);
 }
 
 export async function saveUser(payload) {

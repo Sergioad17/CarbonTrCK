@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart as R
 import { buildCsvText, downloadCsvFile } from "../lib/exportCsv";
 import { createNotification } from "../api/notifications";
 import { fetchEmissionRecords } from "../api/records";
+import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd="var(--eco-font-display)",fb="var(--eco-font-body)",fm="var(--eco-font-mono)";
 const MONTHS_ES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
@@ -105,7 +106,7 @@ function PageSkeleton(){
 /* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT - WIZARD-STYLE REPORT BUILDER
    ═══════════════════════════════════════════════════════════════ */
-export default function ReportsPage(){
+export default function ReportsPage({ user }){
   const today=new Date();
   const[records,setRecords]=useState([]);const[toast,setToast]=useState(null);const[error,setError]=useState("");
   const[loading,setLoading]=useState(true);
@@ -120,14 +121,16 @@ export default function ReportsPage(){
   useEffect(()=>{const h=()=>reload();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[reload]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
 
-  const canDownload=generated&&previewRows.length>0&&filters.format==="csv";
+  const canCreateReport=canUse(user,"reports:create");
+  const canExportReport=canUse(user,"reports:export");
+  const canDownload=generated&&previewRows.length>0&&filters.format==="csv"&&canExportReport;
   const stepLabels=[{n:1,label:"Periodo",icon:<Calendar size={14}/>},{n:2,label:"Alcance",icon:<Building2 size={14}/>},{n:3,label:"Opciones",icon:<Settings2 size={14}/>}];
 
-  const onGenerate=()=>{setError("");setLoadingGen(true);setGenerated(false);try{const filtered=runF(records,filters);const s=buildSum(filtered);setPreviewRows(filtered);setSummary(s);setGenerated(true);setToast({title:"Reporte generado",message:`${filtered.length} registros procesados.`});}catch{setGenerated(false);setError("No se pudo generar el reporte.");}finally{setLoadingGen(false);}};
+  const onGenerate=()=>{if(!canCreateReport){denyAction(setToast);return;}setError("");setLoadingGen(true);setGenerated(false);try{const filtered=runF(records,filters);const s=buildSum(filtered);setPreviewRows(filtered);setSummary(s);setGenerated(true);setToast({title:"Reporte generado",message:`${filtered.length} registros procesados.`});}catch{setGenerated(false);setError("No se pudo generar el reporte.");}finally{setLoadingGen(false);}};
 
   const onClear=()=>{setFilters({periodMode:"todos",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});setGenerated(false);setPreviewRows([]);setSummary(null);setError("");setStep(1);};
 
-  const onDownload=()=>{if(!canDownload||!summary)return;const pp=filters.periodMode==="mes"?`${filters.year}-${String(filters.month).padStart(2,"0")}`:`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;const name=`carbontrack_reporte_${filters.category}_${filters.area}_${pp}.csv`;
+  const onDownload=()=>{if(!canExportReport){denyAction(setToast);return;}if(!canDownload||!summary)return;const pp=filters.periodMode==="mes"?`${filters.year}-${String(filters.month).padStart(2,"0")}`:`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}`;const name=`carbontrack_reporte_${filters.category}_${filters.area}_${pp}.csv`;
     if(filters.detailLevel==="summary"){const rows=[...summary.byArea.map(r=>({tipo:"Area",nombre:r.area,co2e_t:r.co2e,porcentaje:r.pct})),...summary.byCategory.map(r=>({tipo:"Categoria",nombre:r.label,co2e_t:r.co2e,porcentaje:r.pct})),{tipo:"Total",nombre:"Total CO2e",co2e_t:summary.total,porcentaje:100}];const csv=buildCsvText(rows,[{label:"Tipo",get:r=>r.tipo},{label:"Nombre",get:r=>r.nombre},{label:"CO2e_t",get:r=>fN(r.co2e_t,3)},{label:"%",get:r=>fN(r.porcentaje,1)}]);downloadCsvFile(name,csv);}
     else{const cols=[{label:"Fecha",get:r=>r.dateISO},{label:"Area",get:r=>r.area},{label:"Categoria",get:r=>r.category},{label:"Actividad",get:r=>r.activity},{label:"Valor",get:r=>r.value},{label:"Unidad",get:r=>r.unit},...(filters.includeTrace?[{label:"Factor",get:r=>r.factor}]:[]),{label:"CO2e_kg",get:r=>fN(r.co2e_kg,2)},{label:"CO2e_t",get:r=>fN(r.co2e_t,3)},{label:"Estado",get:r=>r.status==="real"?"Real":"Estimado"},...(filters.includeTrace?[{label:"Fuente",get:r=>r.source},{label:"Evidencia",get:r=>r.evidence||"-"}]:[])];const csv=buildCsvText(previewRows,cols);downloadCsvFile(name,csv);}
     createNotification({type:"export_done",title:"CSV exportado",message:`Se exportó el reporte ${name}.`,link:"/reportes",meta:{filename:name,count:previewRows.length,resource:"reports"}});
@@ -256,7 +259,7 @@ export default function ReportsPage(){
           </div>
           <div style={{display:"flex",justifyContent:"space-between"}}>
             <button onClick={()=>setStep(2)} style={{height:38,padding:"0 16px",borderRadius:"var(--eco-radius-full)",border:"1px solid var(--eco-border)",background:"white",fontFamily:fb,fontSize:13,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,color:"var(--eco-gray-600)"}}><ChevronLeft size={15}/>Alcance</button>
-            <button onClick={onGenerate} disabled={loadingGen} style={{height:42,padding:"0 24px",borderRadius:"var(--eco-radius-full)",border:"none",background:"linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-600))",color:"white",fontFamily:fb,fontSize:14,fontWeight:700,cursor:loadingGen?"not-allowed":"pointer",display:"inline-flex",alignItems:"center",gap:8,boxShadow:"0 4px 14px rgba(34,197,94,.3)",transition:"all 200ms",opacity:loadingGen?.65:1,animation:"ctPulse 2s ease-in-out infinite"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(34,197,94,.4)";}} onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 14px rgba(34,197,94,.3)";}}><Sparkles size={16}/>Generar reporte</button>
+            <button onClick={onGenerate} disabled={loadingGen} style={disabledActionStyle(canCreateReport&&!loadingGen,{height:42,padding:"0 24px",borderRadius:"var(--eco-radius-full)",border:"none",background:"linear-gradient(135deg,var(--eco-primary-500),var(--eco-primary-600))",color:"white",fontFamily:fb,fontSize:14,fontWeight:700,cursor:loadingGen?"not-allowed":"pointer",display:"inline-flex",alignItems:"center",gap:8,boxShadow:"0 4px 14px rgba(34,197,94,.3)",transition:"all 200ms",opacity:loadingGen?.65:1,animation:"ctPulse 2s ease-in-out infinite"})} onMouseEnter={e=>{if(canCreateReport&&!loadingGen){e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(34,197,94,.4)";}}} onMouseLeave={e=>{if(canCreateReport&&!loadingGen){e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow="0 4px 14px rgba(34,197,94,.3)";}}}><Sparkles size={16}/>Generar reporte</button>
           </div>
         </div>}
       </div>}

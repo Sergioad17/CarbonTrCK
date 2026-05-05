@@ -34,6 +34,8 @@ function normalizeUserPayload(input = {}) {
     campusCode: String(input.campusCode || "CAMPUS-CT").trim(),
     areaAccess: normalizeAreaAccess(input.areaAccess),
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
+    permissions: Array.isArray(input.permissions) ? input.permissions.map(String) : [],
+    roles: Array.isArray(input.roles) ? input.roles : [],
     lastLoginAt: input.lastLoginAt || null,
     previousLoginAt: input.previousLoginAt || null,
     notes: String(input.notes || "").trim(),
