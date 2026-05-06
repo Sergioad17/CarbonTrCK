@@ -712,9 +712,9 @@ function AdminLockedState() {
           <Lock size={24} />
         </div>
         <div>
-          <h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong)" }}>Dispositivos solo para administracion</h1>
+          <h1 style={{ margin: 0, fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong)" }}>Acceso restringido</h1>
           <p style={{ ...subtleText, marginTop: 8, fontSize: 13 }}>
-            Esta vista concentra provisionamiento, seguridad y vinculacion tecnica del hardware con el sistema. Solo se habilita para perfiles administradores.
+            Tu rol no tiene permiso para ver este apartado.
           </p>
         </div>
       </section>
@@ -966,7 +966,6 @@ function IssuedCredentialModal({ credential, copied, onCopy, onClose }) {
 /* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main component aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 export default function DevicePage({ user }) {
-  const isAdmin = normalizeRole(user?.roleKey || user?.role) === "admin";
   const [pageReady, setPageReady] = useState(false);
   const [devices, setDevices] = useState([]);
   const [form, setForm] = useState(() => createFormFromDevice(createDeviceDraft()));
@@ -1077,7 +1076,6 @@ export default function DevicePage({ user }) {
     []
   );
 
-  if (!isAdmin) return <AdminLockedState />;
   if (!pageReady) return <DevicePageSkeleton />;
 
   const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }));
@@ -1264,7 +1262,7 @@ export default function DevicePage({ user }) {
               <ShieldCheck size={13} />
               Administracion de hardware
             </span>
-            <span style={{ fontFamily: fm, fontSize: 10, color: "var(--eco-text-soft)", padding: "4px 8px", borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-100)" }}>Solo admin</span>
+            <span style={{ fontFamily: fm, fontSize: 10, color: "var(--eco-text-soft)", padding: "4px 8px", borderRadius: "var(--eco-radius-full)", background: "var(--eco-gray-100)" }}>Acceso habilitado</span>
           </div>
           <h1 style={{ margin: 0, fontFamily: fd, fontSize: 28, fontWeight: 900, color: "var(--eco-text-strong)", letterSpacing: "-.04em", lineHeight: 1.1, position: "relative" }}>
             Dispositivos

@@ -30,6 +30,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { exportRowsToCsv } from "../lib/csvExport";
+import { canUse } from "../lib/permissions";
 import { createNotification } from "../api/notifications";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../api/profileRequests";
 import { fetchCurrentUser, fetchSession, persistSession } from "../api/session";
@@ -1379,7 +1380,7 @@ function RequestsPanel({ open, requests, canManage, onClose, onApprove, onReject
   );
 }
 
-export default function UsersPage() {
+export default function UsersPage({ user }) {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1392,9 +1393,13 @@ export default function UsersPage() {
   const [requests, setRequests] = useState(() => fetchProfileChangeRequests());
   const [requestsOpen, setRequestsOpen] = useState(false);
   const currentUser = useMemo(() => fetchCurrentUser(), []);
-  const currentRole = currentUser?.roleKey || currentUser?.role || "operativo";
-  const canManageUsers = currentRole === "admin";
-  const canViewUsers = canManageUsers || currentRole === "directivo";
+  const permissionUser = user || currentUser;
+  const canViewUsers = canUse(permissionUser, "users:view");
+  const canCreateUsers = canUse(permissionUser, "users:create");
+  const canEditUsers = canUse(permissionUser, "users:edit");
+  const canDeleteUsers = canUse(permissionUser, "users:delete");
+  const canExportUsers = canUse(permissionUser, "users:export");
+  const canManageUsers = canCreateUsers || canEditUsers || canDeleteUsers;
 
   const loadUsers = async () => {
     try {
@@ -1429,7 +1434,7 @@ export default function UsersPage() {
   }, [users]);
 
   const openCreateModal = () => {
-    if (!canManageUsers) return;
+    if (!canCreateUsers) return;
     const s = {
       user: null,
       form: emptyForm(),
@@ -1447,7 +1452,7 @@ export default function UsersPage() {
   };
 
   const openEditModal = (user) => {
-    if (!canManageUsers) return;
+    if (!canEditUsers) return;
     const s = {
       user,
       form: emptyForm(user),
@@ -1487,9 +1492,10 @@ export default function UsersPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!canManageUsers) return;
     if (!formState) return;
     const { user, form } = formState;
+    if (user && !canEditUsers) return;
+    if (!user && !canCreateUsers) return;
     const errs = validateForm(form, user?.id);
     if (Object.keys(errs).length > 0) {
       setFormState((prev) => (prev ? { ...prev, errors: errs } : prev));
@@ -1541,7 +1547,7 @@ export default function UsersPage() {
   };
 
   const handleToggleStatus = async (user) => {
-    if (!canManageUsers) return;
+    if (!canDeleteUsers) return;
     const nextUsers = await updateUserStatus(user, !user.isActive).catch(() => null);
     if (!nextUsers) {
       setToast({ title: "No se pudo actualizar", message: "Intenta de nuevo en un momento.", tone: "error" });
@@ -1555,7 +1561,7 @@ export default function UsersPage() {
   };
 
   const handleDeleteUser = async (user) => {
-    if (!canManageUsers) return;
+    if (!canDeleteUsers) return;
     const confirmed = window.confirm(`¿Dar de baja completamente a ${user.fullName}? Esta acción eliminará la cuenta del sistema.`);
     if (!confirmed) return;
 
@@ -1578,7 +1584,7 @@ export default function UsersPage() {
   };
 
   const handleExportCsv = () => {
-    if (!canManageUsers) return;
+    if (!canExportUsers) return;
     exportRowsToCsv({
       filename: `carbontrack-usuarios-${new Date().toISOString().slice(0, 10)}.csv`,
       rows: filteredUsers,
@@ -1601,7 +1607,7 @@ export default function UsersPage() {
   };
 
   const handleResetPassword = async () => {
-    if (!canManageUsers) return;
+    if (!canEditUsers) return;
     if (!passwordResetState.user) return;
     const result = await resetUserPassword(passwordResetState.user.id).catch((requestError) => ({ ok: false, error: requestError }));
     if (!result.ok) {
@@ -1618,7 +1624,7 @@ export default function UsersPage() {
   };
 
   const handleApproveRequest = async (request) => {
-    if (!canManageUsers) return;
+    if (!canEditUsers) return;
     const actorName = currentUser?.fullName || "Administrador";
     let resolutionDetail = "";
 
@@ -1673,7 +1679,7 @@ export default function UsersPage() {
   };
 
   const handleRejectRequest = async (request) => {
-    if (!canManageUsers) return;
+    if (!canEditUsers) return;
     const actorName = currentUser?.fullName || "Administrador";
     const resolutionDetail = request.type === "email"
       ? `Se rechazó sustituir ${request.currentValue} por ${request.requestedValue}.`
@@ -1718,7 +1724,7 @@ export default function UsersPage() {
         <div style={{ maxWidth: "var(--content-max)", margin: "0 auto" }}>
           <div style={{ ...cardBase, padding: 24, borderColor: "rgba(220,38,38,0.18)", background: "var(--eco-danger-bg)" }}>
             <p style={{ margin: 0, fontFamily: fd, fontSize: 20, fontWeight: 800, color: "var(--eco-danger)" }}>Acceso restringido</p>
-            <p style={{ ...subtleText, marginTop: 6, color: "var(--eco-danger)" }}>Solo administradores pueden modificar usuarios y los directivos pueden consultarlos. Esta sección no se muestra para capturistas.</p>
+            <p style={{ ...subtleText, marginTop: 6, color: "var(--eco-danger)" }}>Tu rol no tiene permiso para ver este apartado.</p>
           </div>
         </div>
       </div>
@@ -1770,12 +1776,12 @@ export default function UsersPage() {
             </div>
           </div>
           <div className="ct-users-toolbar" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {canManageUsers ? (
+            {canCreateUsers ? (
               <ActionButton type="button" tone="primary" icon={Plus} onClick={openCreateModal}>
                 Nuevo usuario
               </ActionButton>
             ) : null}
-            {canManageUsers ? (
+            {canExportUsers ? (
               <ActionButton type="button" icon={Download} onClick={handleExportCsv}>
                 Exportar CSV
               </ActionButton>
@@ -1985,7 +1991,7 @@ export default function UsersPage() {
             <p style={{ ...subtleText, maxWidth: 360, margin: "0 auto 16px" }}>
               Este módulo está listo para listar usuarios desde backend. Mientras no existan registros, la tabla permanece vacía.
             </p>
-            {canManageUsers ? (
+            {canCreateUsers ? (
               <ActionButton type="button" tone="primary" icon={Plus} onClick={openCreateModal}>
                 Crear usuario
               </ActionButton>
@@ -2125,8 +2131,8 @@ export default function UsersPage() {
                       <td style={{ padding: "14px 16px", borderBottom: "1px solid var(--eco-border)", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                           <IconButton label="Ver detalle" onClick={() => setDetailUser(user)} icon={<Eye size={15} />} />
-                          {canManageUsers ? <IconButton label="Editar" onClick={() => openEditModal(user)} icon={<Pencil size={15} />} /> : null}
-                          {canManageUsers ? (
+                          {canEditUsers ? <IconButton label="Editar" onClick={() => openEditModal(user)} icon={<Pencil size={15} />} /> : null}
+                          {canDeleteUsers ? (
                             <IconButton
                               label={user.isActive ? "Desactivar" : "Activar"}
                               onClick={() => handleToggleStatus(user)}
@@ -2134,8 +2140,8 @@ export default function UsersPage() {
                               tone={user.isActive ? "default" : "danger"}
                             />
                           ) : null}
-                          {canManageUsers ? <IconButton label="Restablecer contraseña" onClick={() => setPasswordResetState({ user, password: "" })} icon={<KeyRound size={15} />} /> : null}
-                          {canManageUsers ? <IconButton label="Eliminar usuario" onClick={() => handleDeleteUser(user)} icon={<Trash2 size={15} />} tone="danger" /> : null}
+                          {canEditUsers ? <IconButton label="Restablecer contraseña" onClick={() => setPasswordResetState({ user, password: "" })} icon={<KeyRound size={15} />} /> : null}
+                          {canDeleteUsers ? <IconButton label="Eliminar usuario" onClick={() => handleDeleteUser(user)} icon={<Trash2 size={15} />} tone="danger" /> : null}
                         </div>
                       </td>
                     </tr>
@@ -2168,8 +2174,8 @@ export default function UsersPage() {
           setFormState((prev) => (prev ? { ...prev, form: { ...prev.form, tempPassword: generateTempPassword() } } : prev));
         }}
       />
-      <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} onEdit={openEditModal} canEdit={canManageUsers} />
-      <RequestsPanel open={requestsOpen} requests={requests} canManage={canManageUsers} onClose={() => setRequestsOpen(false)} onApprove={handleApproveRequest} onReject={handleRejectRequest} />
+      <UserDetailDrawer user={detailUser} onClose={() => setDetailUser(null)} onEdit={openEditModal} canEdit={canEditUsers} />
+      <RequestsPanel open={requestsOpen} requests={requests} canManage={canEditUsers} onClose={() => setRequestsOpen(false)} onApprove={handleApproveRequest} onReject={handleRejectRequest} />
       <ResetPasswordModal
         user={passwordResetState.user}
         tempPassword={passwordResetState.password}

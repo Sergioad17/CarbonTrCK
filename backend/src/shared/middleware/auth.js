@@ -132,6 +132,25 @@ export function requirePermission(...requiredPermissions) {
   };
 }
 
+export function requireAnyPermission(...allowedPermissions) {
+  return function anyPermissionGuard(request, _response, next) {
+    const permissionSet = new Set(request.user?.permissions || []);
+    const hasPermission = allowedPermissions.some((permission) => permissionSet.has(permission));
+
+    if (!hasPermission) {
+      return next(
+        new AppError({
+          statusCode: 403,
+          code: "FORBIDDEN",
+          message: "You do not have the required permission.",
+        }),
+      );
+    }
+
+    return next();
+  };
+}
+
 export function requireActiveUser(request, _response, next) {
   if (!request.user?.isActive) {
     return next(

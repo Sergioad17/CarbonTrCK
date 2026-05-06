@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../shared/middleware/auth.js";
+import { requireAuth, requirePermission } from "../../shared/middleware/auth.js";
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createDeviceController,
@@ -14,14 +14,14 @@ import { requireDeviceAuth } from "./devices.auth.js";
 
 export function registerDevicesRoutes(router) {
   const devicesRouter = Router();
-  devicesRouter.use(requireAuth, requireRole("admin"));
+  devicesRouter.use(requireAuth);
 
-  devicesRouter.get("/", asyncHandler(listDevicesController));
-  devicesRouter.post("/", asyncHandler(createDeviceController));
-  devicesRouter.patch("/:id", asyncHandler(updateDeviceController));
-  devicesRouter.patch("/:id/status", asyncHandler(updateDeviceStatusController));
-  devicesRouter.post("/:id/duplicate", asyncHandler(duplicateDeviceController));
-  devicesRouter.delete("/:id", asyncHandler(removeDeviceController));
+  devicesRouter.get("/", requirePermission("devices:view"), asyncHandler(listDevicesController));
+  devicesRouter.post("/", requirePermission("devices:create"), asyncHandler(createDeviceController));
+  devicesRouter.patch("/:id", requirePermission("devices:edit"), asyncHandler(updateDeviceController));
+  devicesRouter.patch("/:id/status", requirePermission("devices:delete"), asyncHandler(updateDeviceStatusController));
+  devicesRouter.post("/:id/duplicate", requirePermission("devices:create"), asyncHandler(duplicateDeviceController));
+  devicesRouter.delete("/:id", requirePermission("devices:delete"), asyncHandler(removeDeviceController));
 
   router.use("/devices", devicesRouter);
   router.post("/iot/readings", requireDeviceAuth, asyncHandler(createDeviceReadingController));

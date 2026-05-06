@@ -78,7 +78,7 @@ const LEGACY_PERMISSION_TO_UI = {
   "records:create": ["electricity:create", "fuel:create"],
   "records:delete_soft": ["electricity:delete", "fuel:delete"],
   "records:approve": ["electricity:validate", "fuel:validate"],
-  "exports:run": ["electricity:export", "fuel:export", "areas:export", "emissions:export", "factors:export", "equipment:export", "devices:export", "targets:export", "reports:export", "users:export"],
+  "exports:run": [],
   "targets:manage": ["targets:create", "targets:edit", "targets:delete", "targets:validate", "targets:approve"],
   "catalogs:manage": ["catalogs:view"],
   "users:manage": ["users:create", "users:edit", "users:delete"],

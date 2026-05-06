@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, requirePermission, requireRole } from "../../shared/middleware/auth.js";
+import { requireAnyPermission, requireAuth, requirePermission, requireRole } from "../../shared/middleware/auth.js";
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createUserController,
@@ -20,19 +20,18 @@ export function registerUsersRoutes(router) {
 
   usersRouter.use(requireAuth);
 
-  usersRouter.get("/", requireRole("admin", "directivo"), asyncHandler(listUsersController));
-  usersRouter.get("/roles", requireRole("admin", "directivo"), asyncHandler(listRolesController));
+  usersRouter.get("/", requireAnyPermission("users:view", "users:manage"), asyncHandler(listUsersController));
+  usersRouter.get("/roles", requireAnyPermission("users:view", "users:manage"), asyncHandler(listRolesController));
   usersRouter.get("/roles-permissions", requireRole("admin"), asyncHandler(listRolesPermissionsController));
-  usersRouter.use(requirePermission("users:manage"));
-  usersRouter.post("/roles", asyncHandler(createRoleController));
-  usersRouter.put("/roles/:id/permissions", asyncHandler(updateRolePermissionsController));
-  usersRouter.delete("/roles/:id", asyncHandler(deleteRoleController));
-  usersRouter.post("/", asyncHandler(createUserController));
-  usersRouter.patch("/:id", asyncHandler(updateUserController));
-  usersRouter.patch("/:id/status", asyncHandler(updateUserStatusController));
-  usersRouter.post("/:id/password-reset", asyncHandler(resetUserPasswordController));
-  usersRouter.post("/:id/delete", asyncHandler(deleteUserController));
-  usersRouter.delete("/:id", asyncHandler(deleteUserController));
+  usersRouter.post("/roles", requirePermission("users:manage"), asyncHandler(createRoleController));
+  usersRouter.put("/roles/:id/permissions", requirePermission("users:manage"), asyncHandler(updateRolePermissionsController));
+  usersRouter.delete("/roles/:id", requirePermission("users:manage"), asyncHandler(deleteRoleController));
+  usersRouter.post("/", requirePermission("users:create"), asyncHandler(createUserController));
+  usersRouter.patch("/:id", requirePermission("users:edit"), asyncHandler(updateUserController));
+  usersRouter.patch("/:id/status", requirePermission("users:delete"), asyncHandler(updateUserStatusController));
+  usersRouter.post("/:id/password-reset", requirePermission("users:edit"), asyncHandler(resetUserPasswordController));
+  usersRouter.post("/:id/delete", requirePermission("users:delete"), asyncHandler(deleteUserController));
+  usersRouter.delete("/:id", requirePermission("users:delete"), asyncHandler(deleteUserController));
 
   router.use("/users", usersRouter);
 }
