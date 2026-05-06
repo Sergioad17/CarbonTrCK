@@ -1,7 +1,3 @@
-const TARGETS_KEY = "carbontrack.targets";
-const ACTIONS_KEY = "carbontrack.actions";
-const RECORDS_KEY = "carbontrack.records";
-
 const SCOPE_CATEGORY = {
   scope1: ["combustible"],
   scope2: ["electricidad"],
@@ -11,12 +7,6 @@ const SCOPE_CATEGORY = {
 function toNumber(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
-}
-
-function safeParseArray(raw) {
-  if (!raw) return [];
-  const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? parsed : [];
 }
 
 function uid(prefix) {
@@ -63,85 +53,6 @@ function normalizeAction(action) {
   };
 }
 
-export function loadTargets() {
-  try {
-    const items = safeParseArray(window.localStorage.getItem(TARGETS_KEY)).map(normalizeTarget).filter(Boolean);
-    return { targets: items, error: null };
-  } catch {
-    return { targets: [], error: "No se pudieron cargar las metas." };
-  }
-}
-
-export function loadActions() {
-  try {
-    const items = safeParseArray(window.localStorage.getItem(ACTIONS_KEY)).map(normalizeAction).filter(Boolean);
-    return { actions: items, error: null };
-  } catch {
-    return { actions: [], error: "No se pudieron cargar las acciones." };
-  }
-}
-
-export function loadRecords() {
-  try {
-    const parsed = safeParseArray(window.localStorage.getItem(RECORDS_KEY));
-    const records = parsed
-      .filter((row) => row && typeof row === "object")
-      .map((row, index) => ({
-        id: String(row.id || `record-${index}`),
-        dateISO: String(row.dateISO || ""),
-        area: String(row.area || "Sin area"),
-        category: String(row.category || "otros").toLowerCase(),
-        activity: String(row.activity || ""),
-        value: toNumber(row.value, 0),
-        unit: String(row.unit || ""),
-        factor: toNumber(row.factor, 0),
-        co2e_kg: toNumber(row.co2e_kg, 0),
-        co2e_t: Number.isFinite(Number(row.co2e_t)) ? Number(row.co2e_t) : toNumber(row.co2e_kg, 0) / 1000,
-        status: row.status === "est" ? "est" : "real",
-        source: String(row.source || ""),
-        by: String(row.by || ""),
-      }));
-    return { records, error: null };
-  } catch {
-    return { records: [], error: "No se pudieron cargar los registros." };
-  }
-}
-
-export function saveTargets(targets) {
-  window.localStorage.setItem(TARGETS_KEY, JSON.stringify(targets.map(normalizeTarget).filter(Boolean)));
-}
-
-export function saveActions(actions) {
-  window.localStorage.setItem(ACTIONS_KEY, JSON.stringify(actions.map(normalizeAction).filter(Boolean)));
-}
-
-export function upsertTarget(targets, payload) {
-  const next = normalizeTarget(payload);
-  if (!next) return targets;
-  const index = targets.findIndex((row) => row.id === next.id);
-  if (index < 0) return [next, ...targets];
-  const copy = targets.slice();
-  copy[index] = next;
-  return copy;
-}
-
-export function upsertAction(actions, payload) {
-  const next = normalizeAction(payload);
-  if (!next) return actions;
-  const index = actions.findIndex((row) => row.id === next.id);
-  if (index < 0) return [next, ...actions];
-  const copy = actions.slice();
-  copy[index] = next;
-  return copy;
-}
-
-export function removeTarget(targets, actions, targetId) {
-  return {
-    targets: targets.filter((row) => row.id !== targetId),
-    actions: actions.filter((row) => row.targetId !== targetId),
-  };
-}
-
 function inDateRange(value, start, end) {
   if (!value) return false;
   const t = new Date(`${value}T12:00:00`).getTime();
@@ -171,7 +82,7 @@ function matchesCategory(record, category) {
 
 function matchesArea(record, areaId) {
   if (!areaId || areaId === "all") return true;
-  return record.area === areaId;
+  return record.areaCode === areaId || record.area === areaId;
 }
 
 export function filterRecordsByTarget(records, target, dateMode = "target") {
@@ -310,9 +221,6 @@ export function downloadCsv(filename, content) {
 }
 
 export {
-  TARGETS_KEY,
-  ACTIONS_KEY,
-  RECORDS_KEY,
   normalizeTarget,
   normalizeAction,
   uid,

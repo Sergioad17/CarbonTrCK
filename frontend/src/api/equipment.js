@@ -1,9 +1,9 @@
 import { apiRequest } from "./httpClient";
 import { createEmissionRecord } from "./records";
 import { fetchDefaultFactorValue } from "./factors";
+import { fetchAreas } from "./areas";
 import { getSession } from "../lib/sessionStore";
 import {
-  EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
   buildEstimatedRecord,
@@ -93,13 +93,20 @@ export async function createEquipmentEstimatedEmissionRecord({ equipment, factor
     factorId: factorId || null,
     dateISO,
   });
+  const areas = await fetchAreas().catch(() => []);
+  const area = Array.isArray(areas)
+    ? areas.find((item) => String(item?.code || item?.areaCode || "") === String(record.areaCode || ""))
+    : null;
+  const recordWithAreaLabel = {
+    ...record,
+    area: String(area?.name || area?.label || record.area || record.areaCode || "Sin area"),
+  };
 
-  const created = await createEmissionRecord(record);
-  return { ok: true, record: created?.record || record };
+  const created = await createEmissionRecord(recordWithAreaLabel);
+  return { ok: true, record: created?.record || recordWithAreaLabel };
 }
 
 export {
-  EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
   computeCo2eMonth,

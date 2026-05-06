@@ -34,6 +34,7 @@ import { parseDevicePayload } from "../lib/deviceParser";
 import { createNotification } from "../api/notifications";
 import { createEmissionRecord } from "../api/records";
 import { fetchDefaultFactorValue } from "../api/factors";
+import { fetchAreas } from "../api/areas";
 
 const fd = "var(--eco-font-display)";
 const fb = "var(--eco-font-body)";
@@ -41,12 +42,6 @@ const fm = "var(--eco-font-mono)";
 
 const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
 const DEFAULT_AREA_CODE = "LAB";
-
-const AREAS = [
-  { value: "LAB", label: "Laboratorio", icon: "LB" },
-  { value: "ADM", label: "Administracion", icon: "AD" },
-  { value: "PLANTA", label: "Planta piloto", icon: "PP" },
-];
 
 const SOURCES = [
   { value: "Recibo", label: "Recibo CFE" },
@@ -84,16 +79,36 @@ function cleanString(value, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
-function getAreaMeta(areaCode) {
-  return AREAS.find((item) => item.value === areaCode) || null;
+function normalizeAreaOptions(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const value = cleanString(item?.code || item?.areaCode || item?.id);
+      const label = cleanString(item?.name || item?.area || item?.label || value);
+      const icon = cleanString(item?.code || item?.name || "AR").slice(0, 2).toUpperCase() || "AR";
+      const campusCode = cleanString(item?.campusCode || item?.campus_code);
+      return { value, label, icon, campusCode };
+    })
+    .filter((item) => {
+      if (!item.value || !item.label || seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    });
 }
 
-function getPreferredAreaCode(user) {
+function findAreaOption(options, areaCode) {
+  const value = cleanString(areaCode);
+  return options.find((item) => item.value === value) || null;
+}
+
+function getPreferredAreaCode(user, options = []) {
   const allowedAreaCodes = Array.isArray(user?.areaAccess?.areaCodes)
     ? user.areaAccess.areaCodes.map((code) => cleanString(code)).filter(Boolean)
     : [];
 
-  return allowedAreaCodes[0] || DEFAULT_AREA_CODE;
+  if (!options.length) return allowedAreaCodes[0] || DEFAULT_AREA_CODE;
+  const allowed = allowedAreaCodes.find((code) => findAreaOption(options, code));
+  return allowed || options[0]?.value || DEFAULT_AREA_CODE;
 }
 
 function getPreferredCampusCode(user) {
@@ -670,7 +685,7 @@ function DeviceNotice({ tone = "info", title, body, lines = [] }) {
 export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord, onSave }) {
   const notify = onCreate || onCreateRecord || onSave;
   const fileInputRef = useRef(null);
-  const currentUser = getCurrentUser();
+  const currentUser = useMemo(() => getCurrentUser(), []);
   const initialAreaCode = getPreferredAreaCode(currentUser);
   const campusCode = getPreferredCampusCode(currentUser);
 
@@ -705,6 +720,13 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   const [deviceBinding, setDeviceBinding] = useState(getDefaultBinding(""));
   const [deviceToast, setDeviceToast] = useState(null);
   const [factorDefaults, setFactorDefaults] = useState(DEFAULT_FACTORS);
+  const [areaOptions, setAreaOptions] = useState([]);
+
+  const availableAreaOptions = useMemo(() => {
+    if (areaOptions.length) return areaOptions;
+    const fallback = cleanString(area || initialAreaCode || DEFAULT_AREA_CODE);
+    return fallback ? [{ value: fallback, label: fallback, icon: fallback.slice(0, 2).toUpperCase() || "AR" }] : [];
+  }, [areaOptions, area, initialAreaCode]);
 
   useEffect(() => {
     if (!open) return;
@@ -765,6 +787,32 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+
+    const loadAreas = async () => {
+      const options = normalizeAreaOptions(await fetchAreas());
+      if (cancelled) return;
+      setAreaOptions(options);
+      if (!options.length) return;
+      const preferredArea = getPreferredAreaCode(currentUser, options);
+      setArea((prev) => (findAreaOption(options, prev) ? prev : preferredArea));
+      setDeviceBinding((prev) => ({
+        ...prev,
+        campusCode: prev.campusCode || campusCode,
+        areaCode: findAreaOption(options, prev.areaCode) ? prev.areaCode : preferredArea,
+      }));
+    };
+
+    loadAreas().catch(() => {
+      if (!cancelled) setAreaOptions([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currentUser, campusCode]);
 
   useEffect(() => {
     setFactor(cat === "electricidad" ? factorDefaults.electricidad : factorDefaults.combustible);
@@ -1018,7 +1066,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   }
 
   function buildManualRecord() {
-    const areaMeta = getAreaMeta(area);
+    const areaMeta = findAreaOption(availableAreaOptions, area);
     const scope = cat === "combustible" ? "scope1" : "scope2";
     const metric = cat === "combustible" ? "fuel_volume" : "electricity_consumption";
     const normalizedAreaCode = cleanString(area, initialAreaCode) || initialAreaCode;
@@ -1357,7 +1405,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                         setArea(event.target.value);
                         setDeviceBinding((prev) => ({ ...prev, areaCode: event.target.value }));
                       }}
-                      options={AREAS}
+                      options={availableAreaOptions}
                       hasError={touched && errors.area}
                       icon={<Building2 size={15} />}
                     />
@@ -1750,7 +1798,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                             setDeviceBinding((prev) => ({ ...prev, areaCode: event.target.value }));
                             setArea(event.target.value);
                           }}
-                          options={AREAS}
+                          options={availableAreaOptions}
                         />
                       </Field>
 
@@ -1915,7 +1963,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                     { label: "Categoria", value: categoryLabel },
                     { label: "Modo", value: recordMode === "device" ? "Dispositivo" : "Manual" },
                     { label: "Tipo de dato", value: previewEstimated ? "Estimado" : "Real" },
-                    { label: "Area", value: AREAS.find((item) => item.value === area)?.label || area },
+                    { label: "Area", value: findAreaOption(availableAreaOptions, area)?.label || area },
                     { label: "Fecha", value: formatDateLabel(date) },
                     { label: "Fuente", value: SOURCES.find((item) => item.value === previewSource)?.label || previewSource },
                     { label: "Actividad", value: previewActivity || "Pendiente" },

@@ -12,6 +12,7 @@ import { registerNotificationsRoutes } from "../domains/notifications/notificati
 import { registerProfileRoutes } from "../domains/profile/profile.routes.js";
 import { registerProfileChangeRequestsRoutes } from "../domains/profile-change-requests/profile-change-requests.routes.js";
 import { registerRecordsRoutes } from "../domains/records/records.routes.js";
+import { registerReportsRoutes } from "../domains/reports/reports.routes.js";
 import { registerSettingsRoutes } from "../domains/settings/settings.routes.js";
 import { registerTargetsRoutes } from "../domains/targets/targets.routes.js";
 import { registerUsersRoutes } from "../domains/users/users.routes.js";
@@ -33,6 +34,7 @@ export function registerRoutes(app, { env }) {
   registerUsersRoutes(router);
   registerProfileRoutes(router);
   registerRecordsRoutes(router);
+  registerReportsRoutes(router);
   registerFilesRoutes(router);
   registerAreasRoutes(router);
   registerDashboardRoutes(router);

@@ -604,11 +604,15 @@ export default function Accions_Goals_Edits({
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
                     <option value="all">Todas las áreas</option>
-                    {areas.map((area) => (
-                      <option key={area} value={area}>
-                        {area}
-                      </option>
-                    ))}
+                    {areas.map((area) => {
+                      const value = typeof area === "string" ? area : area.value;
+                      const label = typeof area === "string" ? area : area.label;
+                      return (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
                 </Field>
 

@@ -13,6 +13,53 @@ export async function fetchAdminHomeSummary() {
   return payload?.summary || payload?.data?.summary || payload;
 }
 
+export async function fetchOrgStructure() {
+  const payload = await apiRequest("/admin/org-structure");
+  return payload?.structure || payload?.data?.structure || { campuses: [], entities: [], entityTypes: [] };
+}
+
+export async function createOrgCampus(campus) {
+  const payload = await apiRequest("/admin/org-structure/campuses", {
+    method: "POST",
+    body: JSON.stringify(campus),
+  });
+  return payload?.campus || payload?.data?.campus || payload;
+}
+
+export async function updateOrgCampus(id, campus) {
+  const payload = await apiRequest(`/admin/org-structure/campuses/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(campus),
+  });
+  return payload?.campus || payload?.data?.campus || payload;
+}
+
+export async function deleteOrgCampus(id) {
+  const payload = await apiRequest(`/admin/org-structure/campuses/${id}`, { method: "DELETE" });
+  return payload?.result || payload?.data?.result || payload;
+}
+
+export async function createOrgEntity(entity) {
+  const payload = await apiRequest("/admin/org-structure/entities", {
+    method: "POST",
+    body: JSON.stringify(entity),
+  });
+  return payload?.entity || payload?.data?.entity || payload;
+}
+
+export async function updateOrgEntity(id, entity) {
+  const payload = await apiRequest(`/admin/org-structure/entities/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(entity),
+  });
+  return payload?.entity || payload?.data?.entity || payload;
+}
+
+export async function deleteOrgEntity(id) {
+  const payload = await apiRequest(`/admin/org-structure/entities/${id}`, { method: "DELETE" });
+  return payload?.result || payload?.data?.result || payload;
+}
+
 export async function saveAdminGovernmentSettings(settings) {
   return extractSettings(await apiRequest("/admin/government", {
     method: "PUT",

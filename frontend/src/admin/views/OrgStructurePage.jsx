@@ -14,14 +14,32 @@ import AdminFormModal from "../components/AdminFormModal";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import { AdminTextField, AdminSelectField, AdminToggleField } from "../components/AdminFormSection";
-import { orgEntities as mockEntities, orgEntityTypes, campuses as mockCampuses } from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import {
+  createOrgCampus,
+  createOrgEntity,
+  deleteOrgCampus,
+  deleteOrgEntity,
+  fetchOrgStructure,
+  updateOrgCampus,
+  updateOrgEntity,
+} from "../../api/admin";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
 const fm = "var(--eco-font-mono)";
-const STORAGE_KEY = "carbontrack_admin_org_structure";
 
 const ICON_MAP = { Building2, MapPin, FlaskConical, Wrench, Briefcase, DoorOpen, GraduationCap };
+const orgEntityTypes = [
+  { id: "building", label: "Edificio", icon: "Building2", color: "#2563EB" },
+  { id: "area", label: "Área", icon: "MapPin", color: "#7C3AED" },
+  { id: "department", label: "Departamento", icon: "Briefcase", color: "#0891B2" },
+  { id: "laboratory", label: "Laboratorio", icon: "FlaskConical", color: "#DC2626" },
+  { id: "workshop", label: "Taller", icon: "Wrench", color: "#EA580C" },
+  { id: "office", label: "Oficina", icon: "DoorOpen", color: "#64748B" },
+  { id: "classroom", label: "Salón", icon: "GraduationCap", color: "#059669" },
+  { id: "zone", label: "Zona operativa", icon: "MapPin", color: "#CA8A04" },
+];
 
 const EMPTY_CAMPUS = {
   name: "",
@@ -36,7 +54,7 @@ const EMPTY_ENTITY = {
   name: "",
   type: "building",
   code: "",
-  campusId: "campus-central",
+  campusId: "",
   parentId: null,
   responsible: "",
   status: "active",
@@ -46,44 +64,6 @@ const EMPTY_ENTITY = {
   inReductionGoals: false,
   description: "",
 };
-
-function loadInitialState() {
-  if (typeof window === "undefined") {
-    return { campuses: mockCampuses, entities: mockEntities };
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { campuses: mockCampuses, entities: mockEntities };
-    const parsed = JSON.parse(raw);
-    return {
-      campuses: Array.isArray(parsed.campuses) && parsed.campuses.length > 0 ? parsed.campuses : mockCampuses,
-      entities: Array.isArray(parsed.entities) ? parsed.entities : mockEntities,
-    };
-  } catch {
-    return { campuses: mockCampuses, entities: mockEntities };
-  }
-}
-
-function makeSlug(value) {
-  const normalized = String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return normalized || `campus-${Date.now()}`;
-}
-
-function makeCampusCode(name, code) {
-  const value = String(code || name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return value || "CAMPUS";
-}
 
 function TypeBadge({ typeId }) {
   const t = orgEntityTypes.find(x => x.id === typeId);
@@ -526,9 +506,10 @@ function renderTree(nodes, level, onSelect, selectedId) {
 }
 
 export default function OrgStructurePage() {
-  const initialState = React.useMemo(loadInitialState, []);
-  const [campuses, setCampuses] = React.useState(initialState.campuses);
-  const [entities, setEntities] = React.useState(initialState.entities);
+  const [campuses, setCampuses] = React.useState([]);
+  const [entities, setEntities] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState(null);
   const [viewMode, setViewMode] = React.useState("tree");
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({});
@@ -539,6 +520,26 @@ export default function OrgStructurePage() {
   const [campusSearch, setCampusSearch] = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  const loadStructure = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const structure = await fetchOrgStructure();
+      setCampuses(Array.isArray(structure?.campuses) ? structure.campuses : []);
+      setEntities(Array.isArray(structure?.entities) ? structure.entities : []);
+      setSelectedEntity(null);
+    } catch (error) {
+      console.error("admin_org_structure_load_failed", error);
+      setLoadError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadStructure();
+  }, [loadStructure]);
 
   const entityChildrenCount = React.useCallback(
     (entityId) => entities.filter(e => e.parentId === entityId).length,
@@ -564,27 +565,29 @@ export default function OrgStructurePage() {
     setConfirmDelete({ kind: "entity", item: entity });
   }
 
-  function performDelete() {
+  async function performDelete() {
     if (!confirmDelete) return;
     setDeleting(true);
-    window.setTimeout(() => {
+    try {
       if (confirmDelete.kind === "campus") {
         const id = confirmDelete.item.id;
+        await deleteOrgCampus(id);
         setCampuses(prev => prev.filter(c => c.id !== id));
       } else if (confirmDelete.kind === "entity") {
         const id = confirmDelete.item.id;
+        await deleteOrgEntity(id);
         setEntities(prev => prev.filter(e => e.id !== id));
         setSelectedEntity(prev => (prev?.id === id ? null : prev));
       }
-      setDeleting(false);
       setConfirmDelete(null);
-    }, 220);
+      await loadStructure();
+    } catch (error) {
+      console.error("admin_org_structure_delete_failed", error);
+      await loadStructure();
+    } finally {
+      setDeleting(false);
+    }
   }
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ campuses, entities }));
-  }, [campuses, entities]);
 
   const activeCampuses = campuses.filter(campus => campus.status !== "inactive");
 
@@ -620,27 +623,35 @@ export default function OrgStructurePage() {
     setModalCampus({ ...EMPTY_CAMPUS });
   }
 
-  function handleSaveEntity() {
+  async function handleSaveEntity() {
+    if (!modalEntity) return;
     setSaving(true);
-    window.setTimeout(() => {
+    try {
       if (modalEntity.id) {
-        setEntities(prev => prev.map(e => e.id === modalEntity.id ? { ...e, ...modalEntity } : e));
+        const saved = await updateOrgEntity(modalEntity.id, modalEntity);
+        setEntities(prev => prev.map(e => e.id === saved.id ? saved : e));
+        setSelectedEntity(prev => (prev?.id === saved.id ? saved : prev));
       } else {
-        const ne = { ...modalEntity, id: `e${Date.now()}` };
-        setEntities(prev => [...prev, ne]);
+        const saved = await createOrgEntity(modalEntity);
+        setEntities(prev => [...prev, saved]);
       }
-      setSaving(false);
       setModalEntity(null);
-    }, 300);
+      await loadStructure();
+    } catch (error) {
+      console.error("admin_org_structure_entity_save_failed", error);
+      await loadStructure();
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleSaveCampus() {
+  async function handleSaveCampus() {
+    if (!modalCampus) return;
     setSaving(true);
-    window.setTimeout(() => {
+    try {
       const normalized = {
         ...modalCampus,
         name: String(modalCampus.name || "").trim() || "Nuevo campus",
-        code: makeCampusCode(modalCampus.name, modalCampus.code),
         city: String(modalCampus.city || "").trim(),
         responsible: String(modalCampus.responsible || "").trim(),
         notes: String(modalCampus.notes || "").trim(),
@@ -648,17 +659,21 @@ export default function OrgStructurePage() {
       };
 
       if (modalCampus.id) {
-        setCampuses(prev => prev.map(campus => campus.id === modalCampus.id ? { ...campus, ...normalized } : campus));
+        const saved = await updateOrgCampus(modalCampus.id, normalized);
+        setCampuses(prev => prev.map(campus => campus.id === saved.id ? saved : campus));
       } else {
-        const baseId = `campus-${makeSlug(normalized.name)}`;
-        const exists = campuses.some(campus => campus.id === baseId);
-        const campus = { ...normalized, id: exists ? `${baseId}-${Date.now()}` : baseId, buildingCount: 0, areaCount: 0 };
-        setCampuses(prev => [...prev, campus]);
+        const saved = await createOrgCampus(normalized);
+        setCampuses(prev => [...prev, saved]);
       }
 
-      setSaving(false);
       setModalCampus(null);
-    }, 300);
+      await loadStructure();
+    } catch (error) {
+      console.error("admin_org_structure_campus_save_failed", error);
+      await loadStructure();
+    } finally {
+      setSaving(false);
+    }
   }
 
   const totalActive = entities.filter(e => e.status === "active").length;
@@ -735,6 +750,10 @@ export default function OrgStructurePage() {
     },
   ];
 
+  if (loading || loadError) {
+    return <AdminLoadingScreen />;
+  }
+
   return (
     <>
       <AdminPageHeader
@@ -745,16 +764,25 @@ export default function OrgStructurePage() {
         actions={
           <button
             onClick={viewMode === "campuses" ? openNewCampus : openNewEntity}
+            disabled={viewMode !== "campuses" && campuses.length < 1}
+            title={viewMode !== "campuses" && campuses.length < 1 ? "Registra un campus antes de crear entidades." : undefined}
             style={{
               display: "flex", alignItems: "center", gap: 6,
               padding: "8px 18px", borderRadius: 8, border: "none",
               background: "var(--eco-primary-500, #22C55E)",
               fontFamily: fb, fontSize: 13, fontWeight: 600,
-              color: "#fff", cursor: "pointer", transition: "all .12s",
+              color: "#fff", cursor: viewMode !== "campuses" && campuses.length < 1 ? "not-allowed" : "pointer", transition: "all .12s",
+              opacity: viewMode !== "campuses" && campuses.length < 1 ? 0.55 : 1,
               boxShadow: "0 1px 3px rgba(34,197,94,.25)",
             }}
-            onMouseEnter={e => e.currentTarget.style.background = "var(--eco-primary-600, #16A34A)"}
-            onMouseLeave={e => e.currentTarget.style.background = "var(--eco-primary-500, #22C55E)"}
+            onMouseEnter={e => {
+              if (e.currentTarget.disabled) return;
+              e.currentTarget.style.background = "var(--eco-primary-600, #16A34A)";
+            }}
+            onMouseLeave={e => {
+              if (e.currentTarget.disabled) return;
+              e.currentTarget.style.background = "var(--eco-primary-500, #22C55E)";
+            }}
           >
             <Plus size={14} /> {viewMode === "campuses" ? "Nuevo campus" : "Nueva entidad"}
           </button>

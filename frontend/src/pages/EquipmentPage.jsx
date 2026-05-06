@@ -32,8 +32,8 @@ import EquipmentModal, {
 import { exportRowsToCsv } from "../lib/csvExport";
 import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 import { createNotification } from "../api/notifications";
+import { fetchAreas } from "../api/areas";
 import {
-  EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
   createEquipmentEstimatedEmissionRecord,
@@ -130,6 +130,22 @@ const numberFormat = (value, decimals = 2) =>
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
+
+const normalizeAreaOptions = (items) => {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const value = String(item?.code || item?.areaCode || item?.id || "").trim();
+      const label = String(item?.name || item?.area || item?.label || value).trim();
+      const campusCode = String(item?.campusCode || item?.campus_code || "").trim();
+      return { value, label, campusCode };
+    })
+    .filter((item) => {
+      if (!item.value || !item.label || seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    });
+};
 
 const monthFieldValue = () => {
   const date = new Date();
@@ -662,7 +678,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
           {/* Details list */}
           <div style={{ background: "var(--eco-surface)", borderRadius: "var(--eco-radius-lg)", overflow: "hidden", border: "1px solid var(--eco-border)" }}>
             {[
-              ["Área", getAreaLabel(equipment.areaCode)],
+              ["Área", state.areaLabel || getAreaLabel(equipment.areaCode)],
               ["Tipo", getTypeLabel(equipment.type)],
               ["Categoría", getCategoryLabel(equipment.category)],
               ["Cantidad", equipment.quantity],
@@ -721,6 +737,7 @@ export default function EquipmentPage({ user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [defaultFactor, setDefaultFactor] = useState(null);
+  const [areaOptions, setAreaOptions] = useState([]);
   const [hoverRow, setHoverRow] = useState(null);
   const [filters, setFilters] = useState({
     search: "",
@@ -741,12 +758,14 @@ export default function EquipmentPage({ user }) {
     try {
       setLoading(true);
       setError("");
-      const [nextItems, nextFactor] = await Promise.all([
+      const [nextItems, nextFactor, nextAreas] = await Promise.all([
         fetchEquipment(),
         fetchEquipmentElectricityFactor().catch(() => null),
+        fetchAreas().catch(() => []),
       ]);
       setItems(nextItems);
       setDefaultFactor(nextFactor);
+      setAreaOptions(normalizeAreaOptions(nextAreas));
     } catch {
       setError("No se pudieron cargar los equipos. Intenta de nuevo.");
     } finally {
@@ -769,6 +788,8 @@ export default function EquipmentPage({ user }) {
   }, [loadEquipment]);
 
   const factorValue = defaultFactor?.value ?? 0;
+  const areaLabelMap = useMemo(() => new Map(areaOptions.map((item) => [item.value, item.label])), [areaOptions]);
+  const labelArea = useCallback((areaCode) => areaLabelMap.get(areaCode) || getAreaLabel(areaCode), [areaLabelMap]);
   const usingFallbackFactor = !defaultFactor;
   const factorSourceLabel = defaultFactor
     ? `Factor predeterminado de electricidad: ${defaultFactor.provider || defaultFactor.region || "Configurado"}`
@@ -792,9 +813,9 @@ export default function EquipmentPage({ user }) {
       activeCount: activeFiltered.length,
       totalKwh,
       totalCo2eT,
-      topArea: topAreaEntry ? { label: getAreaLabel(topAreaEntry[0]), value: topAreaEntry[1] } : null,
+      topArea: topAreaEntry ? { label: labelArea(topAreaEntry[0]), value: topAreaEntry[1] } : null,
     };
-  }, [filtered, factorValue]);
+  }, [filtered, factorValue, labelArea]);
 
   const hasActiveFilters = useMemo(() => {
     return filters.search || filters.areaCode !== "all" || filters.type !== "all" || filters.category !== "all" || !filters.onlyActive;
@@ -805,7 +826,8 @@ export default function EquipmentPage({ user }) {
       denyAction(setToast, "Tu rol no permite crear equipos.");
       return;
     }
-    setModalState({ equipment: null, form: createEmptyEquipmentForm(), errors: {}, saving: false });
+    const defaultArea = areaOptions[0] || null;
+    setModalState({ equipment: null, form: createEmptyEquipmentForm({ areaCode: defaultArea?.value || "", campusCode: defaultArea?.campusCode || "CAMPUS-CT" }), errors: {}, saving: false });
   };
 
   const openEdit = (equipment) => {
@@ -819,7 +841,7 @@ export default function EquipmentPage({ user }) {
   const closeModal = () => setModalState(null);
 
   const openDetail = (equipment) => {
-    setDetailState({ equipment, factorValue, factorSourceLabel, usingFallbackFactor, monthValue: monthFieldValue() });
+    setDetailState({ equipment, areaLabel: labelArea(equipment.areaCode), factorValue, factorSourceLabel, usingFallbackFactor, monthValue: monthFieldValue() });
   };
 
   const closeDetail = () => setDetailState(null);
@@ -841,7 +863,7 @@ export default function EquipmentPage({ user }) {
       closeModal();
       setToast({
         title: modalState.equipment ? "Equipo actualizado" : "Equipo guardado",
-        message: `${payload.name} · ${getAreaLabel(payload.areaCode)}`,
+        message: `${payload.name} · ${labelArea(payload.areaCode)}`,
       });
     } catch {
       setModalState((prev) => ({ ...prev, saving: false }));
@@ -887,7 +909,7 @@ export default function EquipmentPage({ user }) {
       filename: `equipment-${new Date().toISOString().slice(0, 10)}.csv`,
       rows: filtered.map((item) => ({
         ...item,
-        areaLabel: getAreaLabel(item.areaCode),
+        areaLabel: labelArea(item.areaCode),
         typeLabel: getTypeLabel(item.type),
         kwhMonth: computeKwhMonth(item),
         co2eMonth: computeCo2eMonth(item, factorValue).co2eT,
@@ -1141,7 +1163,7 @@ export default function EquipmentPage({ user }) {
           <FilterSelect
             value={filters.areaCode}
             onChange={(v) => setFilters((prev) => ({ ...prev, areaCode: v }))}
-            options={[{ value: "all", label: "Todas las áreas" }, ...EQUIPMENT_AREA_OPTIONS]}
+            options={[{ value: "all", label: "Todas las áreas" }, ...areaOptions]}
             icon={<Building2 size={13} />}
             placeholder="Área"
           />
@@ -1353,7 +1375,7 @@ export default function EquipmentPage({ user }) {
                         onMouseLeave={() => setHoverRow(null)}
                       >
                         <td style={{ padding: "12px", color: "var(--eco-text, var(--eco-gray-700))", fontWeight: 600, fontSize: 12 }}>
-                          {getAreaLabel(equipment.areaCode)}
+                          {labelArea(equipment.areaCode)}
                         </td>
                         <td style={{ padding: "12px" }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1439,6 +1461,7 @@ export default function EquipmentPage({ user }) {
         onClose={closeModal}
         onSubmit={persistModal}
         onFormChange={(updater) => setModalState((prev) => ({ ...prev, form: typeof updater === "function" ? updater(prev.form) : updater }))}
+        areaOptions={areaOptions}
       />
       <DetailDrawer
         state={detailState}

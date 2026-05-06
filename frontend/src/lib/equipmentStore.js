@@ -24,17 +24,6 @@ export const EQUIPMENT_TYPE_OPTIONS = [
   { value: "otro", label: "Otro" },
 ];
 
-export const EQUIPMENT_AREA_OPTIONS = [
-  { value: "CC1", label: "CC1" },
-  { value: "CC2", label: "CC2" },
-  { value: "Aulas", label: "Aulas" },
-  { value: "Redes", label: "Redes" },
-  { value: "Industrial", label: "Industrial / Calidad" },
-  { value: "Agricola", label: "Agrícola" },
-  { value: "Admin", label: "Administración" },
-  { value: "SalaJuntas", label: "Sala de juntas" },
-];
-
 const nowIso = () => new Date().toISOString();
 
 const cleanString = (value, fallback = "") => String(value ?? fallback).trim();
@@ -53,8 +42,7 @@ const normalizeUsage = (usage = {}) => ({
 
 const buildId = () => `eq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-export const getAreaLabel = (areaCode) =>
-  EQUIPMENT_AREA_OPTIONS.find((option) => option.value === areaCode)?.label || areaCode || "Sin área";
+export const getAreaLabel = (areaCode) => areaCode || "Sin area";
 
 export const getTypeLabel = (type) =>
   EQUIPMENT_TYPE_OPTIONS.find((option) => option.value === type)?.label || type || "Otro";
@@ -260,3 +248,4 @@ export function appendEstimatedRecord(record) {
   }
   return next;
 }
+

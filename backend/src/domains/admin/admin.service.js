@@ -9,6 +9,15 @@ import {
   revokeSession,
   upsertAdminGovernmentSettings,
 } from "./admin.repository.js";
+import {
+  createCampus as createOrgCampus,
+  createEntity as createOrgEntity,
+  deleteCampus as deleteOrgCampus,
+  deleteEntity as deleteOrgEntity,
+  listOrgStructure as listOrgStructureRepository,
+  updateCampus as updateOrgCampus,
+  updateEntity as updateOrgEntity,
+} from "./org-structure.repository.js";
 
 function assertObject(value, field = "payload") {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -22,6 +31,38 @@ export function getAdminGovernmentSettingsService(actor, auditContext) {
 
 export function getAdminHomeSummaryService(actor) {
   return getAdminHomeSummary(actor);
+}
+
+export function listOrgStructureService(actor) {
+  return listOrgStructureRepository(actor);
+}
+
+export function createOrgCampusService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createOrgCampus(actor, payload, auditContext);
+}
+
+export function updateOrgCampusService(actor, campusId, payload, auditContext) {
+  assertObject(payload);
+  return updateOrgCampus(actor, campusId, payload, auditContext);
+}
+
+export function deleteOrgCampusService(actor, campusId, auditContext) {
+  return deleteOrgCampus(actor, campusId, auditContext);
+}
+
+export function createOrgEntityService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createOrgEntity(actor, payload, auditContext);
+}
+
+export function updateOrgEntityService(actor, entityId, payload, auditContext) {
+  assertObject(payload);
+  return updateOrgEntity(actor, entityId, payload, auditContext);
+}
+
+export function deleteOrgEntityService(actor, entityId, auditContext) {
+  return deleteOrgEntity(actor, entityId, auditContext);
 }
 
 export function upsertAdminGovernmentSettingsService(actor, payload, auditContext) {

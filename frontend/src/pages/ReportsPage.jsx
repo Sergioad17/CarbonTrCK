@@ -3,13 +3,11 @@ import { Download, FileText, RotateCcw, X, Eye, AlertCircle, CheckCircle2, Chevr
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart as RPieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
 import { buildCsvText, downloadCsvFile } from "../lib/exportCsv";
 import { createNotification } from "../api/notifications";
-import { fetchEmissionRecords } from "../api/records";
+import { generateEmissionReport } from "../api/reports";
 import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
 const fd="var(--eco-font-display)",fb="var(--eco-font-body)",fm="var(--eco-font-mono)";
 const MONTHS_ES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-const AREA_OPTIONS=["Aulas","CC1","CC2","Redes","Industrial/Calidad","Agricola","Administracion"];
-const CAT_COL={electricidad:"#22C55E",combustible:"#EAB308",otros:"#64748B"};
 const CSS=`
 @keyframes ctUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes ctSlideR{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
@@ -28,18 +26,9 @@ const CSS=`
 
 /* ═══ UTILS (same logic) ═══ */
 const fN=(n,d=1)=>Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:d,maximumFractionDigits:d});
-const mKey=iso=>{const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"";return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
 const dLabel=iso=>{const d=new Date(`${iso}T12:00:00`);if(Number.isNaN(d.getTime()))return"-";return`${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;};
 function useCountUp(target,dur=650){const[v,setV]=useState(0);const ref=useRef(null);useEffect(()=>{let s=null;const ease=t=>1-Math.pow(1-t,3);const step=ts=>{if(!s)s=ts;const p=Math.min((ts-s)/dur,1);setV(ease(p)*target);if(p<1)ref.current=requestAnimationFrame(step);else setV(target);};ref.current=requestAnimationFrame(step);return()=>ref.current&&cancelAnimationFrame(ref.current);},[target,dur]);return v;}
 
-function normArea(raw){const t=String(raw||"").toLowerCase();if(t.includes("aula"))return"Aulas";if(t.includes("cc 1")||t.includes("cc1")||t.includes("computo 1"))return"CC1";if(t.includes("cc 2")||t.includes("cc2")||t.includes("computo 2"))return"CC2";if(t.includes("redes"))return"Redes";if(t.includes("industrial")||t.includes("calidad"))return"Industrial/Calidad";if(t.includes("agri")||t.includes("vivero")||t.includes("tractor"))return"Agricola";return"Administracion";}
-function normCat(r){const c=String(r?.category||"").toLowerCase(),u=String(r?.unit||"").toLowerCase();if(c.includes("elec")||u==="kwh")return"electricidad";if(c.includes("comb")||u==="l"||u==="lt"||u.includes("lit"))return"combustible";if(c.includes("otro"))return"otros";return"electricidad";}
-function normSrc(raw,st){const s=String(raw||"").toLowerCase();if(s.includes("recibo")||s.includes("cfe"))return"Recibo";if(s.includes("medi"))return"Medicion";if(s.includes("encu"))return"Encuesta";if(s.includes("inven"))return"Inventario";if(s.includes("estim"))return"Estimacion";return st==="est"?"Estimacion":"Medicion";}
-function toRec(inp,idx){const st=inp?.status==="est"||inp?.isEstimated?"est":"real";const cat=normCat(inp);const fac=Number(inp?.factor)||(cat==="combustible"?2.68:cat==="electricidad"?0.435:1);const val=Number(inp?.value)||0;const co2=Number(inp?.co2e_kg)>0?Number(inp?.co2e_kg):val*fac;const co2t=Number(inp?.co2e_t)>0?Number(inp?.co2e_t):co2/1000;return{id:String(inp?.id||`r-${idx}`),dateISO:String(inp?.dateISO||new Date().toISOString().slice(0,10)),area:normArea(inp?.area),category:cat,activity:String(inp?.activity||"Sin actividad"),value:val,unit:String(inp?.unit||(cat==="combustible"?"L":"kWh")),factor:fac,co2e_kg:co2,co2e_t:co2t,status:st,source:normSrc(inp?.source,st),evidence:String(inp?.evidenceUrl||inp?.evidence||"")};}
-async function loadRecs(){try{const raw=await fetchEmissionRecords([]);const main=Array.isArray(raw)?raw.map((r,i)=>toRec(r,i)):[];const map=new Map();main.forEach(r=>{const k=`${r.dateISO}|${r.area}|${r.activity}|${r.co2e_t}`;if(!map.has(k))map.set(k,r);});return{records:Array.from(map.values()).sort((a,b)=>b.dateISO.localeCompare(a.dateISO)),error:""};}catch{return{records:[],error:"No se pudo cargar datos."};}}
-function matchPer(row,f){if(f.periodMode==="mes")return mKey(row.dateISO)===`${f.year}-${String(f.month).padStart(2,"0")}`;const t=new Date(`${row.dateISO}T12:00:00`).getTime();if(f.fromDate&&t<new Date(`${f.fromDate}T00:00:00`).getTime())return false;if(f.toDate&&t>new Date(`${f.toDate}T23:59:59`).getTime())return false;return true;}
-function runF(recs,f){return recs.filter(r=>{if(!matchPer(r,f))return false;if(f.category!=="all"&&r.category!==f.category)return false;if(f.area!=="all"&&r.area!==f.area)return false;if(f.realMode==="real"&&r.status!=="real")return false;if(f.realMode==="est"&&r.status!=="est")return false;if(f.source!=="all"&&r.source!==f.source)return false;return true;});}
-function buildSum(rows){const tot=rows.reduce((a,r)=>a+r.co2e_t,0);const elec=rows.filter(r=>r.category==="electricidad").reduce((a,r)=>a+r.co2e_t,0);const comb=rows.filter(r=>r.category==="combustible").reduce((a,r)=>a+r.co2e_t,0);const real=rows.filter(r=>r.status==="real").reduce((a,r)=>a+r.co2e_t,0);const est=rows.filter(r=>r.status==="est").reduce((a,r)=>a+r.co2e_t,0);const byAM=rows.reduce((a,r)=>{a[r.area]=(a[r.area]||0)+r.co2e_t;return a;},{});const byArea=Object.entries(byAM).map(([area,co2e])=>({area,co2e,pct:tot>0?(co2e/tot)*100:0})).sort((a,b)=>b.co2e-a.co2e);const byCM=rows.reduce((a,r)=>{a[r.category]=(a[r.category]||0)+r.co2e_t;return a;},{});const byCat=Object.entries(byCM).map(([n,co2e])=>({name:n,label:n==="electricidad"?"Electricidad":n==="combustible"?"Combustible":"Otros",co2e,pct:tot>0?(co2e/tot)*100:0,color:CAT_COL[n]||"#94A3B8"})).sort((a,b)=>b.co2e-a.co2e);const byMM=rows.reduce((a,r)=>{const k=mKey(r.dateISO);a[k]=(a[k]||0)+r.co2e_t;return a;},{});const trend=Object.entries(byMM).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,co2e])=>{const[y,m]=k.split("-").map(Number);return{key:k,label:`${MONTHS_ES[(m||1)-1]} ${y}`,co2e};});return{total:tot,electricidad:elec,combustible:comb,realPct:tot>0?(real/tot)*100:0,estPct:tot>0?(est/tot)*100:0,topAreas:byArea.slice(0,3),byArea,byCategory:byCat,trend};}
 
 /* ═══════════════════════════════════════════════════════════════
    ATOMIC COMPONENTS
@@ -112,11 +101,12 @@ export default function ReportsPage({ user }){
   const[loading,setLoading]=useState(true);
   const[loadingGen,setLoadingGen]=useState(false);const[generated,setGenerated]=useState(false);
   const[previewRows,setPreviewRows]=useState([]);const[summary,setSummary]=useState(null);
+  const[areaOptions,setAreaOptions]=useState([]);
   const[traceOpen,setTraceOpen]=useState(false);const[hovRow,setHovRow]=useState(null);
   const[step,setStep]=useState(1); // wizard step: 1=periodo, 2=alcance, 3=opciones
   const[filters,setFilters]=useState({periodMode:"todos",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});
 
-  const reload=useCallback(async ()=>{const ld=await loadRecs();setRecords(ld.records);setError(ld.error);},[]);
+  const reload=useCallback(async ()=>{try{const report=await generateEmissionReport({periodMode:"todos",category:"all",area:"all",realMode:"all",source:"all"});setRecords(report.records);setAreaOptions(report.areaOptions);setError("");}catch{setRecords([]);setAreaOptions([]);setError("No se pudo cargar datos.");}},[]);
   useEffect(()=>{let active=true;(async()=>{await reload();if(active)setLoading(false);})();return()=>{active=false;};},[reload]);
   useEffect(()=>{const h=()=>reload();window.addEventListener("carbontrack:newrecord",h);window.addEventListener("storage",h);return()=>{window.removeEventListener("carbontrack:newrecord",h);window.removeEventListener("storage",h);};},[reload]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),3000);return()=>clearTimeout(t);},[toast]);
@@ -125,8 +115,9 @@ export default function ReportsPage({ user }){
   const canExportReport=canUse(user,"reports:export");
   const canDownload=generated&&previewRows.length>0&&filters.format==="csv"&&canExportReport;
   const stepLabels=[{n:1,label:"Periodo",icon:<Calendar size={14}/>},{n:2,label:"Alcance",icon:<Building2 size={14}/>},{n:3,label:"Opciones",icon:<Settings2 size={14}/>}];
+  const areaLabel=useCallback((value)=>value==="all"?"Todas":areaOptions.find((item)=>item.value===value)?.label||value,[areaOptions]);
 
-  const onGenerate=()=>{if(!canCreateReport){denyAction(setToast);return;}setError("");setLoadingGen(true);setGenerated(false);try{const filtered=runF(records,filters);const s=buildSum(filtered);setPreviewRows(filtered);setSummary(s);setGenerated(true);setToast({title:"Reporte generado",message:`${filtered.length} registros procesados.`});}catch{setGenerated(false);setError("No se pudo generar el reporte.");}finally{setLoadingGen(false);}};
+  const onGenerate=async()=>{if(!canCreateReport){denyAction(setToast);return;}setError("");setLoadingGen(true);setGenerated(false);try{const report=await generateEmissionReport(filters);setPreviewRows(report.records);setSummary(report.summary);setAreaOptions(report.areaOptions.length?report.areaOptions:areaOptions);setGenerated(true);setToast({title:"Reporte generado",message:`${report.records.length} registros procesados.`});}catch{setGenerated(false);setError("No se pudo generar el reporte.");}finally{setLoadingGen(false);}};
 
   const onClear=()=>{setFilters({periodMode:"todos",month:today.getMonth()+1,year:today.getFullYear(),fromDate:"",toDate:"",category:"all",area:"all",realMode:"all",source:"all",format:"csv",includeTrace:true,detailLevel:"summary"});setGenerated(false);setPreviewRows([]);setSummary(null);setError("");setStep(1);};
 
@@ -142,9 +133,9 @@ export default function ReportsPage({ user }){
   const stepSummary=useMemo(()=>{
     const p=filters.periodMode==="mes"?`${MONTHS_ES[filters.month-1]} ${filters.year}`:filters.periodMode==="rango"?`${filters.fromDate||"-"} a ${filters.toDate||"-"}`:"Todo el periodo";
     const c=filters.category==="all"?"Todas":filters.category==="electricidad"?"Electricidad":filters.category==="combustible"?"Combustible":"Otros";
-    const a=filters.area==="all"?"Todas":filters.area;
+    const a=areaLabel(filters.area);
     return{periodo:p,categoria:c,area:a,estado:filters.realMode==="all"?"Todos":filters.realMode==="real"?"Real":"Estimado",formato:filters.format.toUpperCase(),nivel:filters.detailLevel==="summary"?"Resumen":"Detallado"};
-  },[filters]);
+  },[filters,areaLabel]);
 
   /* ═══ RENDER ═══ */
   if(loading)return<><style>{CSS}</style><div style={{padding:"var(--page-pad-y,24px) var(--page-pad-x,24px)",maxWidth:"var(--content-max,1440px)",margin:"0 auto"}}><PageSkeleton/></div></>;
@@ -211,7 +202,7 @@ export default function ReportsPage({ user }){
           <p style={{margin:"0 0 12px",fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)"}}>Área</p>
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
             <StepChip label="Todas" active={filters.area==="all"} onClick={()=>setFilters(p=>({...p,area:"all"}))} icon={<Building2 size={13}/>}/>
-            {AREA_OPTIONS.map(a=><StepChip key={a} label={a} active={filters.area===a} onClick={()=>setFilters(p=>({...p,area:a}))}/>)}
+            {areaOptions.map(a=><StepChip key={a.value} label={a.label} active={filters.area===a.value} onClick={()=>setFilters(p=>({...p,area:a.value}))}/>)}
           </div>
           <p style={{margin:"0 0 12px",fontFamily:fb,fontSize:13,color:"var(--eco-gray-500)"}}>Estado de datos</p>
           <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>

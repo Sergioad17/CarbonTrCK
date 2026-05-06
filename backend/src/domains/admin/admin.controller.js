@@ -1,11 +1,18 @@
 import {
+  createOrgCampusService,
+  createOrgEntityService,
+  deleteOrgCampusService,
+  deleteOrgEntityService,
   getAdminGovernmentSettingsService,
   getAdminHomeSummaryService,
   createAdminAuditEventService,
+  listOrgStructureService,
   listActiveSessionsService,
   listAuditEventsService,
   revokeOtherSessionsService,
   revokeSessionService,
+  updateOrgCampusService,
+  updateOrgEntityService,
   upsertAdminGovernmentSettingsService,
 } from "./admin.service.js";
 
@@ -21,6 +28,56 @@ export async function getAdminGovernmentSettingsController(request, response) {
 
 export async function getAdminHomeSummaryController(request, response) {
   response.json({ summary: await getAdminHomeSummaryService(request.user) });
+}
+
+export async function listOrgStructureController(request, response) {
+  response.json({ structure: await listOrgStructureService(request.user) });
+}
+
+export async function createOrgCampusController(request, response) {
+  response.status(201).json({
+    campus: await createOrgCampusService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function updateOrgCampusController(request, response) {
+  response.json({
+    campus: await updateOrgCampusService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function deleteOrgCampusController(request, response) {
+  response.json({
+    result: await deleteOrgCampusService(request.user, request.params.id, auditContextFromRequest(request)),
+  });
+}
+
+export async function createOrgEntityController(request, response) {
+  response.status(201).json({
+    entity: await createOrgEntityService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function updateOrgEntityController(request, response) {
+  response.json({
+    entity: await updateOrgEntityService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function deleteOrgEntityController(request, response) {
+  response.json({
+    result: await deleteOrgEntityService(request.user, request.params.id, auditContextFromRequest(request)),
+  });
 }
 
 export async function upsertAdminGovernmentSettingsController(request, response) {

@@ -13,7 +13,6 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  EQUIPMENT_AREA_OPTIONS,
   EQUIPMENT_CATEGORY_OPTIONS,
   EQUIPMENT_TYPE_OPTIONS,
 } from "../api/equipment";
@@ -272,7 +271,7 @@ export function validateEquipmentForm(payload) {
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
-export default function EquipmentModal({ state, onClose, onSubmit, onFormChange }) {
+export default function EquipmentModal({ state, onClose, onSubmit, onFormChange, areaOptions = [] }) {
   const [ready, setReady] = useState(false);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
@@ -297,6 +296,7 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
   const { form, errors, saving, equipment } = state;
   const isElectric = form.category === "electricidad";
   const isEdit = Boolean(equipment);
+  const availableAreaOptions = areaOptions;
 
   return (
     <div
@@ -480,7 +480,7 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange 
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
-                      {EQUIPMENT_AREA_OPTIONS.map((o) => (
+                      {availableAreaOptions.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
