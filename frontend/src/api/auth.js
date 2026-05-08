@@ -23,6 +23,7 @@ function normalizeUserPayload(input = {}) {
   return {
     id: String(input.id || input.userId || ""),
     userId: String(input.userId || input.id || ""),
+    numericId: String(input.numericId || ""),
     firstName: String(input.firstName || "").trim(),
     paternalLastName: String(input.paternalLastName || "").trim(),
     maternalLastName: String(input.maternalLastName || "").trim(),

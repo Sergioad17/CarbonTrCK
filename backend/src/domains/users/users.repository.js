@@ -366,6 +366,20 @@ async function ensureUserWritePayload(actor, payload, client) {
   };
 }
 
+async function generateNextUserNumericId(organizationId, client) {
+  const result = await client.query(
+    `
+      SELECT COALESCE(MAX(numeric_id::bigint), 0) + 1 AS next_numeric_id
+      FROM users
+      WHERE organization_id = $1
+        AND numeric_id ~ '^[0-9]+$'
+    `,
+    [organizationId],
+  );
+
+  return String(result.rows[0]?.next_numeric_id || 1);
+}
+
 export async function listUsers(actor, filters) {
   const clauses = ["u.organization_id = $1"];
   const values = [actor.organizationId];
@@ -790,6 +804,7 @@ export async function createUser(actor, payload, auditContext) {
     const validPayload = await ensureUserWritePayload(actor, payload, client);
     const temporaryPassword = payload.password || payload.temporaryPassword || generateTemporaryPassword();
     const passwordHash = await hashPassword(temporaryPassword);
+    const numericId = String(payload.numericId || "").trim() || await generateNextUserNumericId(actor.organizationId, client);
 
     const created = await client.query(
       `
@@ -814,7 +829,7 @@ export async function createUser(actor, payload, auditContext) {
         actor.organizationId,
         validPayload.campus.id,
         validPayload.areaAccessMode,
-        payload.numericId || null,
+        numericId,
         payload.firstName,
         payload.paternalLastName,
         payload.maternalLastName || null,
@@ -882,6 +897,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
           u.id,
           u.email::text AS email,
           u.full_name,
+          u.numeric_id,
           u.is_active,
           u.area_access_mode,
           c.code AS campus_code,
@@ -912,6 +928,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
     }
 
     const validPayload = await ensureUserWritePayload(actor, payload, client);
+    const numericId = String(payload.numericId || "").trim() || currentUser.rows[0].numeric_id || await generateNextUserNumericId(actor.organizationId, client);
     const before = {
       email: currentUser.rows[0].email,
       fullName: currentUser.rows[0].full_name,
@@ -948,7 +965,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
       [
         validPayload.campus.id,
         validPayload.areaAccessMode,
-        payload.numericId || null,
+        numericId,
         payload.firstName,
         payload.paternalLastName,
         payload.maternalLastName || null,

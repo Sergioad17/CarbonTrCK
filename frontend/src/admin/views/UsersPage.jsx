@@ -28,6 +28,7 @@ import { exportRowsToCsv } from "../../lib/csvExport";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../../api/profileRequests";
 import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../../api/users";
 import { fetchAreas } from "../../api/areas";
+import { fetchOrgStructure } from "../../api/admin";
 import { canUse, disabledActionStyle } from "../../lib/permissions";
 
 const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
@@ -1006,9 +1007,10 @@ export default function UsersPage({ user }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [{ users, roles: fetchedRoles }, fetchedAreas] = await Promise.all([
+      const [{ users, roles: fetchedRoles }, fetchedAreas, orgStructure] = await Promise.all([
         fetchUsersModuleData(),
         fetchAreas(),
+        fetchOrgStructure().catch(() => ({ campuses: [] })),
       ]);
       const nextCampusOptions = Array.from(
         new Map(
@@ -1022,6 +1024,11 @@ export default function UsersPage({ user }) {
               id: area.campusCode || DEFAULT_CAMPUS_CODE,
               code: area.campusCode || DEFAULT_CAMPUS_CODE,
               name: area.campusCode || DEFAULT_CAMPUS_CODE,
+            }]),
+            ...(orgStructure?.campuses || []).map((campus) => [campus.code || DEFAULT_CAMPUS_CODE, {
+              id: campus.code || DEFAULT_CAMPUS_CODE,
+              code: campus.code || DEFAULT_CAMPUS_CODE,
+              name: campus.name || campus.code || DEFAULT_CAMPUS_CODE,
             }]),
           ].filter(([code]) => code)
         ).values()

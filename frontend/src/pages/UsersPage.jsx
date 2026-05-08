@@ -35,6 +35,8 @@ import { createNotification } from "../api/notifications";
 import { fetchProfileChangeRequests, subscribeProfileChangeRequests, updateProfileChangeRequest } from "../api/profileRequests";
 import { fetchCurrentUser, fetchSession, persistSession } from "../api/session";
 import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUserStatus } from "../api/users";
+import { fetchAreas } from "../api/areas";
+import { fetchOrgStructure } from "../api/admin";
 import {
   USER_AREA_OPTIONS,
   USER_ROLE_OPTIONS,
@@ -667,7 +669,7 @@ function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    User Form Modal
    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) {
+function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSubmit, onGeneratePassword }) {
   if (!state) return null;
   const { user, form, errors, saving } = state;
   const isEdit = Boolean(user);
@@ -778,8 +780,22 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
                   ))}
                 </StyledSelect>
               </Field>
-              <Field label="Campus" helper="El campus se toma del contexto actual del frontend.">
-                <StyledInput value={DEFAULT_CAMPUS} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
+              <Field label="Campus" required helper="Selecciona el campus donde se registrará el usuario.">
+                <StyledSelect
+                  value={form.campusCode}
+                  onChange={(e) => {
+                    const nextCampus = e.target.value;
+                    state.setForm((p) => ({
+                      ...p,
+                      campusCode: nextCampus,
+                      areaCodes: p.areaCodes.filter((code) => areaOptions.some((area) => area.value === code && area.campusCode === nextCampus)),
+                    }));
+                  }}
+                >
+                  {campusOptions.map((campus) => (
+                    <option key={campus.code} value={campus.code}>{campus.name || campus.code}</option>
+                  ))}
+                </StyledSelect>
               </Field>
             </div>
           </div>
@@ -862,7 +878,7 @@ function UserFormModal({ state, roles, onClose, onSubmit, onGeneratePassword }) 
                     </div>
                   ) : (
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 8 }}>
-                      {USER_AREA_OPTIONS.map((area) => {
+                      {areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campusCode).map((area) => {
                         const checked = form.areaCodes.includes(area.value);
                         return (
                           <label
@@ -1383,6 +1399,8 @@ function RequestsPanel({ open, requests, canManage, onClose, onApprove, onReject
 export default function UsersPage({ user }) {
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [campusOptions, setCampusOptions] = useState([{ code: DEFAULT_CAMPUS, name: DEFAULT_CAMPUS }]);
+  const [areaOptions, setAreaOptions] = useState(USER_AREA_OPTIONS.map((area) => ({ ...area, campusCode: DEFAULT_CAMPUS })));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
@@ -1405,9 +1423,42 @@ export default function UsersPage({ user }) {
     try {
       setError("");
       setLoading(true);
-      const { users: nextUsers, roles: nextRoles } = await fetchUsersModuleData();
+      const [{ users: nextUsers, roles: nextRoles }, fetchedAreas, orgStructure] = await Promise.all([
+        fetchUsersModuleData(),
+        fetchAreas().catch(() => []),
+        fetchOrgStructure().catch(() => ({ campuses: [] })),
+      ]);
+      const nextCampusOptions = Array.from(
+        new Map(
+          [
+            ...nextUsers.map((item) => [item.campusCode || DEFAULT_CAMPUS, {
+              code: item.campusCode || DEFAULT_CAMPUS,
+              name: item.campusCode || DEFAULT_CAMPUS,
+            }]),
+            ...fetchedAreas.map((area) => [area.campusCode || DEFAULT_CAMPUS, {
+              code: area.campusCode || DEFAULT_CAMPUS,
+              name: area.campusCode || DEFAULT_CAMPUS,
+            }]),
+            ...(orgStructure?.campuses || []).map((campus) => [campus.code || DEFAULT_CAMPUS, {
+              code: campus.code || DEFAULT_CAMPUS,
+              name: campus.name || campus.code || DEFAULT_CAMPUS,
+            }]),
+          ].filter(([code]) => code)
+        ).values()
+      );
+      const nextAreaOptions = fetchedAreas.length
+        ? fetchedAreas
+            .filter((area) => area.isActive !== false)
+            .map((area) => ({
+              value: area.code,
+              label: area.name || area.code,
+              campusCode: area.campusCode || DEFAULT_CAMPUS,
+            }))
+        : USER_AREA_OPTIONS.map((area) => ({ ...area, campusCode: DEFAULT_CAMPUS }));
       setRoles(nextRoles);
       setUsers(nextUsers);
+      setCampusOptions(nextCampusOptions.length ? nextCampusOptions : [{ code: DEFAULT_CAMPUS, name: DEFAULT_CAMPUS }]);
+      setAreaOptions(nextAreaOptions);
     } catch {
       setError("No se pudieron cargar los usuarios. Intenta de nuevo.");
     } finally {
@@ -1435,9 +1486,10 @@ export default function UsersPage({ user }) {
 
   const openCreateModal = () => {
     if (!canCreateUsers) return;
+    const defaultCampusCode = campusOptions[0]?.code || DEFAULT_CAMPUS;
     const s = {
       user: null,
-      form: emptyForm(),
+      form: emptyForm({ campusCode: defaultCampusCode }),
       errors: {},
       saving: false,
       setForm: (updater) => {
@@ -1511,7 +1563,7 @@ export default function UsersPage({ user }) {
       fullName,
       email: form.email.trim().toLowerCase(),
       role: form.role,
-      campusCode: DEFAULT_CAMPUS,
+      campusCode: form.campusCode || DEFAULT_CAMPUS,
       areaAccess: {
         mode: form.role === "admin" ? "all" : form.areaAccessMode,
         areaCodes: form.role === "admin" || form.areaAccessMode === "all" ? [] : form.areaCodes,
@@ -1873,7 +1925,7 @@ export default function UsersPage({ user }) {
             placeholder="Área"
             options={[
               { value: "all", label: "Todas las áreas" },
-              ...USER_AREA_OPTIONS.map(a => ({ value: a.value, label: a.label })),
+              ...areaOptions.map(a => ({ value: a.value, label: a.label })),
             ]}
           />
 
@@ -2168,6 +2220,8 @@ export default function UsersPage({ user }) {
       <UserFormModal
         state={formState}
         roles={roles.length ? roles : USER_ROLE_OPTIONS}
+        campusOptions={campusOptions}
+        areaOptions={areaOptions}
         onClose={() => setFormState(null)}
         onSubmit={handleSubmit}
         onGeneratePassword={() => {

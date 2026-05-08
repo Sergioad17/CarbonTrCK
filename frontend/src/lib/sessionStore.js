@@ -27,6 +27,7 @@ function toViewUser(user) {
     ...user,
     name: cleanString(user.name || user.fullName || user.email || "Usuario CarbonTrack"),
     fullName: cleanString(user.fullName || user.name || user.email || "Usuario CarbonTrack"),
+    numericId: cleanString(user.numericId),
     role,
     roleKey: role,
     areaAccess: normalizeAreaAccess(user.areaAccess),
