@@ -580,6 +580,19 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
     }));
   }
 
+  const visibleAreaOptions = areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campus);
+  const visibleAreaCodes = visibleAreaOptions.map((area) => area.value);
+  const allVisibleAreasSelected = visibleAreaCodes.length > 0 && visibleAreaCodes.every((code) => form.areas.includes(code));
+
+  function toggleAllAreas() {
+    setForm((current) => ({
+      ...current,
+      areas: allVisibleAreasSelected
+        ? current.areas.filter((code) => !visibleAreaCodes.includes(code))
+        : Array.from(new Set([...current.areas, ...visibleAreaCodes])),
+    }));
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 120, display: "grid", placeItems: "center", padding: 16 }}>
       <div
@@ -675,7 +688,26 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
             <div style={{ padding: "0 16px 16px" }}>
               <p style={{ ...sectionLabel, marginBottom: 10 }}>Áreas asignadas</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campus).map((area) => {
+                {visibleAreaCodes.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={toggleAllAreas}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      border: `1px solid ${allVisibleAreasSelected ? "var(--eco-primary-300, #86EFAC)" : "var(--eco-border, #E2E8F0)"}`,
+                      background: allVisibleAreasSelected ? "var(--eco-primary-50, #F0FDF4)" : "var(--eco-card, #fff)",
+                      color: allVisibleAreasSelected ? "var(--eco-primary-700, #15803D)" : "var(--eco-text, #0F172A)",
+                      fontFamily: fb,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Todos
+                  </button>
+                ) : null}
+                {visibleAreaOptions.map((area) => {
                   const selected = form.areas.includes(area.value);
                   return (
                     <button
