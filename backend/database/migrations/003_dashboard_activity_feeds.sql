@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE TABLE dashboard_activity_feeds (
+CREATE TABLE IF NOT EXISTS dashboard_activity_feeds (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL,
   items jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -13,9 +13,16 @@ CREATE TABLE dashboard_activity_feeds (
   CONSTRAINT dashboard_activity_feeds_items_array_chk CHECK (jsonb_typeof(items) = 'array')
 );
 
-CREATE TRIGGER dashboard_activity_feeds_set_updated_at
-BEFORE UPDATE ON dashboard_activity_feeds
-FOR EACH ROW
-EXECUTE FUNCTION set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'dashboard_activity_feeds_set_updated_at'
+  ) THEN
+    CREATE TRIGGER dashboard_activity_feeds_set_updated_at
+    BEFORE UPDATE ON dashboard_activity_feeds
+    FOR EACH ROW
+    EXECUTE FUNCTION set_updated_at();
+  END IF;
+END $$;
 
 COMMIT;

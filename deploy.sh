@@ -21,6 +21,10 @@ COMPOSE="docker compose -f docker-compose.prod.yml"
 if [ "$1" = "update" ]; then
     echo "==> Actualizando la aplicación..."
     $COMPOSE build --no-cache
+    echo "==> Levantando base de datos..."
+    $COMPOSE up -d postgres
+    echo "==> Aplicando migraciones de base de datos..."
+    $COMPOSE run --rm backend npm run migrate
     $COMPOSE up -d --force-recreate
     echo "==> Actualización completada."
     exit 0
@@ -98,6 +102,10 @@ echo "  -> Certificado obtenido."
 echo ""
 echo "==> PASO 4: Construyendo y levantando la aplicación..."
 $COMPOSE build --no-cache
+echo "  -> Levantando base de datos..."
+$COMPOSE up -d postgres
+echo "  -> Aplicando migraciones de base de datos..."
+$COMPOSE run --rm backend npm run migrate
 $COMPOSE up -d
 
 echo ""
