@@ -35,13 +35,13 @@ const LOGIN_CSS = `
 @keyframes ctBubblePulse{0%,100%{opacity:.85}50%{opacity:.55}}
 
 .ct-login-stage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;box-sizing:border-box}
-.ct-login-shell{position:relative;z-index:2;display:flex;align-items:stretch;justify-content:center;gap:0;width:min(960px,100%);margin-inline:auto;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;border-radius:22px;box-shadow:0 30px 80px -32px rgba(15,23,42,.45),0 8px 24px -10px rgba(15,23,42,.10)}
+.ct-login-shell{position:relative;z-index:2;display:flex;align-items:stretch;justify-content:center;gap:0;width:max-content;max-width:calc(100vw - 48px);margin:auto;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;border-radius:22px}
 .ct-login-shell > .ct-login-card{border-top-right-radius:0;border-bottom-right-radius:0;box-shadow:none}
 .ct-login-shell > .ct-login-aside{border-top-left-radius:0;border-bottom-left-radius:0;box-shadow:none;border-left:1px solid rgba(255,255,255,.06)}
 .ct-bubbles-stage{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none}
 .ct-bubble{position:absolute;border-radius:50%;will-change:transform,opacity;animation-fill-mode:both;mix-blend-mode:plus-lighter;display:grid;place-items:center;text-align:center}
 .ct-bubble-label{font-family:var(--eco-font-display);font-weight:800;color:rgba(255,255,255,.78);letter-spacing:.04em;text-shadow:0 2px 10px rgba(15,23,42,.30),0 0 22px rgba(34,197,94,.22);pointer-events:none;user-select:none;text-transform:uppercase}
-.ct-login-card{position:relative;z-index:2;width:min(460px,100%);background:rgba(255,255,255,.86);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(255,255,255,.55);border-radius:22px;box-shadow:0 30px 80px -32px rgba(15,23,42,.45),0 8px 24px -10px rgba(15,23,42,.10),inset 0 1px 0 rgba(255,255,255,.7);padding:34px 34px 26px;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;overflow:hidden;isolation:isolate}
+.ct-login-card{position:relative;z-index:2;width:min(460px,100%);background:rgba(255,255,255,.96);backdrop-filter:none;-webkit-backdrop-filter:none;border:1px solid rgba(255,255,255,.72);border-radius:22px;box-shadow:0 30px 80px -32px rgba(15,23,42,.45),0 8px 24px -10px rgba(15,23,42,.10),inset 0 1px 0 rgba(255,255,255,.7);padding:34px 34px 26px;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;overflow:hidden;isolation:isolate}
 .ct-login-card::before{content:"";position:absolute;top:-100px;right:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.26),transparent 70%);pointer-events:none;z-index:-1}
 .ct-login-card::after{content:"";position:absolute;bottom:-130px;left:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.20),transparent 70%);pointer-events:none;z-index:-1}
 
@@ -405,7 +405,7 @@ export default function LoginPage({ onLogin }) {
               </span>
               <h1 className="ct-login-title">Recuperar contraseña</h1>
               <p className="ct-login-sub">
-                Escribe tu correo institucional y te enviaremos un enlace seguro para crear una nueva contraseña.
+                Escribe el correo asignado a tu cuenta. Si existe en el sistema, te enviaremos un enlace seguro para crear una nueva contraseña.
               </p>
 
               {forgotSent ? (
