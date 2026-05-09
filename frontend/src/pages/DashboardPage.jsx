@@ -206,12 +206,24 @@ const navItems = [{
   children: [{
     id: "scope2",
     label: "Electricidad",
-    icon: Zap
+    icon: Zap,
+    navAccent: {
+      color: "#38D5FF",
+      bg: "rgba(56,213,255,0.13)",
+      hoverBg: "rgba(56,213,255,0.18)",
+      shadow: "0 0 12px rgba(56,213,255,0.65)"
+    }
   },
   {
     id: "scope1",
     label: "Combustible",
-    icon: Flame
+    icon: Flame,
+    navAccent: {
+      color: "#FACC15",
+      bg: "rgba(250,204,21,0.13)",
+      hoverBg: "rgba(250,204,21,0.18)",
+      shadow: "0 0 12px rgba(250,204,21,0.65)"
+    }
   }]
 },
 {
@@ -528,15 +540,16 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, user }) {
     const has = it.children?.length;
     const exp = expanded.includes(it.id);
     const ai = !!it.aiTheme;
+    const navAccent = it.navAccent || null;
 
     /* AI items override the green active accent with purple */
-    const activeBg     = ai ? "rgba(139,92,246,0.18)"  : "rgba(34,197,94,0.12)";
-    const activeColor  = ai ? "#c4b5fd"                : "#4ADE80";
-    const accentColor  = ai ? "#8b5cf6"                : "#4ADE80";
-    const activeShadow = ai ? "inset 0 0 16px rgba(139,92,246,0.25)" : "none";
-    const idleColor    = ai ? "#a78bfa"                : "rgba(255,255,255,0.5)";
-    const hoverColor   = ai ? "#c4b5fd"                : "rgba(255,255,255,0.85)";
-    const hoverBg      = ai ? "rgba(139,92,246,0.10)"  : "rgba(255,255,255,0.06)";
+    const activeBg     = navAccent ? navAccent.bg       : ai ? "rgba(139,92,246,0.18)"  : "rgba(34,197,94,0.12)";
+    const activeColor  = navAccent ? navAccent.color    : ai ? "#c4b5fd"                : "#4ADE80";
+    const accentColor  = navAccent ? navAccent.color    : ai ? "#8b5cf6"                : "#4ADE80";
+    const activeShadow = navAccent ? `inset 0 0 14px ${navAccent.bg}` : ai ? "inset 0 0 16px rgba(139,92,246,0.25)" : "none";
+    const idleColor    = navAccent ? navAccent.color    : ai ? "#a78bfa"                : "rgba(255,255,255,0.5)";
+    const hoverColor   = navAccent ? navAccent.color    : ai ? "#c4b5fd"                : "rgba(255,255,255,0.85)";
+    const hoverBg      = navAccent ? navAccent.hoverBg  : ai ? "rgba(139,92,246,0.10)"  : "rgba(255,255,255,0.06)";
 
     return (<div key={it.id}>
       <button onClick={() => {
@@ -589,11 +602,15 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, user }) {
               height: collapsed ? 3 : 18,
               borderRadius: 2,
               background: accentColor,
-              boxShadow: ai ? "0 0 10px rgba(139,92,246,0.6)" : "none"
+              boxShadow: navAccent ? navAccent.shadow : ai ? "0 0 10px rgba(139,92,246,0.6)" : "none"
             }} />}
         <Icon
           size={depth ? 15 : 18}
-          style={{ flexShrink: 0, color: ai ? accentColor : undefined }} />
+          style={{
+            flexShrink: 0,
+            color: navAccent || ai ? accentColor : undefined,
+            filter: navAccent ? `drop-shadow(${navAccent.shadow})` : undefined
+          }} />
         {!collapsed && <>
           <span
             style={{
@@ -601,7 +618,8 @@ function SidebarNav({ collapsed, onToggle, activeId, onNav, user }) {
               textAlign: "left",
               whiteSpace: "nowrap",
               overflow: "hidden",
-              textOverflow: "ellipsis"
+              textOverflow: "ellipsis",
+              textShadow: navAccent ? navAccent.shadow : undefined
             }}>
             {it.label}
           </span>
