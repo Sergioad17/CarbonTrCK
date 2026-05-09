@@ -306,7 +306,7 @@ async function getFactorById(factorId, client) {
   return result.rows[0] || null;
 }
 
-export function buildNormalizedRecordShape(row) {
+export function buildNormalizedRecordShape(row, options = {}) {
   const evidenceFiles = Array.isArray(row.evidence_files)
     ? row.evidence_files
     : typeof row.evidence_files === "string"
@@ -330,11 +330,12 @@ export function buildNormalizedRecordShape(row) {
   const value = toNullableNumber(row.value);
   const co2eKg = toNullableNumber(row.co2e_kg);
   const co2eT = toNullableNumber(row.co2e_t);
-  const status = cleanString(row.status) === "est" || row.isEstimated ? "est" : "real";
+  const validationStatus = cleanString(row.status) || "pending";
+  const status = validationStatus === "est" || row.isEstimated ? "est" : "real";
   const evidenceText = cleanString(row.evidence);
   const factorId = cleanString(row.factorId || row.factor_id) || null;
 
-  return {
+  const record = {
     id: cleanString(row.id),
     dateISO: cleanString(row.dateISO || row.record_date),
     scope: cleanString(row.scope),
@@ -363,6 +364,19 @@ export function buildNormalizedRecordShape(row) {
     evidenceFiles: normalizedEvidenceFiles,
     createdAt: row.createdAt || row.created_at || null,
   };
+
+  if (options.includeValidation) {
+    record.validationStatus = validationStatus;
+    record.isApproved = validationStatus === "approved";
+    record.approvedAt = row.approvedAt || row.approved_at || null;
+    record.approvedBy = row.approvedBy || row.approved_by || null;
+    record.latestValidationDecision = cleanString(row.latestValidationDecision || row.latest_validation_decision);
+    record.latestValidationComment = cleanString(row.latestValidationComment || row.latest_validation_comment);
+    record.latestValidationAt = row.latestValidationAt || row.latest_validation_at || null;
+    record.latestValidationActor = cleanString(row.latestValidationActor || row.latest_validation_actor);
+  }
+
+  return record;
 }
 
 function buildListFilters(filters = {}) {
@@ -375,6 +389,7 @@ function buildListFilters(filters = {}) {
     campusCode: cleanString(filters.campusCode),
     status: cleanString(filters.status),
     source: normalizeSourceCode(filters.source),
+    includeValidation: ["1", "true", "yes"].includes(cleanString(filters.includeValidation).toLowerCase()),
   };
 }
 
@@ -459,6 +474,12 @@ export async function listRecords(actor, filters = {}) {
         v.co2e_t,
         v.status,
         v."isEstimated",
+        r.approved_at,
+        approver.full_name AS approved_by,
+        latest_decision.decision AS latest_validation_decision,
+        latest_decision.comment AS latest_validation_comment,
+        latest_decision.created_at AS latest_validation_at,
+        latest_decision.actor_name AS latest_validation_actor,
         ds.code AS source,
         v."by",
         v.note,
@@ -481,6 +502,20 @@ export async function listRecords(actor, filters = {}) {
       FROM v_frontend_records v
       JOIN records r ON r.id = v.id
       JOIN data_sources ds ON ds.id = r.data_source_id
+      LEFT JOIN users approver ON approver.id = r.approved_by
+      LEFT JOIN LATERAL (
+        SELECT
+          vd.decision,
+          vd.comment,
+          vd.created_at,
+          u.full_name AS actor_name
+        FROM validation_decisions vd
+        LEFT JOIN users u ON u.id = vd.actor_id
+        WHERE vd.record_id = r.id
+          AND vd.organization_id = r.organization_id
+        ORDER BY vd.created_at DESC
+        LIMIT 1
+      ) latest_decision ON true
       LEFT JOIN record_files rf ON rf.record_id = v.id
       LEFT JOIN files f ON f.id = rf.file_id
       WHERE ${conditions.join("\n        AND ")}
@@ -503,6 +538,12 @@ export async function listRecords(actor, filters = {}) {
         v.co2e_t,
         v.status,
         v."isEstimated",
+        r.approved_at,
+        approver.full_name,
+        latest_decision.decision,
+        latest_decision.comment,
+        latest_decision.created_at,
+        latest_decision.actor_name,
         ds.code,
         v."by",
         v.note,
@@ -513,7 +554,340 @@ export async function listRecords(actor, filters = {}) {
     values,
   );
 
-  return result.rows.map(buildNormalizedRecordShape);
+  return result.rows.map((row) => buildNormalizedRecordShape(row, { includeValidation: normalizedFilters.includeValidation }));
+}
+
+function validationReason(row) {
+  if (cleanString(row.latest_validation_decision) === "returned") {
+    return cleanString(row.latest_validation_comment) || "Registro devuelto para corrección.";
+  }
+  if (!row.has_evidence) return "Registro pendiente sin evidencia adjunta.";
+  if (cleanString(row.note)) return cleanString(row.note);
+  if (row.is_estimated) return "Registro estimado pendiente de revisión.";
+  return "Registro pendiente de validación administrativa.";
+}
+
+function validationPriority(row) {
+  const submittedAt = row.created_at ? new Date(row.created_at).getTime() : Date.now();
+  const ageDays = (Date.now() - submittedAt) / 86400000;
+  if (!row.has_evidence || ageDays > 5) return "high";
+  if (row.is_estimated) return "normal";
+  return "low";
+}
+
+function buildValidationQueueItem(row) {
+  const record = buildNormalizedRecordShape({
+    ...row,
+    dateISO: row.date_iso,
+    areaCode: row.area_code,
+    campusCode: row.campus_code,
+    activityText: row.activity_text,
+    factorId: row.factor_id,
+    isEstimated: row.is_estimated,
+    by: row.captured_by,
+    createdAt: row.created_at,
+    evidence_files: row.evidence_files,
+  });
+
+  return {
+    id: cleanString(row.id),
+    recordId: cleanString(row.id),
+    priority: validationPriority(row),
+    reason: validationReason(row),
+    submittedAt: row.created_at,
+    assignedTo: "Administracion",
+    latestValidationDecision: cleanString(row.latest_validation_decision),
+    latestValidationComment: cleanString(row.latest_validation_comment),
+    latestValidationAt: row.latest_validation_at,
+    latestValidationActor: cleanString(row.latest_validation_actor),
+    record,
+  };
+}
+
+function buildValidationDecision(row) {
+  return {
+    id: cleanString(row.id),
+    recordId: cleanString(row.record_id),
+    decision: cleanString(row.decision),
+    actor: cleanString(row.actor_name || row.actor_email) || "Sistema",
+    actorId: cleanString(row.actor_id),
+    ts: row.created_at,
+    comment: cleanString(row.comment),
+    criteria: Array.isArray(row.criteria) ? row.criteria : [],
+  };
+}
+
+export async function listValidationQueue(actor, client = { query }) {
+  const conditions = [
+    "r.organization_id = $1",
+    "r.deleted_at IS NULL",
+    "r.approved_at IS NULL",
+    "r.status <> 'rejected'",
+  ];
+  const values = [actor.organizationId];
+
+  if (actor.campusCode && cleanString(actor.campusCode)) {
+    values.push(cleanString(actor.campusCode));
+    conditions.push(`c.code = $${values.length}`);
+  }
+
+  if (actor.areaAccess?.mode === "custom") {
+    const allowedAreaCodes = (actor.areaAccess.areaCodes || []).map((code) => cleanString(code)).filter(Boolean);
+    if (allowedAreaCodes.length < 1) return [];
+    values.push(allowedAreaCodes);
+    conditions.push(`a.code = ANY($${values.length}::text[])`);
+  }
+
+  const result = await client.query(
+    `
+      SELECT
+        r.id,
+        r.record_date AS date_iso,
+        es.code AS scope,
+        ec.code AS category,
+        m.code AS metric,
+        a.name AS area,
+        a.code AS area_code,
+        c.code AS campus_code,
+        r.activity_text AS activity,
+        r.activity_text AS activity_text,
+        r.quantity_value AS value,
+        u.code AS unit,
+        r.factor_value_used AS factor,
+        r.emission_factor_id AS factor_id,
+        r.co2e_kg,
+        r.co2e_t,
+        r.status,
+        r.is_estimated,
+        ds.code AS source,
+        cu.full_name AS captured_by,
+        r.note,
+        r.evidence_text AS evidence,
+        r.created_at,
+        latest_decision.decision AS latest_validation_decision,
+        latest_decision.comment AS latest_validation_comment,
+        latest_decision.created_at AS latest_validation_at,
+        latest_decision.actor_name AS latest_validation_actor,
+        EXISTS (
+          SELECT 1
+          FROM record_files rf
+          WHERE rf.record_id = r.id
+        ) OR r.evidence_text IS NOT NULL AS has_evidence,
+        COALESCE(
+          jsonb_agg(
+            DISTINCT jsonb_build_object(
+              'id', f.id,
+              'fileName', f.file_name,
+              'name', f.file_name,
+              'mimeType', f.mime_type,
+              'sizeBytes', f.size_bytes,
+              'url', f.storage_url,
+              'purpose', rf.purpose
+            )
+          ) FILTER (WHERE f.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS evidence_files
+      FROM records r
+      JOIN campuses c ON c.id = r.campus_id
+      JOIN areas a ON a.id = r.area_id
+      JOIN emission_scopes es ON es.id = r.scope_id
+      JOIN emission_categories ec ON ec.id = r.category_id
+      JOIN metrics m ON m.id = r.metric_id
+      JOIN units u ON u.id = r.unit_id
+      JOIN data_sources ds ON ds.id = r.data_source_id
+      JOIN users cu ON cu.id = r.created_by
+      LEFT JOIN LATERAL (
+        SELECT
+          vd.decision,
+          vd.comment,
+          vd.created_at,
+          u.full_name AS actor_name
+        FROM validation_decisions vd
+        LEFT JOIN users u ON u.id = vd.actor_id
+        WHERE vd.record_id = r.id
+          AND vd.organization_id = r.organization_id
+        ORDER BY vd.created_at DESC
+        LIMIT 1
+      ) latest_decision ON true
+      LEFT JOIN record_files rf ON rf.record_id = r.id
+      LEFT JOIN files f ON f.id = rf.file_id
+      WHERE ${conditions.join("\n        AND ")}
+      GROUP BY
+        r.id, es.code, ec.code, m.code, a.name, a.code, c.code, u.code, ds.code, cu.full_name,
+        latest_decision.decision, latest_decision.comment, latest_decision.created_at, latest_decision.actor_name
+      ORDER BY
+        CASE WHEN NOT (EXISTS (SELECT 1 FROM record_files rf2 WHERE rf2.record_id = r.id) OR r.evidence_text IS NOT NULL) THEN 0 ELSE 1 END,
+        r.created_at ASC
+    `,
+    values,
+  );
+
+  return result.rows.map(buildValidationQueueItem);
+}
+
+export async function listValidationDecisions(actor, filters = {}, client = { query }) {
+  const recordId = cleanString(filters.recordId);
+  const values = [actor.organizationId];
+  const conditions = ["vd.organization_id = $1"];
+
+  if (recordId) {
+    values.push(recordId);
+    conditions.push(`vd.record_id = $${values.length}`);
+  }
+
+  const result = await client.query(
+    `
+      SELECT
+        vd.id,
+        vd.record_id,
+        vd.decision,
+        vd.actor_id,
+        vd.comment,
+        vd.criteria,
+        vd.created_at,
+        u.full_name AS actor_name,
+        u.email AS actor_email
+      FROM validation_decisions vd
+      LEFT JOIN users u ON u.id = vd.actor_id
+      WHERE ${conditions.join("\n        AND ")}
+      ORDER BY vd.created_at DESC
+      LIMIT 200
+    `,
+    values,
+  );
+
+  return result.rows.map(buildValidationDecision);
+}
+
+export async function decideRecords(actor, payload, auditContext) {
+  return withTransaction(async (client) => {
+    const ids = Array.from(new Set((payload.ids || []).map((id) => cleanString(id)).filter(Boolean)));
+    const decision = cleanString(payload.decision);
+    const comment = cleanString(payload.comment);
+    const criteria = Array.isArray(payload.criteria) ? payload.criteria : [];
+
+    const decisionToStatus = {
+      approved: "approved",
+      rejected: "rejected",
+      returned: "pending",
+    };
+    const nextStatus = decisionToStatus[decision];
+
+    if (!nextStatus || ids.length < 1) {
+      throw new AppError({
+        statusCode: 422,
+        code: "VALIDATION_ERROR",
+        message: "A valid decision and at least one record id are required.",
+      });
+    }
+
+    const recordsResult = await client.query(
+      `
+        SELECT
+          r.id,
+          r.status,
+          r.approved_at,
+          c.code AS campus_code,
+          a.code AS area_code
+        FROM records r
+        JOIN campuses c ON c.id = r.campus_id
+        JOIN areas a ON a.id = r.area_id
+        WHERE r.organization_id = $1
+          AND r.id = ANY($2::uuid[])
+          AND r.deleted_at IS NULL
+        FOR UPDATE
+      `,
+      [actor.organizationId, ids],
+    );
+
+    if (recordsResult.rowCount !== ids.length) {
+      throw new AppError({
+        statusCode: 404,
+        code: "NOT_FOUND",
+        message: "One or more records were not found.",
+      });
+    }
+
+    for (const record of recordsResult.rows) {
+      ensureAllowedRecordAccess(actor, { campusCode: record.campus_code, areaCode: record.area_code });
+      if (record.approved_at) {
+        throw new AppError({
+          statusCode: 409,
+          code: "CONFLICT",
+          message: "One or more records were already approved.",
+        });
+      }
+    }
+
+    const decided = [];
+    for (const recordId of ids) {
+      const now = new Date().toISOString();
+      await client.query(
+        `
+          UPDATE records
+          SET status = $3::record_status,
+              approved_by = CASE WHEN $3 = 'approved' THEN $4::uuid ELSE NULL::uuid END,
+              approved_at = CASE WHEN $3 = 'approved' THEN $5::timestamptz ELSE NULL END,
+              updated_by = $4,
+              updated_at = $5::timestamptz
+          WHERE id = $1
+            AND organization_id = $2
+        `,
+        [recordId, actor.organizationId, nextStatus, actor.id, now],
+      );
+
+      const decisionResult = await client.query(
+        `
+          INSERT INTO validation_decisions (
+            organization_id,
+            record_id,
+            decision,
+            actor_id,
+            comment,
+            criteria
+          )
+          VALUES ($1,$2,$3,$4,$5,$6::jsonb)
+          RETURNING id, record_id, decision, actor_id, comment, criteria, created_at
+        `,
+        [actor.organizationId, recordId, decision, actor.id, comment || null, JSON.stringify(criteria)],
+      );
+
+      const updatedRecord = await getRecordByIdForActor(actor, recordId, client);
+      await insertRecordRevision(client, {
+        recordId,
+        changedBy: actor.id,
+        changeReason: decision === "approved" ? "approve" : decision,
+        snapshot: {
+          ...updatedRecord,
+          validationDecision: decision,
+          validationComment: comment,
+          validationCriteria: criteria,
+        },
+      });
+
+      await insertAuditEvent(client, {
+        organizationId: actor.organizationId,
+        userId: actor.id,
+        eventType: `records.validation.${decision}`,
+        entityType: "record",
+        entityId: recordId,
+        ipAddress: auditContext.ipAddress,
+        userAgent: auditContext.userAgent,
+        details: { decision, comment, criteria },
+      });
+
+      decided.push(buildValidationDecision({
+        ...decisionResult.rows[0],
+        actor_name: actor.fullName,
+        actor_email: actor.email,
+      }));
+    }
+
+    return {
+      decisions: decided,
+      queue: await listValidationQueue(actor, client),
+    };
+  });
 }
 
 async function resolveRecordCreateReferences(actor, payload, client) {
@@ -827,6 +1201,12 @@ export async function getRecordByIdForActor(actor, recordId, client = { query })
         v.co2e_t,
         v.status,
         v."isEstimated",
+        r.approved_at,
+        approver.full_name AS approved_by,
+        latest_decision.decision AS latest_validation_decision,
+        latest_decision.comment AS latest_validation_comment,
+        latest_decision.created_at AS latest_validation_at,
+        latest_decision.actor_name AS latest_validation_actor,
         ds.code AS source,
         v."by",
         v.note,
@@ -849,6 +1229,20 @@ export async function getRecordByIdForActor(actor, recordId, client = { query })
       FROM v_frontend_records v
       JOIN records r ON r.id = v.id
       JOIN data_sources ds ON ds.id = r.data_source_id
+      LEFT JOIN users approver ON approver.id = r.approved_by
+      LEFT JOIN LATERAL (
+        SELECT
+          vd.decision,
+          vd.comment,
+          vd.created_at,
+          u.full_name AS actor_name
+        FROM validation_decisions vd
+        LEFT JOIN users u ON u.id = vd.actor_id
+        WHERE vd.record_id = r.id
+          AND vd.organization_id = r.organization_id
+        ORDER BY vd.created_at DESC
+        LIMIT 1
+      ) latest_decision ON true
       LEFT JOIN record_files rf ON rf.record_id = v.id
       LEFT JOIN files f ON f.id = rf.file_id
       WHERE ${conditions.join("\n        AND ")}
@@ -871,6 +1265,12 @@ export async function getRecordByIdForActor(actor, recordId, client = { query })
         v.co2e_t,
         v.status,
         v."isEstimated",
+        r.approved_at,
+        approver.full_name,
+        latest_decision.decision,
+        latest_decision.comment,
+        latest_decision.created_at,
+        latest_decision.actor_name,
         ds.code,
         v."by",
         v.note,

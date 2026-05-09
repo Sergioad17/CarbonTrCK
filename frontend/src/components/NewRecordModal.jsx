@@ -32,7 +32,8 @@ import {
 import { getCurrentUser } from "../lib/sessionStore";
 import { parseDevicePayload } from "../lib/deviceParser";
 import { createNotification } from "../api/notifications";
-import { createEmissionRecord } from "../api/records";
+import { archiveEmissionRecord, createEmissionRecord } from "../api/records";
+import { buildArchiveAuditPayload, resolveArchiveActor } from "../lib/recordArchive";
 import { fetchDefaultFactorValue } from "../api/factors";
 import { fetchAreas } from "../api/areas";
 
@@ -429,11 +430,14 @@ function Section({ title, icon, children }) {
   );
 }
 
-function ScopeCard({ active, icon, label, desc, color, onClick }) {
+function ScopeCard({ active, icon, label, desc, color, onClick, disabled = false }) {
+  const interactive = !disabled;
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={interactive ? onClick : undefined}
+      disabled={disabled}
+      aria-disabled={disabled}
       style={{
         flex: 1,
         display: "flex",
@@ -441,11 +445,12 @@ function ScopeCard({ active, icon, label, desc, color, onClick }) {
         gap: 12,
         padding: "12px 14px",
         borderRadius: "var(--eco-radius-md)",
-        cursor: "pointer",
+        cursor: interactive ? "pointer" : "not-allowed",
         outline: "none",
         textAlign: "left",
         border: active ? `1.5px solid ${color}` : "1px solid var(--eco-gray-200)",
         background: active ? `${color}08` : "white",
+        opacity: disabled && !active ? 0.5 : 1,
         transition: "all 180ms ease-out",
       }}
     >
@@ -682,13 +687,15 @@ function DeviceNotice({ tone = "info", title, body, lines = [] }) {
   );
 }
 
-export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord, onSave }) {
+export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord, onSave, editRecord = null }) {
   const notify = onCreate || onCreateRecord || onSave;
+  const isEditMode = Boolean(editRecord?.id);
   const fileInputRef = useRef(null);
   const currentUser = useMemo(() => getCurrentUser(), []);
   const initialAreaCode = getPreferredAreaCode(currentUser);
   const campusCode = getPreferredCampusCode(currentUser);
 
+  const skipCatFactorRef = useRef(false);
   const [cat, setCat] = useState("electricidad");
   const [recordMode, setRecordMode] = useState("manual");
   const [isEstimated, setIsEstimated] = useState(false);
@@ -731,6 +738,45 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   useEffect(() => {
     if (!open) return;
     setTouched(false);
+    setSaving(false);
+    setEvidenceEnabled(false);
+    setEvidenceName("");
+    setEvidencePreviewUrl("");
+    setEvidenceFile(null);
+    setEvidenceError("");
+    setDeviceInput("");
+    setDeviceFileName("");
+    setDeviceStatus("empty");
+    setDeviceErrors([]);
+    setDeviceWarnings([]);
+    setDevicePayload(null);
+    setDeviceSummary(null);
+    setDevicePreparedItems([]);
+    setDeviceCounts({ total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
+    setDeviceToast(null);
+
+    if (editRecord?.id) {
+      const editCategory = editRecord.category === "combustible" ? "combustible" : "electricidad";
+      skipCatFactorRef.current = true;
+      setCat(editCategory);
+      setRecordMode("manual");
+      setIsEstimated(editRecord.status === "est" || Boolean(editRecord.isEstimated));
+      setDate(String(editRecord.dateISO || new Date().toISOString().slice(0, 10)));
+      setArea(String(editRecord.areaCode || editRecord.area || initialAreaCode));
+      setSource(String(editRecord.source || "Medicion"));
+      setActivity(String(editRecord.activityText || editRecord.activity || ""));
+      setValue(Number(editRecord.value) > 0 ? String(editRecord.value) : "");
+      setFuelType(String(editRecord.fuelType || "Diesel"));
+      setFactor(Number(editRecord.factor) > 0 ? Number(editRecord.factor) : factorDefaults[editCategory]);
+      setNote(String(editRecord.note || ""));
+      setDeviceBinding({
+        ...getDefaultBinding(""),
+        campusCode: editRecord.campusCode || campusCode,
+        areaCode: editRecord.areaCode || initialAreaCode,
+      });
+      return;
+    }
+
     setCat("electricidad");
     setRecordMode("manual");
     setIsEstimated(false);
@@ -742,28 +788,12 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setFuelType("Diesel");
     setFactor(factorDefaults.electricidad);
     setNote("");
-    setEvidenceEnabled(false);
-    setEvidenceName("");
-    setEvidencePreviewUrl("");
-    setEvidenceFile(null);
-    setEvidenceError("");
-    setSaving(false);
-    setDeviceInput("");
-    setDeviceFileName("");
-    setDeviceStatus("empty");
-    setDeviceErrors([]);
-    setDeviceWarnings([]);
-    setDevicePayload(null);
-    setDeviceSummary(null);
-    setDevicePreparedItems([]);
-    setDeviceCounts({ total: 0, valid: 0, invalid: 0, registrable: 0, blocked: 0 });
     setDeviceBinding({
       ...getDefaultBinding(""),
       campusCode,
       areaCode: initialAreaCode,
     });
-    setDeviceToast(null);
-  }, [open, factorDefaults, initialAreaCode, campusCode]);
+  }, [open, editRecord, factorDefaults, initialAreaCode, campusCode]);
 
   useEffect(() => () => {
     if (evidencePreviewUrl) URL.revokeObjectURL(evidencePreviewUrl);
@@ -815,6 +845,10 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   }, [open, currentUser, campusCode]);
 
   useEffect(() => {
+    if (skipCatFactorRef.current) {
+      skipCatFactorRef.current = false;
+      return;
+    }
     setFactor(cat === "electricidad" ? factorDefaults.electricidad : factorDefaults.combustible);
     if (cat !== "electricidad") {
       setRecordMode("manual");
@@ -1230,18 +1264,36 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
           return;
         }
         const record = created.record;
-        createNotification({
-          type: "record_created",
-          title: "Registro guardado",
-          message: `${record.area} · ${formatNumber(record.co2e_t, 3)} tCO2e registradas.`,
-          link: "/emisiones",
-          meta: {
-            category: record.category,
-            area: record.area,
-            source: record.source,
-            isEstimated: record.isEstimated,
-          },
-        });
+        if (isEditMode) {
+          await archiveEmissionRecord(
+            editRecord.id,
+            buildArchiveAuditPayload(resolveArchiveActor(currentUser), "Corrección reenviada tras devolución del administrador"),
+          ).catch(() => null);
+          createNotification({
+            type: "record_resubmitted",
+            title: "Corrección reenviada",
+            message: `${record.area} · ${formatNumber(record.co2e_t, 3)} tCO2e enviadas para nueva revisión.`,
+            link: "/emisiones",
+            meta: {
+              category: record.category,
+              area: record.area,
+              originalRecordId: editRecord.id,
+            },
+          });
+        } else {
+          createNotification({
+            type: "record_created",
+            title: "Registro guardado",
+            message: `${record.area} · ${formatNumber(record.co2e_t, 3)} tCO2e registradas.`,
+            link: "/emisiones",
+            meta: {
+              category: record.category,
+              area: record.area,
+              source: record.source,
+              isEstimated: record.isEstimated,
+            },
+          });
+        }
         notify?.(record);
       }
     } finally {
@@ -1311,10 +1363,12 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
             <div>
               <h2 style={{ fontFamily: fd, fontSize: 16, fontWeight: 800, margin: 0, color: "var(--eco-gray-900)" }}>
-                Nuevo registro de emision
+                {isEditMode ? "Corregir registro devuelto" : "Nuevo registro de emision"}
               </h2>
               <p style={{ fontFamily: fb, fontSize: 12, margin: "1px 0 0", color: "var(--eco-gray-400)" }}>
-                Captura el consumo para calcular CO2e automaticamente
+                {isEditMode
+                  ? "Ajusta los datos según el comentario del administrador y reenvíalo a revisión"
+                  : "Captura el consumo para calcular CO2e automaticamente"}
               </p>
             </div>
           </div>
@@ -1341,6 +1395,36 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: 20 }}>
+          {isEditMode && (
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-start",
+                padding: "12px 14px",
+                marginBottom: 16,
+                borderRadius: "var(--eco-radius-md)",
+                border: "1px solid #FDE68A",
+                background: "var(--eco-warning-bg, #FEF3C7)",
+              }}
+            >
+              <AlertTriangle size={16} style={{ color: "var(--eco-warning, #CA8A04)", flexShrink: 0, marginTop: 2 }} />
+              <div style={{ minWidth: 0 }}>
+                <p style={{ margin: 0, fontFamily: fd, fontSize: 12.5, fontWeight: 700, color: "#92400E" }}>
+                  Registro devuelto por el administrador
+                </p>
+                {editRecord?.latestValidationComment ? (
+                  <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 12, color: "#78350F", lineHeight: 1.5 }}>
+                    «{editRecord.latestValidationComment}»
+                  </p>
+                ) : (
+                  <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 12, color: "#78350F", lineHeight: 1.5 }}>
+                    Ajusta los datos y reenvíalo para una nueva revisión.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 20 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               <Section title="Tipo de emision" icon={<Leaf size={14} />}>
@@ -1349,17 +1433,19 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                     active={cat === "electricidad"}
                     onClick={() => setCat("electricidad")}
                     icon={<Zap size={20} />}
-                    label="Scope 2 - Electricidad"
+                    label="Electricidad"
                     desc="Consumo electrico CFE"
                     color="#22C55E"
+                    disabled={isEditMode}
                   />
                   <ScopeCard
                     active={cat === "combustible"}
                     onClick={() => setCat("combustible")}
                     icon={<Flame size={20} />}
-                    label="Scope 1 - Combustible"
+                    label="Combustible"
                     desc="Diesel tractor agricola"
                     color="#EAB308"
+                    disabled={isEditMode}
                   />
                 </div>
               </Section>
@@ -2108,6 +2194,8 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                     ? deviceCounts.valid > 1
                       ? `Importar ${deviceCounts.registrable || deviceCounts.valid} lecturas`
                       : "Tomar lectura y registrar"
+                    : isEditMode
+                    ? "Reenviar a revisión"
                     : "Guardar y calcular CO2e"}
                 </>
               )}

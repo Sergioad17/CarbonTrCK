@@ -4,8 +4,8 @@ import {
   Leaf, Mail, Lock,
   Eye, EyeOff, Loader2,
   ArrowRight, CheckCircle2, AlertCircle,
-  Zap, Flame, TreePine,
-  BarChart3, Shield, Building2
+  ShieldCheck, Sparkles, KeyRound, WifiOff,
+  Building2, BarChart3,
 } from 'lucide-react'
 import './Animations.css'
 import './BackgroundPatterns/FingerprintLoginAnimation.css'
@@ -14,6 +14,175 @@ import { isUsingBackendAuth, requestPasswordReset } from '../api/auth'
 const fd = "var(--eco-font-display)"
 const fb = "var(--eco-font-body)"
 const fm = "var(--eco-font-mono)"
+
+const LOGIN_CSS = `
+@keyframes ctLoginFadeIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ctLogoSheen{0%,80%{transform:translateX(-160%) skewX(-18deg)}100%{transform:translateX(220%) skewX(-18deg)}}
+@keyframes ctLogoGlow{0%,100%{filter:drop-shadow(0 6px 14px rgba(34,197,94,.35))}50%{filter:drop-shadow(0 8px 20px rgba(34,197,94,.55))}}
+@keyframes ctTitleSparkle{0%,100%{opacity:.5;transform:rotate(-12deg) scale(.92)}50%{opacity:1;transform:rotate(8deg) scale(1.06)}}
+@keyframes ctSubtleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes ctRingPulseLogin{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.40)}50%{box-shadow:0 0 0 12px rgba(34,197,94,0)}}
+@keyframes ctBubble1{0%{transform:translate(0,0) scale(1)}25%{transform:translate(28vw,-12vh) scale(1.08)}50%{transform:translate(56vw,28vh) scale(.92)}75%{transform:translate(18vw,52vh) scale(1.06)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble2{0%{transform:translate(0,0) scale(1)}25%{transform:translate(-22vw,18vh) scale(.95)}50%{transform:translate(-46vw,-18vh) scale(1.10)}75%{transform:translate(-10vw,-10vh) scale(1.02)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble3{0%{transform:translate(0,0) scale(1)}33%{transform:translate(34vw,32vh) scale(1.10)}66%{transform:translate(-20vw,18vh) scale(.95)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble4{0%{transform:translate(0,0) scale(1)}25%{transform:translate(-28vw,-22vh) scale(1.05)}50%{transform:translate(-12vw,-44vh) scale(.94)}75%{transform:translate(20vw,-20vh) scale(1.08)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble5{0%{transform:translate(0,0) scale(1)}50%{transform:translate(40vw,-40vh) scale(1.12)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble6{0%{transform:translate(0,0) scale(1)}25%{transform:translate(-44vw,12vh) scale(1.08)}50%{transform:translate(-30vw,46vh) scale(.94)}75%{transform:translate(8vw,30vh) scale(1.04)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble7{0%{transform:translate(0,0) scale(1)}33%{transform:translate(48vw,18vh) scale(1.06)}66%{transform:translate(34vw,-26vh) scale(.96)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble8{0%{transform:translate(0,0) scale(1)}25%{transform:translate(-18vw,-32vh) scale(1.10)}50%{transform:translate(22vw,-18vh) scale(.92)}75%{transform:translate(34vw,16vh) scale(1.05)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble9{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-36vw,-30vh) scale(1.08)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubble10{0%{transform:translate(0,0) scale(1)}33%{transform:translate(20vw,40vh) scale(1.06)}66%{transform:translate(-18vw,30vh) scale(.94)}100%{transform:translate(0,0) scale(1)}}
+@keyframes ctBubblePulse{0%,100%{opacity:.85}50%{opacity:.55}}
+
+.ct-login-stage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;box-sizing:border-box}
+.ct-login-shell{position:relative;z-index:2;display:flex;align-items:stretch;justify-content:center;gap:0;width:min(960px,100%);margin-inline:auto;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;border-radius:22px;box-shadow:0 30px 80px -32px rgba(15,23,42,.45),0 8px 24px -10px rgba(15,23,42,.10)}
+.ct-login-shell > .ct-login-card{border-top-right-radius:0;border-bottom-right-radius:0;box-shadow:none}
+.ct-login-shell > .ct-login-aside{border-top-left-radius:0;border-bottom-left-radius:0;box-shadow:none;border-left:1px solid rgba(255,255,255,.06)}
+.ct-bubbles-stage{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none}
+.ct-bubble{position:absolute;border-radius:50%;will-change:transform,opacity;animation-fill-mode:both;mix-blend-mode:plus-lighter;display:grid;place-items:center;text-align:center}
+.ct-bubble-label{font-family:var(--eco-font-display);font-weight:800;color:rgba(255,255,255,.78);letter-spacing:.04em;text-shadow:0 2px 10px rgba(15,23,42,.30),0 0 22px rgba(34,197,94,.22);pointer-events:none;user-select:none;text-transform:uppercase}
+.ct-login-card{position:relative;z-index:2;width:min(460px,100%);background:rgba(255,255,255,.86);backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);border:1px solid rgba(255,255,255,.55);border-radius:22px;box-shadow:0 30px 80px -32px rgba(15,23,42,.45),0 8px 24px -10px rgba(15,23,42,.10),inset 0 1px 0 rgba(255,255,255,.7);padding:34px 34px 26px;animation:ctLoginFadeIn .55s cubic-bezier(.22,1,.36,1) both;overflow:hidden;isolation:isolate}
+.ct-login-card::before{content:"";position:absolute;top:-100px;right:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.26),transparent 70%);pointer-events:none;z-index:-1}
+.ct-login-card::after{content:"";position:absolute;bottom:-130px;left:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.20),transparent 70%);pointer-events:none;z-index:-1}
+
+.ct-login-logo{display:inline-flex;align-items:center;gap:11px;margin-bottom:22px;animation:ctSubtleFloat 4.6s ease-in-out infinite}
+.ct-login-logo-mark{position:relative;width:44px;height:44px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#22C55E 0%,#15803D 100%);color:#fff;overflow:hidden;animation:ctLogoGlow 3.4s ease-in-out infinite,ctRingPulseLogin 3s ease-out infinite}
+.ct-login-logo-mark::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);transform:translateX(-160%) skewX(-18deg);pointer-events:none;animation:ctLogoSheen 4.8s ease-in-out infinite}
+.ct-login-logo-text-title{display:block;font-family:${fd};font-size:18px;font-weight:800;color:var(--eco-gray-900);line-height:1.05;letter-spacing:-0.005em}
+.ct-login-logo-text-sub{display:block;font-family:${fb};font-size:10.5px;color:var(--eco-gray-500);letter-spacing:.10em;font-weight:600;text-transform:uppercase;margin-top:1px}
+.ct-login-eyebrow{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;background:linear-gradient(135deg,rgba(34,197,94,.10),rgba(96,165,250,.10));border:1px solid rgba(34,197,94,.22);font-family:${fb};font-size:10.5px;font-weight:700;color:#15803D;text-transform:uppercase;letter-spacing:.10em;margin-bottom:14px}
+.ct-login-eyebrow-spark{display:inline-flex;color:#22C55E;animation:ctTitleSparkle 1.8s ease-in-out infinite}
+.ct-login-title{margin:0 0 8px;font-family:${fd};font-size:26px;font-weight:800;color:var(--eco-gray-900);letter-spacing:-0.024em;line-height:1.14;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ct-login-title-spark{color:#EAB308;animation:ctTitleSparkle 2.2s ease-in-out infinite}
+.ct-login-sub{margin:0 0 22px;font-family:${fb};font-size:14px;color:var(--eco-gray-500);line-height:1.55}
+
+.ct-login-trust{display:flex;align-items:center;justify-content:center;gap:7px;margin:14px 0 4px;padding:9px 12px;border-radius:999px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.18);font-family:${fb};font-size:11.5px;font-weight:600;color:#15803D}
+.ct-login-trust-dot{width:6px;height:6px;border-radius:50%;background:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.20),0 0 8px rgba(34,197,94,.55)}
+
+.ct-login-foot{margin:18px 0 0;text-align:center;font-family:${fb};font-size:11px;color:var(--eco-gray-400);letter-spacing:.005em}
+.ct-login-back{width:100%;margin-top:14px;padding:8px 0;font-family:${fb};font-size:13px;font-weight:600;color:var(--eco-primary-600);background:none;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:color 150ms ease}
+.ct-login-back:hover{color:var(--eco-primary-700)}
+
+.ct-login-help-row{display:flex;justify-content:flex-end;margin:-4px 0 18px}
+.ct-login-help-link{font-family:${fb};font-size:13px;font-weight:600;color:var(--eco-primary-600);background:none;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:5px;transition:color 150ms ease}
+.ct-login-help-link:hover{color:var(--eco-primary-700)}
+
+.ct-login-banner-warn{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;border-radius:12px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.28);margin-bottom:16px;animation:ctLoginFadeIn .35s ease-out}
+.ct-login-banner-warn-ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(234,179,8,.18);color:#B45309;flex-shrink:0}
+.ct-login-banner-warn-title{margin:0 0 2px;font-family:${fd};font-size:13px;font-weight:700;color:#92400E}
+.ct-login-banner-warn-desc{margin:0;font-family:${fb};font-size:12px;color:#78350F;line-height:1.45}
+
+/* ─── Aside (stats panel) ─── */
+.ct-login-aside{position:relative;z-index:2;width:340px;flex-shrink:0;display:flex;flex-direction:column;padding:30px 28px 26px;border-radius:22px;border:1px solid rgba(34,197,94,.28);background:linear-gradient(155deg,rgba(20,83,45,.92) 0%,rgba(15,55,30,.94) 55%,rgba(10,42,24,.96) 100%);color:#fff;overflow:hidden;isolation:isolate;box-shadow:0 30px 80px -32px rgba(15,55,30,.55),0 8px 24px -10px rgba(15,23,42,.18),inset 0 1px 0 rgba(255,255,255,.08);animation:ctLoginFadeIn .65s cubic-bezier(.22,1,.36,1) .12s both}
+.ct-login-aside::before{content:"";position:absolute;top:-100px;right:-80px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(74,222,128,.30),transparent 70%);pointer-events:none;z-index:0;animation:ctSubtleFloat 6s ease-in-out infinite}
+.ct-login-aside::after{content:"";position:absolute;bottom:-130px;left:-80px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.18),transparent 70%);pointer-events:none;z-index:0}
+.ct-login-aside>*{position:relative;z-index:1}
+.ct-login-aside-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse 80% 50% at 50% 30%,black,transparent 75%);-webkit-mask-image:radial-gradient(ellipse 80% 50% at 50% 30%,black,transparent 75%);pointer-events:none;z-index:0;opacity:.45}
+.ct-login-aside-glyph{position:relative;width:54px;height:54px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(74,222,128,.35),rgba(34,197,94,.20));border:1px solid rgba(134,239,172,.40);color:#86EFAC;box-shadow:0 12px 28px -10px rgba(74,222,128,.50),inset 0 0 0 1px rgba(255,255,255,.08);margin-bottom:18px;animation:ctSubtleFloat 4.6s ease-in-out infinite}
+.ct-login-aside-glyph::after{content:"";position:absolute;inset:-3px;border-radius:16px;border:1px solid rgba(134,239,172,.35);animation:ctRingPulseLogin 3s ease-out infinite;pointer-events:none}
+.ct-login-aside-eyebrow{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;background:rgba(134,239,172,.14);border:1px solid rgba(134,239,172,.30);font-family:${fb};font-size:10.5px;font-weight:700;color:#86EFAC;text-transform:uppercase;letter-spacing:.10em;margin-bottom:14px;width:max-content}
+.ct-login-aside-title{margin:0 0 8px;font-family:${fd};font-size:22px;font-weight:800;color:#FFFFFF;letter-spacing:-0.018em;line-height:1.18}
+.ct-login-aside-sub{margin:0 0 22px;font-family:${fb};font-size:13px;color:rgba(229,231,235,.78);line-height:1.55}
+.ct-login-stats{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.ct-login-stat{display:flex;align-items:center;gap:13px;padding:13px 14px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);transition:transform 220ms cubic-bezier(.33,1,.68,1),background 220ms ease,border-color 220ms ease}
+.ct-login-stat:hover{transform:translateX(4px);background:rgba(74,222,128,.10);border-color:rgba(134,239,172,.32)}
+.ct-login-stat-ico{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,rgba(74,222,128,.30),rgba(34,197,94,.16));color:#86EFAC;border:1px solid rgba(134,239,172,.28);flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.ct-login-stat-meta{display:flex;flex-direction:column;min-width:0}
+.ct-login-stat-val{margin:0;font-family:${fm};font-size:20px;font-weight:800;color:#FFFFFF;line-height:1;letter-spacing:-0.01em}
+.ct-login-stat-lbl{margin:2px 0 0;font-family:${fb};font-size:12px;color:rgba(229,231,235,.70);letter-spacing:.005em}
+.ct-login-aside-foot{margin:18px 0 0;display:flex;align-items:center;gap:7px;padding-top:14px;border-top:1px dashed rgba(255,255,255,.10);font-family:${fb};font-size:11px;color:rgba(229,231,235,.60);line-height:1.45}
+.ct-login-aside-foot-ico{color:#86EFAC;flex-shrink:0}
+
+/* ─── Dark mode ─── */
+:root[data-theme="dark"] .ct-login-card{background:rgba(17,24,39,.78);border-color:rgba(255,255,255,.10);box-shadow:0 30px 80px -32px rgba(0,0,0,.65),0 8px 24px -10px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.05)}
+:root[data-theme="dark"] .ct-login-card::before{background:radial-gradient(circle,rgba(74,222,128,.22),transparent 70%)}
+:root[data-theme="dark"] .ct-login-card::after{background:radial-gradient(circle,rgba(96,165,250,.18),transparent 70%)}
+:root[data-theme="dark"] .ct-login-logo-text-title{color:var(--eco-text-strong)}
+:root[data-theme="dark"] .ct-login-logo-text-sub{color:var(--eco-text-soft)}
+:root[data-theme="dark"] .ct-login-eyebrow{background:linear-gradient(135deg,rgba(74,222,128,.14),rgba(96,165,250,.12));border-color:rgba(74,222,128,.30);color:#86EFAC}
+:root[data-theme="dark"] .ct-login-eyebrow-spark{color:#4ADE80}
+:root[data-theme="dark"] .ct-login-title{color:var(--eco-text-strong)}
+:root[data-theme="dark"] .ct-login-sub{color:var(--eco-text-soft)}
+:root[data-theme="dark"] .ct-login-trust{background:rgba(74,222,128,.10);border-color:rgba(74,222,128,.26);color:#86EFAC}
+:root[data-theme="dark"] .ct-login-trust-dot{background:#4ADE80;box-shadow:0 0 0 3px rgba(74,222,128,.20),0 0 10px rgba(74,222,128,.55)}
+:root[data-theme="dark"] .ct-login-foot{color:var(--eco-text-soft)}
+:root[data-theme="dark"] .ct-login-banner-warn{background:rgba(250,204,21,.10);border-color:rgba(250,204,21,.30)}
+:root[data-theme="dark"] .ct-login-banner-warn-ico{background:rgba(250,204,21,.18);color:#FCD34D}
+:root[data-theme="dark"] .ct-login-banner-warn-title{color:#FDE68A}
+:root[data-theme="dark"] .ct-login-banner-warn-desc{color:#FCD34D}
+
+/* Aside dark mode (already dark — refine for AA contrast in dark theme) */
+:root[data-theme="dark"] .ct-login-aside{background:linear-gradient(155deg,rgba(20,83,45,.96) 0%,rgba(7,40,22,.97) 55%,rgba(2,28,15,.98) 100%);border-color:rgba(74,222,128,.32);box-shadow:0 30px 80px -32px rgba(0,0,0,.65),0 8px 24px -10px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.06)}
+:root[data-theme="dark"] .ct-login-aside::before{background:radial-gradient(circle,rgba(74,222,128,.34),transparent 70%)}
+:root[data-theme="dark"] .ct-login-aside::after{background:radial-gradient(circle,rgba(96,165,250,.20),transparent 70%)}
+:root[data-theme="dark"] .ct-login-stat:hover{background:rgba(74,222,128,.12);border-color:rgba(134,239,172,.36)}
+
+@media (max-width: 920px){
+  .ct-login-shell{flex-direction:column;width:min(460px,100%);align-items:stretch;border-radius:22px;overflow:hidden}
+  .ct-login-aside{width:100%;border-left:none;border-top:1px solid rgba(255,255,255,.08)}
+  .ct-login-shell > .ct-login-card{border-bottom-left-radius:0;border-top-right-radius:22px}
+  .ct-login-shell > .ct-login-aside{border-top-left-radius:0;border-bottom-left-radius:22px;border-bottom-right-radius:22px;border-top-right-radius:0}
+}
+@media (max-width: 540px){
+  .ct-login-card{padding:28px 24px 22px;border-radius:18px}
+  .ct-login-aside{padding:24px 22px 22px;border-radius:18px}
+  .ct-login-title{font-size:22px}
+  .ct-login-sub{font-size:13px}
+  .ct-login-aside-title{font-size:19px}
+}
+
+:root[data-motion="reduced"] .ct-bubble,
+:root[data-motion="reduced"] .ct-login-logo,
+:root[data-motion="reduced"] .ct-login-logo-mark,
+:root[data-motion="reduced"] .ct-login-eyebrow-spark,
+:root[data-motion="reduced"] .ct-login-title-spark,
+:root[data-motion="reduced"] .ct-login-aside-glyph,
+:root[data-motion="reduced"] .ct-login-aside::before{animation:none!important}
+`;
+
+const LOGIN_BUBBLES = [
+  { size: 240, x: "6%",  y: "12%", color: "rgba(34,197,94,0.42)",  anim: "ctBubble1",  dur: 22, label: "Mide" },
+  { size: 190, x: "80%", y: "8%",  color: "rgba(96,165,250,0.40)", anim: "ctBubble2",  dur: 19, label: "Reduce" },
+  { size: 150, x: "12%", y: "72%", color: "rgba(234,179,8,0.36)",  anim: "ctBubble3",  dur: 24 },
+  { size: 300, x: "70%", y: "60%", color: "rgba(74,222,128,0.32)", anim: "ctBubble4",  dur: 28, label: "Transforma" },
+  { size: 110, x: "44%", y: "26%", color: "rgba(59,130,246,0.36)", anim: "ctBubble5",  dur: 20 },
+  { size: 170, x: "86%", y: "42%", color: "rgba(139,92,246,0.32)", anim: "ctBubble6",  dur: 23, label: "Mide" },
+  { size: 100, x: "8%",  y: "48%", color: "rgba(236,72,153,0.28)", anim: "ctBubble7",  dur: 21 },
+  { size: 220, x: "48%", y: "80%", color: "rgba(34,197,94,0.30)",  anim: "ctBubble8",  dur: 26, label: "Reduce" },
+  { size: 80,  x: "32%", y: "10%", color: "rgba(96,165,250,0.40)", anim: "ctBubble9",  dur: 17 },
+  { size: 96,  x: "62%", y: "16%", color: "rgba(234,179,8,0.38)",  anim: "ctBubble10", dur: 18 },
+];
+
+function BubbleBackdrop() {
+  return (
+    <div className="ct-bubbles-stage" aria-hidden="true">
+      {LOGIN_BUBBLES.map((b, i) => (
+        <span
+          key={i}
+          className="ct-bubble"
+          style={{
+            width: b.size,
+            height: b.size,
+            left: b.x,
+            top: b.y,
+            background: `radial-gradient(circle at 35% 35%, ${b.color}, transparent 72%)`,
+            animation: `${b.anim} ${b.dur}s cubic-bezier(.42,0,.58,1) ${i * -1.4}s infinite, ctBubblePulse ${b.dur / 2}s ease-in-out ${i * -0.7}s infinite`,
+            filter: "blur(.5px)",
+          }}
+        >
+          {b.label && (
+            <span
+              className="ct-bubble-label"
+              style={{ fontSize: Math.max(13, Math.round(b.size * 0.13)) }}
+            >
+              {b.label}
+            </span>
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function LoginPage({ onLogin }) {
   const location = useLocation()
@@ -83,8 +252,8 @@ export default function LoginPage({ onLogin }) {
     if (e.key === "Enter") { forgotMode ? handleForgot() : handleLogin() }
   }
   const errorMessages = {
-    credentials: { title: "Credenciales incorrectas", desc: "El correo o la contraseña no coinciden. Verifica e intenta de nuevo." },
-    backend_not_configured: { title: "Backend no disponible", desc: "La autenticación requiere una API configurada y accesible." },
+    credentials: { title: "Datos incorrectos", desc: "El correo o la contraseña no coinciden. Revísalos e inténtalo de nuevo." },
+    backend_not_configured: { title: "Sin conexión al servicio", desc: "No pudimos conectar en este momento. Comprueba tu conexión a internet e inténtalo otra vez." },
   }
 
   useEffect(() => {
@@ -160,7 +329,7 @@ export default function LoginPage({ onLogin }) {
   /* ═══ LOGIN FORM ═══ */
   return (
     <div
-      className="eco-pattern2"
+      className="eco-pattern2 ct-login-stage"
       onMouseMove={(e) => {
         const el = e.currentTarget;
         const rect = el.getBoundingClientRect();
@@ -174,27 +343,14 @@ export default function LoginPage({ onLogin }) {
         el.style.setProperty("--glow-x", "-9999px");
         el.style.setProperty("--glow-y", "-9999px");
       }}
-      style={{ minHeight: "100vh", display: "flex" }}>
-      <div style={{
-        display: "flex",
-        width: "100%",
-        maxWidth: 1000,
-        margin: "auto",
-        borderRadius: "var(--eco-radius-xl)", overflow: "hidden",
-        boxShadow: "var(--eco-shadow-xl)", border: "1px solid var(--eco-border)",
-        background: "white", animation: "eco-fadeInUp 0.6s cubic-bezier(0.33,1,0.68,1)",
-      }}>
+    >
+      <style>{LOGIN_CSS}</style>
+      <BubbleBackdrop />
 
-        {/* LEFT - FORM */}
-        <div style={{
-          flex: "0 0 440px",
-          padding: "40px 40px 32px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          position: "relative"
-        }}>
-          {flashToast && (
+      <div className="ct-login-shell">
+      <div className="ct-login-card">
+        {/* Flash toast (e.g. logout success) */}
+        {flashToast && (
             <div style={{
               position: "absolute",
               top: 20,
@@ -231,62 +387,31 @@ export default function LoginPage({ onLogin }) {
             </div>
           )}
           {/* Logo */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 32
-          }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: "var(--eco-radius-md)",
-              background: "var(--eco-primary-500)",
-              display: "flex", alignItems: "center",
-              justifyContent: "center"
-            }}>
+          <div className="ct-login-logo">
+            <div className="ct-login-logo-mark" aria-hidden="true">
               <Leaf size={22} color="white" />
             </div>
             <div>
-              <p style={{
-                fontFamily: fd,
-                fontSize: 18,
-                fontWeight: 800,
-                color: "var(--eco-gray-900)",
-                margin: 0,
-                lineHeight: 1.1
-              }}>CarbonTrack</p>
-              <p style={{
-                fontFamily: fb,
-                fontSize: 11,
-                color: "var(--eco-gray-400)",
-                margin: 0,
-                letterSpacing: "0.06em"
-              }}>HUELLA DE CARBONO</p>
+              <span className="ct-login-logo-text-title">CarbonTrack</span>
+              <span className="ct-login-logo-text-sub">Huella de carbono</span>
             </div>
           </div>
 
           {forgotMode ? (
             <div style={{ animation: "eco-fadeInUp 0.35s ease-out" }}>
-              <h1 style={{
-                fontFamily: fd,
-                fontSize: 22,
-                fontWeight: 800,
-                color: "var(--eco-gray-900)",
-                margin: "0 0 6px"
-              }}>Recuperar contraseña</h1>
-              <p style={{
-                fontFamily: fb,
-                fontSize: 14,
-                color: "var(--eco-gray-500)",
-                margin: "0 0 24px",
-                lineHeight: 1.5
-              }}>Ingresa tu correo institucional y te enviaremos un enlace para restablecer tu contraseña.</p>
+              <span className="ct-login-eyebrow">
+                <span className="ct-login-eyebrow-spark"><KeyRound size={11} strokeWidth={2.6} /></span>
+                Recupera tu acceso
+              </span>
+              <h1 className="ct-login-title">Recuperar contraseña</h1>
+              <p className="ct-login-sub">
+                Escribe tu correo institucional y te enviaremos un enlace seguro para crear una nueva contraseña.
+              </p>
 
               {forgotSent ? (
                 <div style={{
                   background: "var(--eco-success-bg)",
-                  border: "1px solid #BBF7D0",
+                  border: "1px solid rgba(34,197,94,.30)",
                   borderRadius: "var(--eco-radius-md)",
                   padding: 16,
                   display: "flex",
@@ -303,19 +428,19 @@ export default function LoginPage({ onLogin }) {
                     <p style={{
                       fontFamily: fd,
                       fontSize: 14,
-                      fontWeight: 600,
-                      color: "var(--eco-gray-800)",
+                      fontWeight: 700,
+                      color: "var(--eco-text)",
                       margin: "0 0 2px"
-                    }}>Correo enviado</p>
+                    }}>¡Listo, revisa tu correo!</p>
                     <p style={{
                       fontFamily: fb,
                       fontSize: 13,
-                      color: "var(--eco-gray-600)",
+                      color: "var(--eco-text-soft)",
                       margin: 0,
-                      lineHeight: 1.4
-                    }}>Revisa tu bandeja en <strong>
-                        {email}
-                      </strong>. El enlace expira en 30 minutos.</p>
+                      lineHeight: 1.45
+                    }}>
+                      Te enviamos un enlace a <strong>{email}</strong>. El enlace estará disponible los próximos 30 minutos.
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -330,58 +455,55 @@ export default function LoginPage({ onLogin }) {
                       focused={emailFocused}
                       onFocus={() => setEmailFocused(true)}
                       onBlur={() => setEmailFocused(false)}
-                      iconLeft={<Mail
-                        size={16} />} />
+                      iconLeft={<Mail size={16} />} />
                   </FieldWrap>
-                  <Btn onClick={handleForgot}
-                    loading={loading}>Enviar enlace <ArrowRight
-                      size={16} /></Btn>
+                  <Btn onClick={handleForgot} loading={loading} animated>
+                    {loading ? "Enviando enlace…" : "Enviar enlace de recuperación"}
+                    {!loading && <ArrowRight size={16} />}
+                  </Btn>
                 </div>
               )}
-              <button onClick={() => {
-                setForgotMode(false);
-                setForgotSent(false);
-                setSubmitted(false);
-                setLoginError(null)
-              }}
-                style={{
-                  width: "100%",
-                  marginTop: 16,
-                  padding: "8px 0",
-                  fontFamily: fb,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: "var(--eco-primary-600)",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer"
-                }}>← Volver al inicio de sesión</button>
+              <button
+                onClick={() => {
+                  setForgotMode(false);
+                  setForgotSent(false);
+                  setSubmitted(false);
+                  setLoginError(null)
+                }}
+                className="ct-login-back"
+              >
+                ← Volver al inicio de sesión
+              </button>
             </div>
           ) : (
             <div style={{ animation: "eco-fadeInUp 0.35s ease-out" }}>
-              <h1 style={{
-                fontFamily: fd,
-                fontSize: 22,
-                fontWeight: 800,
-                color: "var(--eco-gray-900)",
-                margin: "0 0 6px"
-              }}>Iniciar sesión</h1>
-              <p style={{
-                fontFamily: fb,
-                fontSize: 14,
-                color: "var(--eco-gray-500)",
-                margin: "0 0 24px",
-                lineHeight: 1.5
-              }}>
-                {usingBackend
-                  ? "Accede con tus credenciales del backend configurado."
-                  : "La autenticacion requiere una conexion activa con el backend configurado."}
+              <span className="ct-login-eyebrow">
+                <span className="ct-login-eyebrow-spark"><Sparkles size={11} strokeWidth={2.6} /></span>
+                Bienvenido de vuelta
+              </span>
+              <h1 className="ct-login-title">¡Hola de nuevo!</h1>
+              <p className="ct-login-sub">
+                Inicia sesión para retomar tu trabajo en CarbonTrack y seguir midiendo el impacto de tu campus.
               </p>
+
+              {!usingBackend && !loginError && (
+                <div className="ct-login-banner-warn">
+                  <div className="ct-login-banner-warn-ico">
+                    <WifiOff size={15} strokeWidth={2.4} />
+                  </div>
+                  <div>
+                    <p className="ct-login-banner-warn-title">Conexión no disponible</p>
+                    <p className="ct-login-banner-warn-desc">
+                      No pudimos comunicarnos con el servicio. Comprueba tu conexión e inténtalo otra vez.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {loginError && (
                 <div style={{
                   background: "var(--eco-danger-bg)",
-                  border: "1px solid #FECACA",
+                  border: "1px solid rgba(220,38,38,.30)",
                   borderRadius: "var(--eco-radius-md)",
                   padding: "12px 14px",
                   display: "flex",
@@ -400,15 +522,16 @@ export default function LoginPage({ onLogin }) {
                     <p style={{
                       fontFamily: fd,
                       fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--eco-gray-800)",
+                      fontWeight: 700,
+                      color: "var(--eco-text)",
                       margin: "0 0 1px"
                     }}>{errorMessages[loginError].title}</p>
                     <p style={{
                       fontFamily: fb,
                       fontSize: 12,
-                      color: "var(--eco-gray-600)",
-                      margin: 0
+                      color: "var(--eco-text-soft)",
+                      margin: 0,
+                      lineHeight: 1.45
                     }}>{errorMessages[loginError].desc}</p>
                   </div>
                 </div>
@@ -468,265 +591,74 @@ export default function LoginPage({ onLogin }) {
                 </FieldWrap>
               </div>
 
-              <div style={{ textAlign: "right", marginBottom: 20 }}>
-                <button onClick={() => {
-                  setForgotMode(true);
-                  setSubmitted(false);
-                  setLoginError(null)
-                }}
-                  style={{
-                    fontFamily: fb,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "var(--eco-primary-600)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0
-                  }}>¿Olvidaste tu contraseña?</button>
+              <div className="ct-login-help-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMode(true);
+                    setSubmitted(false);
+                    setLoginError(null)
+                  }}
+                  className="ct-login-help-link"
+                >
+                  <KeyRound size={12} strokeWidth={2.6} />
+                  ¿Olvidaste tu contraseña?
+                </button>
               </div>
 
               <Btn onClick={handleLogin} loading={loading} animated>
-                {loading ? "Verificando…" : "Iniciar sesión"}
+                {loading ? "Verificando tus datos…" : "Iniciar sesión"}
                 {!loading && <ArrowRight size={16} />}
               </Btn>
 
-              {/* Demo accounts */}
-              <div style={{
-                marginTop: 24,
-                padding: "14px 16px",
-                background: usingBackend ? "var(--eco-card-muted)" : "var(--eco-warning-bg)",
-                border: `1px solid ${usingBackend ? "var(--eco-border)" : "#FDE68A"}`,
-                borderRadius: "var(--eco-radius-md)"
-              }}>
-                <p style={{
-                  fontFamily: fb,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: usingBackend ? "var(--eco-text)" : "var(--eco-secondary-600)",
-                  margin: "0 0 6px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4
-                }}><Shield size={13} /> {usingBackend ? "Autenticación remota" : "Backend requerido"}</p>
-                <p style={{
-                  fontFamily: fb,
-                  fontSize: 11,
-                  color: "var(--eco-text-soft)",
-                  margin: 0,
-                  lineHeight: 1.55
-                }}>
-                  {usingBackend
-                    ? "La sesion se valida contra el backend configurado y sus credenciales activas."
-                    : "Sin backend disponible no se inventan usuarios ni datos locales; verifica la configuracion de la API."}
-                </p>
+              <div className="ct-login-trust" role="status">
+                <span className="ct-login-trust-dot" />
+                <ShieldCheck size={13} strokeWidth={2.4} />
+                Conexión segura · Tus datos viajan cifrados
               </div>
             </div>
           )}
-          <p style={{
-            fontFamily: fb,
-            fontSize: 11,
-            color: "var(--eco-gray-400)",
-            margin: "24px 0 0",
-            textAlign: "center"
-          }}>© 2026 Instituto Tecnológico Superior de El Mante</p>
-        </div>
+          <p className="ct-login-foot">© 2026 Instituto Tecnológico Superior de El Mante</p>
+      </div>
 
-        {/* RIGHT - HERO */}
-        <div style={{
-          flex: 1,
-          minHeight: 560,
-          background: "linear-gradient(135deg, var(--eco-primary-900) 0%, #0C2E1A 50%, var(--eco-gray-900) 100%)",
-          backgroundSize: "200% 200%",
-          animation: "eco-gradientShift 12s ease infinite",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 40,
-          position: "relative",
-          overflow: "hidden",
-        }}>
-          <div style={{
-            position: "absolute",
-            top: "10%",
-            left: "8%",
-            animation: "eco-float1 6s ease-in-out infinite"
-          }}>
-            <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: "var(--eco-radius-lg)",
-              background: "rgba(34,197,94,0.1)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}>
-              <Zap size={22} style={{
-                color: "var(--eco-primary-400)",
-                opacity: 0.7
-              }} />
-
+      <aside className="ct-login-aside" aria-label="Resumen del sistema">
+        <span className="ct-login-aside-grid" aria-hidden="true" />
+        <span className="ct-login-aside-eyebrow">
+          <ShieldCheck size={11} strokeWidth={2.6} />
+          Plataforma educativa
+        </span>
+        <h2 className="ct-login-aside-title">Tu campus, monitoreado al detalle.</h2>
+        <p className="ct-login-aside-sub">
+          Mide, reduce y transforma la huella de carbono de tu institución con datos verificables y trazables.
+        </p>
+        <ul className="ct-login-stats">
+          <li className="ct-login-stat">
+            <div className="ct-login-stat-ico"><Building2 size={16} strokeWidth={2.2} /></div>
+            <div className="ct-login-stat-meta">
+              <p className="ct-login-stat-val">18</p>
+              <p className="ct-login-stat-lbl">Áreas medidas</p>
             </div>
-          </div>
-
-          <div style={{
-            position: "absolute",
-            top: "55%",
-            right: "10%",
-            animation: "eco-float2 7s ease-in-out infinite 1s"
-          }}>
-            <div style={{
-              width: 44,
-              height: 44,
-              borderRadius: "var(--eco-radius-lg)",
-              background: "rgba(234,179,8,0.08)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}>
-              <Flame size={20} style={{ color: "#EAB308", opacity: 0.6 }} />
-
+          </li>
+          <li className="ct-login-stat">
+            <div className="ct-login-stat-ico"><BarChart3 size={16} strokeWidth={2.2} /></div>
+            <div className="ct-login-stat-meta">
+              <p className="ct-login-stat-val">2</p>
+              <p className="ct-login-stat-lbl">Scopes activos</p>
             </div>
-          </div>
-
-          <div style={{
-            position: "absolute",
-            bottom: "15%",
-            left: "15%",
-            animation: "eco-float3 8s ease-in-out infinite 0.5s"
-          }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: "var(--eco-radius-lg)",
-              background: "rgba(34,197,94,0.08)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
-            }}>
-              <TreePine size={18} style={{
-                color: "var(--eco-primary-300)",
-                opacity: 0.6
-              }} />
-
+          </li>
+          <li className="ct-login-stat">
+            <div className="ct-login-stat-ico"><ShieldCheck size={16} strokeWidth={2.2} /></div>
+            <div className="ct-login-stat-meta">
+              <p className="ct-login-stat-val">100%</p>
+              <p className="ct-login-stat-lbl">Trazable</p>
             </div>
-          </div>
-
-          <div style={{
-            position: "absolute",
-            bottom: "35%",
-            right: "12%",
-            width: 200,
-            height: 200,
-            borderRadius: "50%",
-            background: "rgba(34,197,94,0.04)"
-          }} />
-
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 1,
-            pointerEvents: "none",
-            overflow: "hidden"
-          }}>
-            {[
-              { text: "Mide", anim: "eco-dvdA 11s linear infinite", fadeDelay: "0s" },
-              { text: "Reduce", anim: "eco-dvdB 12.6s linear infinite", fadeDelay: "1.2s" },
-              { text: "Transforma", anim: "eco-dvdC 13.8s linear infinite", fadeDelay: "2.1s" },
-            ].map((tag) => (
-              <span
-                key={tag.text}
-                style={{
-                  position: "absolute",
-                  padding: "6px 12px",
-                  borderRadius: "var(--eco-radius-full)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "rgba(255,255,255,0.1)",
-                  backdropFilter: "blur(4px)",
-                  fontFamily: fd,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "white",
-                  opacity: 0.72,
-                  letterSpacing: "0.01em",
-                  whiteSpace: "nowrap",
-                  animation: `${tag.anim}, eco-bubbleFade 5.2s ease-in-out ${tag.fadeDelay} infinite`,
-                  boxShadow: "0 8px 18px rgba(3,7,18,0.22)"
-                }}
-              >
-                {tag.text}
-              </span>
-            ))}
-          </div>
-
-          <div style={{
-            position: "relative",
-            zIndex: 2,
-            textAlign: "center",
-            maxWidth: 380
-          }}>
-            <div style={{
-              width: 70,
-              height: 70,
-              borderRadius: "var(--eco-radius-xl)",
-              background: "rgba(34,197,94,0.12)",
-              border: "1px solid rgba(34,197,94,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 24px"
-            }}>
-              <Leaf size={40} style={{ color: "var(--eco-primary-400)" }} />
-            </div>
-            <p style={{
-              fontFamily: fb,
-              fontSize: 15,
-              color: "rgba(255,255,255,0.5)",
-              margin: "0 0 32px",
-              lineHeight: 1.6
-            }}>Sistema de monitoreo y trazabilidad de huella de carbono para Instituciones Educativas.</p>
-            <div style={{
-              display: "flex",
-              gap: 20,
-              justifyContent: "center"
-            }}>
-              {[{ val: "18", label: "Áreas", icon: <Building2 size={14} /> },
-              { val: "2", label: "Scopes", icon: <BarChart3 size={14} /> },
-              { val: "100%", label: "Trazable", icon: <Shield size={14} /> }].map((s, i) => (
-                <div key={i} style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 4
-                }}>
-                  <div style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: "var(--eco-radius-md)",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--eco-primary-400)"
-                  }}>{s.icon}</div>
-                  <span style={{
-                    fontFamily: fm,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "white"
-                  }}>{s.val}</span>
-                  <span style={{
-                    fontFamily: fb,
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.4)"
-                  }}>{s.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+          </li>
+        </ul>
+        <p className="ct-login-aside-foot">
+          <CheckCircle2 size={13} strokeWidth={2.4} className="ct-login-aside-foot-ico" />
+          Datos auditables alineados al estándar GHG Protocol.
+        </p>
+      </aside>
       </div>
     </div>
   )

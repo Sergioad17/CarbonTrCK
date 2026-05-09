@@ -37,6 +37,13 @@ function normalizeStatus(input = {}) {
   return "real";
 }
 
+function normalizeValidationStatus(input = {}) {
+  const raw = cleanString(input.validationStatus || input.validation_status || input.recordStatus || input.status).toLowerCase();
+  if (["approved", "pending", "rejected", "draft"].includes(raw)) return raw;
+  if (cleanString(input.approvedAt || input.approved_at)) return "approved";
+  return "pending";
+}
+
 export function normalizeRecord(input = {}, fallbackId) {
   const evidenceFiles = Array.isArray(input.evidenceFiles)
     ? input.evidenceFiles
@@ -73,10 +80,18 @@ export function normalizeRecord(input = {}, fallbackId) {
     co2e_t: Number.isFinite(co2eTInput) ? co2eTInput : co2eKg / 1000,
     status: normalizeStatus(input),
     isEstimated: normalizeStatus(input) === "est",
+    validationStatus: normalizeValidationStatus(input),
+    isApproved: normalizeValidationStatus(input) === "approved",
+    approvedAt: cleanString(input.approvedAt || input.approved_at) || null,
+    approvedBy: cleanString(input.approvedBy || input.approved_by),
+    latestValidationDecision: cleanString(input.latestValidationDecision || input.latest_validation_decision),
+    latestValidationComment: cleanString(input.latestValidationComment || input.latest_validation_comment),
+    latestValidationAt: cleanString(input.latestValidationAt || input.latest_validation_at),
+    latestValidationActor: cleanString(input.latestValidationActor || input.latest_validation_actor),
     source: cleanString(input.source, "Medicion") || "Medicion",
     by: cleanString(input.by, "Tu") || "Tu",
     note: cleanString(input.note || input.notes),
-    hasEvidence: Boolean(input.hasEvidence),
+    hasEvidence: Boolean(input.hasEvidence || input.evidence || input.evidenceUrl || evidenceFiles.length > 0),
     evidence: cleanString(input.evidence),
     evidenceUrl: cleanString(input.evidenceUrl || input.evidence),
     evidenceFileId: cleanString(input.evidenceFileId || input.fileId) || null,
@@ -183,9 +198,15 @@ function buildRecordPayload(record) {
   };
 }
 
-export async function fetchEmissionRecords() {
+export async function fetchEmissionRecords(filters = {}) {
   assertBackendConfigured();
-  const payload = await apiRequest("/records", {
+  const params = new URLSearchParams();
+  params.set("includeValidation", "1");
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value).trim()) params.set(key, String(value).trim());
+  });
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const payload = await apiRequest(`/records${query}`, {
     method: "GET",
     headers: authHeaders(),
   });
@@ -222,6 +243,76 @@ export async function fetchEmissionRecordRevisions(recordId) {
     changedByEmail: cleanString(item?.changedByEmail || item?.changed_by_email),
     snapshot: item?.snapshot || null,
   }));
+}
+
+function normalizeValidationDecision(input = {}) {
+  return {
+    id: cleanString(input.id),
+    recordId: cleanString(input.recordId || input.record_id),
+    decision: cleanString(input.decision),
+    actor: cleanString(input.actor || input.actorName || input.actor_name || "Sistema"),
+    actorId: cleanString(input.actorId || input.actor_id),
+    ts: cleanString(input.ts || input.createdAt || input.created_at) || new Date().toISOString(),
+    comment: cleanString(input.comment),
+    criteria: Array.isArray(input.criteria) ? input.criteria : [],
+  };
+}
+
+function normalizeValidationQueueItem(input = {}, index = 0) {
+  const record = normalizeRecord(input.record || {}, input.recordId || input.record_id || input.id || `validation-record-${index + 1}`);
+  return {
+    id: cleanString(input.id) || record.id,
+    recordId: cleanString(input.recordId || input.record_id) || record.id,
+    priority: cleanString(input.priority, "normal") || "normal",
+    reason: cleanString(input.reason, "Registro pendiente de validación administrativa."),
+    submittedAt: cleanString(input.submittedAt || input.submitted_at || record.createdAt) || record.createdAt,
+    assignedTo: cleanString(input.assignedTo || input.assigned_to || "Administración"),
+    latestValidationDecision: cleanString(input.latestValidationDecision || input.latest_validation_decision),
+    latestValidationComment: cleanString(input.latestValidationComment || input.latest_validation_comment),
+    latestValidationAt: cleanString(input.latestValidationAt || input.latest_validation_at),
+    latestValidationActor: cleanString(input.latestValidationActor || input.latest_validation_actor),
+    record,
+  };
+}
+
+export async function fetchRecordValidationQueue() {
+  assertBackendConfigured();
+  const payload = await apiRequest("/records/validation/queue", {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  const rawItems = payload?.items || payload?.queue || payload?.data?.items || payload?.data?.queue || payload?.data || payload;
+  return Array.isArray(rawItems) ? rawItems.map(normalizeValidationQueueItem) : [];
+}
+
+export async function fetchRecordValidationDecisions(recordId = "") {
+  assertBackendConfigured();
+  const query = recordId ? `?recordId=${encodeURIComponent(recordId)}` : "";
+  const payload = await apiRequest(`/records/validation/decisions${query}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  const rawItems = payload?.items || payload?.decisions || payload?.data?.items || payload?.data?.decisions || payload?.data || payload;
+  return Array.isArray(rawItems) ? rawItems.map(normalizeValidationDecision) : [];
+}
+
+export async function decideRecordValidation({ ids, decision, comment = "", criteria = [] }) {
+  assertBackendConfigured();
+  const payload = await apiRequest("/records/validation/decisions", {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ ids, decision, comment, criteria }),
+  });
+  const decisions = payload?.decisions || payload?.data?.decisions || [];
+  const queue = payload?.queue || payload?.items || payload?.data?.queue || payload?.data?.items || [];
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("carbontrack:records-validation-updated", { detail: { ids, decision } }));
+  }
+  return {
+    ok: true,
+    decisions: Array.isArray(decisions) ? decisions.map(normalizeValidationDecision) : [],
+    queue: Array.isArray(queue) ? queue.map(normalizeValidationQueueItem) : [],
+  };
 }
 
 export async function createEmissionRecord(input) {

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import LandingPage from './pages/Landing/LandingPage'
+import SessionExpiredOverlay from './components/SessionExpiredOverlay'
 import { hydrateCurrentUser, login as loginRequest, logout as logoutRequest } from './api/auth'
 import { fetchCurrentUser, removeSession } from './api/session'
 
@@ -73,12 +74,39 @@ function AuthProvider({ children }) {
   return children({ user, login, logout, updateUser, ready })
 }
 
+function SessionExpiredGate({ user, updateUser }) {
+  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handler = () => {
+      if (user) setOpen(true)
+    }
+    window.addEventListener('carbontrack:session-expired', handler)
+    return () => window.removeEventListener('carbontrack:session-expired', handler)
+  }, [user])
+
+  useEffect(() => {
+    if (!user && open) setOpen(false)
+  }, [user, open])
+
+  const handleConfirm = () => {
+    setOpen(false)
+    removeSession()
+    updateUser?.(null)
+    navigate('/login', { replace: true })
+  }
+
+  return <SessionExpiredOverlay open={open && Boolean(user)} onConfirm={handleConfirm} />
+}
+
 export default function App() {
   return (
     <AuthProvider>
       {({ user, login, logout, updateUser, ready }) => (
         <BrowserRouter>
           {!ready ? null : (
+          <>
           <Routes>
             <Route
               path="/"
@@ -116,6 +144,8 @@ export default function App() {
               }
             />
           </Routes>
+          <SessionExpiredGate user={user} updateUser={updateUser} />
+          </>
           )}
         </BrowserRouter>
       )}

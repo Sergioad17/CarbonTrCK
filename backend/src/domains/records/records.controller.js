@@ -1,7 +1,10 @@
 import {
   archiveRecordService,
   createRecordService,
+  decideRecordsService,
   getRecordService,
+  listValidationDecisionsService,
+  listValidationQueueService,
   listRecordRevisionsService,
   listRecordsService,
 } from "./records.service.js";
@@ -36,4 +39,19 @@ export async function createRecordController(request, response) {
 export async function archiveRecordController(request, response) {
   const item = await archiveRecordService(request.user, request.params.id, request.body, auditContextFromRequest(request));
   response.json({ item });
+}
+
+export async function listValidationQueueController(request, response) {
+  const items = await listValidationQueueService(request.user);
+  response.json({ items });
+}
+
+export async function listValidationDecisionsController(request, response) {
+  const items = await listValidationDecisionsService(request.user, request.query);
+  response.json({ items });
+}
+
+export async function decideRecordsController(request, response) {
+  const result = await decideRecordsService(request.user, request.body, auditContextFromRequest(request));
+  response.json(result);
 }

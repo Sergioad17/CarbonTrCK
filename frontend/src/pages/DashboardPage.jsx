@@ -1931,7 +1931,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     <div
       style={{
         display: "flex",
-        minHeight: "100vh",
+        height: "100vh",
+        overflow: "hidden",
         background: "var(--eco-gray-50)",
         fontFamily: fb,
       }}
@@ -1984,7 +1985,9 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          minHeight: "100vh",
+          height: "100vh",
+          minWidth: 0,
+          overflow: "hidden",
           marginLeft: collapsed ? "var(--sidebar-collapsed-w)" : "var(--sidebar-w)",
           transition: "margin-left 250ms cubic-bezier(0.33,1,0.68,1)",
         }}
@@ -2002,6 +2005,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
             top: 0,
             zIndex: 20,
             boxShadow: "var(--eco-shadow-sm)",
+            flexShrink: 0,
           }}
         >
           <nav>
@@ -2246,6 +2250,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
         <main
           style={{
             flex: 1,
+            minHeight: 0,
             overflow: "auto",
             padding: activeNav === "emissions" || activeNav === "scope1" || activeNav === "scope2" || activeNav === "areas" || activeNav === "goals" || activeNav === "reports" || activeNav === "factors" || activeNav === "equipment" || activeNav === "devices" || activeNav === "users" || activeNav === "settings" || activeNav === "profile" || activeNav === "advanced" || activeNav === "diagnostico" ? 0 : "var(--page-pad-y) var(--page-pad-x)",
           }}

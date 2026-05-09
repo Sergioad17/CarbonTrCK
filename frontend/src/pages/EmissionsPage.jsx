@@ -803,7 +803,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const nextRecords = await fetchEmissionRecords().catch(() => []);
+      const nextRecords = await fetchEmissionRecords({ status: "approved" }).catch(() => []);
       if (cancelled) return;
       setRecords(nextRecords);
       setLoading(false);
@@ -823,7 +823,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
   /* Listen for new records from modal */
   useEffect(() => {
     const h = async () => {
-      const nextRecords = await fetchEmissionRecords().catch(() => []);
+      const nextRecords = await fetchEmissionRecords({ status: "approved" }).catch(() => []);
       setRecords(nextRecords);
     };
     window.addEventListener("carbontrack:newrecord", h);
@@ -1495,7 +1495,7 @@ export default function EmissionsPage({ user, onOpenRecord }) {
         </div>
 
         {/* ═══ TABLE ═══ */}
-        <SectionLabel>{`Registros (${filtered.length})`}</SectionLabel>
+        <SectionLabel>{`Registros completados (${filtered.length})`}</SectionLabel>
 
         {filtered.length === 0 ? (
           <div

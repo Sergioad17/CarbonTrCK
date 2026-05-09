@@ -9,7 +9,7 @@ function dedupeBy(items, getKey) {
 }
 
 export async function fetchDashboardRecords() {
-  return fetchEmissionRecords();
+  return fetchEmissionRecords({ status: "approved" });
 }
 
 export async function fetchDashboardActivity(seedItems = [], normalizeItem, getKey) {

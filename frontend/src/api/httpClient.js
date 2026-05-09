@@ -90,6 +90,14 @@ export async function apiRequest(path, options = {}) {
       response = await executeRequest();
     } else {
       removeSession();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("carbontrack:session-expired"));
+      }
+    }
+  } else if (response.status === 401 && session?.token && options.auth !== false) {
+    removeSession();
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("carbontrack:session-expired"));
     }
   }
 

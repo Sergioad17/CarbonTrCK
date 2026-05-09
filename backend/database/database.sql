@@ -503,6 +503,20 @@ CREATE TABLE record_revisions (
   CONSTRAINT record_revisions_revision_no_chk CHECK (revision_no>0),
   CONSTRAINT record_revisions_record_revision_uq UNIQUE (record_id,revision_no)
 );
+CREATE TABLE validation_decisions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL,
+  record_id uuid NOT NULL,
+  decision varchar(16) NOT NULL,
+  actor_id uuid NOT NULL,
+  comment text,
+  criteria jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT validation_decisions_org_fk FOREIGN KEY (organization_id) REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT validation_decisions_record_fk FOREIGN KEY (record_id,organization_id) REFERENCES records(id,organization_id) ON UPDATE CASCADE ON DELETE CASCADE,
+  CONSTRAINT validation_decisions_actor_fk FOREIGN KEY (actor_id,organization_id) REFERENCES users(id,organization_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CONSTRAINT validation_decisions_decision_chk CHECK (decision IN ('approved','rejected','returned'))
+);
 CREATE TABLE files (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -959,6 +973,8 @@ CREATE INDEX idx_records_status ON records(status) WHERE deleted_at IS NULL;
 CREATE INDEX idx_records_data_source_id ON records(data_source_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_records_asset_id ON records(asset_id) WHERE deleted_at IS NULL;
 CREATE INDEX idx_record_revisions_changed_by_at ON record_revisions(changed_by,changed_at DESC);
+CREATE INDEX idx_validation_decisions_org_created ON validation_decisions(organization_id, created_at DESC);
+CREATE INDEX idx_validation_decisions_record ON validation_decisions(record_id, created_at DESC);
 CREATE UNIQUE INDEX idx_files_org_checksum_uq ON files(organization_id,checksum_sha256) WHERE checksum_sha256 IS NOT NULL;
 CREATE UNIQUE INDEX idx_record_files_primary_uq ON record_files(record_id) WHERE is_primary;
 CREATE INDEX idx_targets_scope_category_period ON targets(scope_id,category_id,target_start,target_end) WHERE is_active;
