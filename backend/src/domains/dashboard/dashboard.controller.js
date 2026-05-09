@@ -1,4 +1,8 @@
-import { getDashboardActivityService, putDashboardActivityService } from "./dashboard.service.js";
+import {
+  getDashboardActivityService,
+  listDashboardPeriodsService,
+  putDashboardActivityService,
+} from "./dashboard.service.js";
 
 function auditContextFromRequest(request) {
   return {
@@ -15,4 +19,9 @@ export async function getDashboardActivityController(request, response) {
 export async function putDashboardActivityController(request, response) {
   const items = await putDashboardActivityService(request.user, request.body, auditContextFromRequest(request));
   response.json({ items });
+}
+
+export async function listDashboardPeriodsController(request, response) {
+  const periods = await listDashboardPeriodsService(request.user);
+  response.json({ periods });
 }

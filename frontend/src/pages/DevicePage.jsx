@@ -29,6 +29,7 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   createDevice,
   createDeviceDraft,
@@ -966,6 +967,7 @@ function IssuedCredentialModal({ credential, copied, onCopy, onClose }) {
 /* aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ Main component aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬aÃƒÂ¢Ã¢â€šÂ¬Ã‚ÂÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ */
 
 export default function DevicePage({ user }) {
+  const navigate = useNavigate();
   const [pageReady, setPageReady] = useState(false);
   const [devices, setDevices] = useState([]);
   const [form, setForm] = useState(() => createFormFromDevice(createDeviceDraft()));
@@ -979,6 +981,7 @@ export default function DevicePage({ user }) {
   const canCreateDevice = canUse(user, "devices:create");
   const canEditDevice = canUse(user, "devices:edit");
   const canDeleteDevice = canUse(user, "devices:delete");
+  const canOpenAdminDevices = canUse(user, "audit:view");
   const canSubmitDevice = selectedId ? canEditDevice : canCreateDevice;
 
   useEffect(() => {
@@ -1280,6 +1283,18 @@ export default function DevicePage({ user }) {
               <Shield size={15} />
               {form.token ? "Visible solo al registrar" : "Disponible al registrar"}
             </button>
+            {canOpenAdminDevices ? (
+              <button
+                type="button"
+                onClick={() => navigate("/admin/avanzado?view=admin-devices")}
+                style={secondaryButtonStyle}
+                title="Abrir el control general de dispositivos en el Admin Panel"
+              >
+                <ShieldCheck size={15} />
+                Ir al control administrativo
+                <ChevronRight size={14} />
+              </button>
+            ) : null}
           </div>
         </div>
         <div style={{ ...cardBase, padding: 20, display: "grid", alignContent: "space-between", gap: 14, animation: "eco-fadeInUp .55s ease both" }}>

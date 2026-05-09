@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
+import { assertRecordCaptureAllowedForDate } from "../admin/admin.periods.repository.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 const sourceCodeAliases = new Map([
@@ -708,6 +709,54 @@ async function validateFilesForRecord(actor, fileIds, client) {
   return normalizedFileIds;
 }
 
+export async function listRecordRevisionsForActor(actor, recordId, client = { query }) {
+  const cleanedRecordId = cleanString(recordId);
+  if (!cleanedRecordId) return [];
+
+  const guardResult = await client.query(
+    `
+      SELECT id
+      FROM records
+      WHERE id = $1
+        AND organization_id = $2
+      LIMIT 1
+    `,
+    [cleanedRecordId, actor.organizationId],
+  );
+
+  if (guardResult.rowCount < 1) {
+    return null;
+  }
+
+  const result = await client.query(
+    `
+      SELECT
+        rev.id,
+        rev.revision_no,
+        rev.changed_at,
+        rev.change_reason,
+        rev.snapshot,
+        u.full_name AS changed_by_name,
+        u.email AS changed_by_email
+      FROM record_revisions rev
+      LEFT JOIN users u ON u.id = rev.changed_by
+      WHERE rev.record_id = $1
+      ORDER BY rev.revision_no ASC, rev.changed_at ASC
+    `,
+    [cleanedRecordId],
+  );
+
+  return result.rows.map((row) => ({
+    id: cleanString(row.id),
+    revisionNo: Number(row.revision_no),
+    changedAt: row.changed_at,
+    changeReason: cleanString(row.change_reason),
+    changedByName: cleanString(row.changed_by_name),
+    changedByEmail: cleanString(row.changed_by_email),
+    snapshot: row.snapshot || null,
+  }));
+}
+
 export async function getNextRecordRevisionNumber(recordId, client = { query }) {
   const result = await client.query(
     `
@@ -858,6 +907,8 @@ export async function createRecord(actor, payload, auditContext, options = {}) {
         details: { field: "activityText" },
       });
     }
+
+    await assertRecordCaptureAllowedForDate(actor, recordDate, client);
 
     const insertResult = await client.query(
       `

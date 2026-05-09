@@ -172,6 +172,8 @@ if (!hasDb) {
     const item = listResult.body.items.find((device) => device.code === payload.code);
     assert.ok(item);
     assert.equal(item.token, "");
+    assert.equal(Number(item.voltage), payload.voltage);
+    assert.equal(Number(item.powerFactor), payload.powerFactor);
   });
 
   test("PATCH /devices y PATCH /devices/:id/status actualizan configuracion", async () => {
@@ -288,6 +290,8 @@ if (!hasDb) {
       currentAmp: 4.12,
       powerFactor: 0.96,
       intervalSeconds: 60,
+      batteryLevel: 82,
+      batteryVoltage: 3.74,
       payload: {
         firmwareVersion: "1.0.0",
       },
@@ -317,5 +321,66 @@ if (!hasDb) {
 
     assert.equal(duplicateResult.response.status, 409);
     assert.equal(duplicateResult.body.code, "DUPLICATE_DEVICE_READING");
+
+    const listResult = await request("/devices", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+    const device = listResult.body.items.find((item) => item.code === payload.code);
+    assert.equal(device.batteryLevel, 82);
+    assert.equal(device.batteryVoltage, 3.74);
+    assert.equal(device.batteryStatus, "ok");
+
+    const readingsResult = await request(`/devices/${created.body.item.id}/readings`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(readingsResult.response.status, 200);
+    assert.equal(readingsResult.body.items.length, 1);
+    assert.equal(readingsResult.body.items[0].deviceCode, payload.code);
+    assert.equal(readingsResult.body.items[0].batteryLevel, 82);
+
+    const trainingResult = await request(`/devices/${created.body.item.id}/readings/training`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(trainingResult.response.status, 200);
+    assert.equal(trainingResult.body.items.length, 1);
+    assert.equal(trainingResult.body.items[0].trainingIncluded, true);
+    assert.equal(trainingResult.body.items[0].trainingStatus, "ready");
+    assert.deepEqual(trainingResult.body.items[0].qualityIssues, []);
+
+    const trainingUpdateResult = await request(`/devices/${created.body.item.id}/readings/${readingsResult.body.items[0].id}/training`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        included: false,
+        status: "excluded",
+        note: "No usar en entrenamiento de prueba.",
+      }),
+    });
+
+    assert.equal(trainingUpdateResult.response.status, 200);
+    assert.equal(trainingUpdateResult.body.item.trainingIncluded, false);
+    assert.equal(trainingUpdateResult.body.item.trainingStatus, "excluded");
+
+    const deleteReadingResult = await request(`/devices/${created.body.item.id}/readings/${readingsResult.body.items[0].id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(deleteReadingResult.response.status, 204);
+
+    const emptyReadingsResult = await request(`/devices/${created.body.item.id}/readings`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${auth.body.token}` },
+    });
+
+    assert.equal(emptyReadingsResult.body.items.length, 0);
   });
 }

@@ -1,16 +1,23 @@
 import {
+  createAdminCatalogEntryService,
   createOrgCampusService,
   createOrgEntityService,
   deleteOrgCampusService,
   deleteOrgEntityService,
   getAdminGovernmentSettingsService,
   getAdminHomeSummaryService,
+  createAdminPeriodService,
   createAdminAuditEventService,
+  listAdminCatalogsService,
+  listAdminPeriodsService,
   listOrgStructureService,
   listActiveSessionsService,
   listAuditEventsService,
   revokeOtherSessionsService,
   revokeSessionService,
+  updateAdminCatalogEntryService,
+  updateAdminCatalogEntryStatusService,
+  updateAdminPeriodService,
   updateOrgCampusService,
   updateOrgEntityService,
   upsertAdminGovernmentSettingsService,
@@ -32,6 +39,66 @@ export async function getAdminHomeSummaryController(request, response) {
 
 export async function listOrgStructureController(request, response) {
   response.json({ structure: await listOrgStructureService(request.user) });
+}
+
+export async function listAdminCatalogsController(request, response) {
+  response.json({ catalogs: await listAdminCatalogsService(request.user) });
+}
+
+export async function listAdminPeriodsController(request, response) {
+  response.json({ periods: await listAdminPeriodsService(request.user) });
+}
+
+export async function createAdminPeriodController(request, response) {
+  response.status(201).json({
+    period: await createAdminPeriodService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function updateAdminPeriodController(request, response) {
+  response.json({
+    period: await updateAdminPeriodService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function createAdminCatalogEntryController(request, response) {
+  response.status(201).json({
+    entry: await createAdminCatalogEntryService(
+      request.user,
+      request.params.catalogId,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function updateAdminCatalogEntryController(request, response) {
+  response.json({
+    entry: await updateAdminCatalogEntryService(
+      request.user,
+      request.params.catalogId,
+      request.params.entryId,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function updateAdminCatalogEntryStatusController(request, response) {
+  response.json({
+    entry: await updateAdminCatalogEntryStatusService(
+      request.user,
+      request.params.catalogId,
+      request.params.entryId,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
 }
 
 export async function createOrgCampusController(request, response) {

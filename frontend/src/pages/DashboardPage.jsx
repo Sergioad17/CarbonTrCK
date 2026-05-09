@@ -42,7 +42,7 @@ import AdminPanel from '../admin/AdminPanel'
 import DiagnosticoInteligentePage from './DiagnosticoInteligentePage'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
 import { createEmissionRecord } from "../api/records"
-import { fetchDashboardActivity, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
+import { fetchDashboardActivity, fetchDashboardPeriods, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
 import { hydrateCurrentUser } from "../api/auth"
 import { canUse } from "../lib/permissions"
 
@@ -1552,7 +1552,8 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNav] = useState(() => navFromPath(location.pathname));
-  const [periodo, setPeriodo] = useState("ene-jun-2026");
+  const [periodsList, setPeriodsList] = useState([]);
+  const [periodo, setPeriodo] = useState("");
   const [showEst, setShowEst] = useState(true);
   const [drill, setDrill] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -1606,10 +1607,22 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     Promise.allSettled([
       fetchDashboardActivity([], normalizeActivityItem, activityKey),
       fetchDashboardRecords(),
-    ]).then(([activityResult, recordsResult]) => {
+      fetchDashboardPeriods(),
+    ]).then(([activityResult, recordsResult, periodsResult]) => {
       if (!mounted) return;
       setActivity(activityResult.status === "fulfilled" ? activityResult.value : []);
       setActivityRecords(recordsResult.status === "fulfilled" ? recordsResult.value : []);
+      const periods = periodsResult.status === "fulfilled" && Array.isArray(periodsResult.value)
+        ? periodsResult.value
+        : [];
+      setPeriodsList(periods);
+      if (periods.length > 0) {
+        const today = new Date().toISOString().slice(0, 10);
+        const containsToday = periods.find((period) => period.startDate <= today && period.endDate >= today);
+        const defaultPeriod = periods.find((period) => period.isDefault);
+        const sorted = [...periods].sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""));
+        setPeriodo(defaultPeriod?.id || containsToday?.id || sorted[0]?.id || "");
+      }
       setLoading(false);
       setActivityLoading(false);
     });
@@ -1770,40 +1783,82 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const greeting = hour < 12 ? "Buenos días" : hour < 18 ? "Buenas tardes" : "Buenas noches";
   const firstName = (user?.fullName || user?.name)?.split(" ")[0] || "Usuario";
   const todayFormatted = new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const periodConfig = useMemo(() => (
-    periodo === "jul-dic-2025"
-      ? { year: 2025, startMonth: 7, endMonth: 12, label: "Julio – Diciembre 2025" }
-      : { year: 2026, startMonth: 1, endMonth: 6, label: "Enero – Junio 2026" }
-  ), [periodo]);
+  const periodConfig = useMemo(() => {
+    const selected = periodsList.find((period) => period.id === periodo);
+    if (selected && selected.startDate && selected.endDate) {
+      const [startYearText, startMonthText] = selected.startDate.split("-");
+      const [, endMonthText] = selected.endDate.split("-");
+      return {
+        year: Number(startYearText),
+        startMonth: Number(startMonthText),
+        endMonth: Number(endMonthText),
+        startDate: selected.startDate,
+        endDate: selected.endDate,
+        label: selected.label || selected.name,
+      };
+    }
+    const now = new Date();
+    const year = now.getFullYear();
+    const isFirstHalf = now.getMonth() < 6;
+    return isFirstHalf
+      ? {
+          year,
+          startMonth: 1,
+          endMonth: 6,
+          startDate: `${year}-01-01`,
+          endDate: `${year}-06-30`,
+          label: `Enero – Junio ${year}`,
+        }
+      : {
+          year,
+          startMonth: 7,
+          endMonth: 12,
+          startDate: `${year}-07-01`,
+          endDate: `${year}-12-31`,
+          label: `Julio – Diciembre ${year}`,
+        };
+  }, [periodo, periodsList]);
   const dashboardRecords = useMemo(() => (
     activityRecords.filter((record) => {
       const raw = normalizeDateISO(record?.dateISO);
       if (!raw) return false;
-      const [yearText, monthText] = raw.split("-");
-      const year = Number(yearText);
-      const month = Number(monthText);
-      if (year !== periodConfig.year) return false;
-      if (month < periodConfig.startMonth || month > periodConfig.endMonth) return false;
+      if (periodConfig.startDate && raw < periodConfig.startDate) return false;
+      if (periodConfig.endDate && raw > periodConfig.endDate) return false;
       if (!showEst && (record?.status === "est" || record?.isEstimated)) return false;
       return true;
     })
   ), [activityRecords, periodConfig, showEst]);
+  const previousPeriodRange = useMemo(() => {
+    const sorted = [...periodsList].sort((a, b) => (a.startDate || "").localeCompare(b.startDate || ""));
+    const currentIndex = sorted.findIndex((period) => period.id === periodo);
+    if (currentIndex > 0) {
+      const previous = sorted[currentIndex - 1];
+      return { startDate: previous.startDate, endDate: previous.endDate };
+    }
+    if (periodConfig.startDate && periodConfig.endDate) {
+      const start = new Date(`${periodConfig.startDate}T00:00:00`);
+      const end = new Date(`${periodConfig.endDate}T00:00:00`);
+      const durationMs = end.getTime() - start.getTime();
+      const previousEnd = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+      const previousStart = new Date(previousEnd.getTime() - durationMs);
+      return {
+        startDate: previousStart.toISOString().slice(0, 10),
+        endDate: previousEnd.toISOString().slice(0, 10),
+      };
+    }
+    return { startDate: "", endDate: "" };
+  }, [periodConfig, periodo, periodsList]);
   const previousPeriodRecords = useMemo(() => {
-    const previousYear = periodConfig.startMonth === 1 ? periodConfig.year - 1 : periodConfig.year;
-    const previousStartMonth = periodConfig.startMonth === 1 ? 7 : 1;
-    const previousEndMonth = periodConfig.startMonth === 1 ? 12 : 6;
+    if (!previousPeriodRange.startDate || !previousPeriodRange.endDate) return [];
     return activityRecords.filter((record) => {
       const raw = normalizeDateISO(record?.dateISO);
       if (!raw) return false;
-      const [yearText, monthText] = raw.split("-");
-      const year = Number(yearText);
-      const month = Number(monthText);
-      if (year !== previousYear) return false;
-      if (month < previousStartMonth || month > previousEndMonth) return false;
+      if (raw < previousPeriodRange.startDate) return false;
+      if (raw > previousPeriodRange.endDate) return false;
       if (!showEst && (record?.status === "est" || record?.isEstimated)) return false;
       return true;
     });
-  }, [activityRecords, periodConfig, showEst]);
+  }, [activityRecords, previousPeriodRange, showEst]);
   const summarizeEmissions = useMemo(() => {
     const sumCo2 = (items, predicate = () => true) => items.reduce((acc, item) => acc + (predicate(item) ? Number(item?.co2e_t || 0) : 0), 0);
     const total = sumCo2(dashboardRecords);
@@ -2003,49 +2058,56 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
 
           <div style={{ flex: 1 }} />
 
-          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <Calendar size={14} style={{ color: "var(--eco-gray-400)" }} />
-            <label
-              htmlFor="dashboard-period-select"
-              style={{
-                position: "absolute",
-                width: 1,
-                height: 1,
-                padding: 0,
-                margin: -1,
-                overflow: "hidden",
-                clip: "rect(0, 0, 0, 0)",
-                whiteSpace: "nowrap",
-                border: 0,
-              }}
-            >
-              Periodo del dashboard
-            </label>
-            <select
-              id="dashboard-period-select"
-              name="dashboardPeriod"
-              aria-label="Periodo del dashboard"
-              value={periodo}
-              onChange={e => setPeriodo(e.target.value)}
-              style={{
-                height: 32,
-                padding: "0 26px 0 6px",
-                borderRadius: "var(--eco-radius-sm)",
-                border: "1px solid var(--eco-border)",
-                fontFamily: fb,
-                fontSize: 13,
-                fontWeight: 500,
-                color: "var(--eco-gray-700)",
-                background: "white",
-                appearance: "none",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="ene-jun-2026">Ene – Jun 2026</option>
-              <option value="jul-dic-2025">Jul – Dic 2025</option>
-            </select>
-          </div>
+          {periodsList.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <Calendar size={14} style={{ color: "var(--eco-gray-400)" }} />
+              <label
+                htmlFor="dashboard-period-select"
+                style={{
+                  position: "absolute",
+                  width: 1,
+                  height: 1,
+                  padding: 0,
+                  margin: -1,
+                  overflow: "hidden",
+                  clip: "rect(0, 0, 0, 0)",
+                  whiteSpace: "nowrap",
+                  border: 0,
+                }}
+              >
+                Periodo del dashboard
+              </label>
+              <select
+                id="dashboard-period-select"
+                name="dashboardPeriod"
+                aria-label="Periodo del dashboard"
+                value={periodo}
+                onChange={e => setPeriodo(e.target.value)}
+                style={{
+                  height: 32,
+                  padding: "0 26px 0 6px",
+                  borderRadius: "var(--eco-radius-sm)",
+                  border: "1px solid var(--eco-border)",
+                  fontFamily: fb,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--eco-gray-700)",
+                  background: "white",
+                  appearance: "none",
+                  cursor: "pointer",
+                  outline: "none",
+                }}
+              >
+                {[...periodsList]
+                  .sort((a, b) => (b.startDate || "").localeCompare(a.startDate || ""))
+                  .map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.label || period.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
           <NotificationsBell
             onNavigate={handleNotificationNavigate}

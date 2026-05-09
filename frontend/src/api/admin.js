@@ -18,6 +18,56 @@ export async function fetchOrgStructure() {
   return payload?.structure || payload?.data?.structure || { campuses: [], entities: [], entityTypes: [] };
 }
 
+export async function fetchAdminCatalogs() {
+  const payload = await apiRequest("/admin/catalogs");
+  return payload?.catalogs || payload?.data?.catalogs || { definitions: [], entries: {}, options: {} };
+}
+
+export async function fetchAdminPeriods() {
+  const payload = await apiRequest("/admin/periods");
+  return payload?.periods || payload?.data?.periods || [];
+}
+
+export async function createAdminPeriod(period) {
+  const payload = await apiRequest("/admin/periods", {
+    method: "POST",
+    body: JSON.stringify(period),
+  });
+  return payload?.period || payload?.data?.period || payload;
+}
+
+export async function updateAdminPeriod(id, period) {
+  const payload = await apiRequest(`/admin/periods/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(period),
+  });
+  return payload?.period || payload?.data?.period || payload;
+}
+
+export async function createAdminCatalogEntry(catalogId, entry) {
+  const payload = await apiRequest(`/admin/catalogs/${catalogId}/entries`, {
+    method: "POST",
+    body: JSON.stringify(entry),
+  });
+  return payload?.entry || payload?.data?.entry || payload;
+}
+
+export async function updateAdminCatalogEntry(catalogId, entryId, entry) {
+  const payload = await apiRequest(`/admin/catalogs/${catalogId}/entries/${entryId}`, {
+    method: "PUT",
+    body: JSON.stringify(entry),
+  });
+  return payload?.entry || payload?.data?.entry || payload;
+}
+
+export async function updateAdminCatalogEntryStatus(catalogId, entryId, status) {
+  const payload = await apiRequest(`/admin/catalogs/${catalogId}/entries/${entryId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+  return payload?.entry || payload?.data?.entry || payload;
+}
+
 export async function createOrgCampus(campus) {
   const payload = await apiRequest("/admin/org-structure/campuses", {
     method: "POST",

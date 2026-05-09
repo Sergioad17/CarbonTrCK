@@ -13,7 +13,6 @@ import OrgStructurePage from "./views/OrgStructurePage";
 import CatalogsPage from "./views/CatalogsPage";
 import PeriodsPage from "./views/PeriodsPage";
 import EmissionFactorsPage from "./views/EmissionFactorsPage";
-import CaptureConfigPage from "./views/CaptureConfigPage";
 import DevicesPage from "./views/DevicesPage";
 import RecordsPage from "./views/RecordsPage";
 import ValidationPage from "./views/ValidationPage";
@@ -24,6 +23,7 @@ import ReportsPage from "./views/ReportsPage";
 import BackupsPage from "./views/BackupsPage";
 import HelpDocsPage from "./views/HelpDocsPage";
 import AIControlPage from "./views/AIControlPage";
+import AITrainingPage from "./views/AITrainingPage";
 import AdminEmptyState from "./components/AdminEmptyState";
 
 function viewFromSearch(search) {
@@ -46,7 +46,6 @@ function AdminViewRouter({ view, user }) {
     case "admin-catalogs":       return <CatalogsPage />;
     case "admin-periods":        return <PeriodsPage />;
     case "admin-factors":        return <EmissionFactorsPage />;
-    case "admin-capture":        return <CaptureConfigPage />;
     case "admin-devices":        return <DevicesPage />;
     case "admin-records":        return <RecordsPage />;
     case "admin-validation":     return <ValidationPage />;
@@ -57,6 +56,7 @@ function AdminViewRouter({ view, user }) {
     case "admin-backups":        return <BackupsPage />;
     case "admin-help":           return <HelpDocsPage />;
     case "admin-ai":             return <AIControlPage />;
+    case "admin-ai-training":    return <AITrainingPage />;
     default:
       return (
         <div style={{

@@ -2,9 +2,13 @@ import {
   createDeviceReadingService,
   createDeviceService,
   duplicateDeviceService,
+  listDeviceReadingsService,
+  listDeviceTrainingReadingsService,
   listDevicesService,
   removeDeviceService,
+  removeDeviceReadingService,
   updateDeviceService,
+  updateDeviceReadingTrainingService,
   updateDeviceStatusService,
 } from "./devices.service.js";
 
@@ -42,6 +46,32 @@ export async function duplicateDeviceController(request, response) {
 
 export async function removeDeviceController(request, response) {
   await removeDeviceService(request.user, request.params.id, buildAuditContext(request));
+  response.status(204).send();
+}
+
+export async function listDeviceReadingsController(request, response) {
+  const items = await listDeviceReadingsService(request.user, request.params.id, request.query);
+  response.json({ items });
+}
+
+export async function listDeviceTrainingReadingsController(request, response) {
+  const items = await listDeviceTrainingReadingsService(request.user, request.params.id, request.query);
+  response.json({ items });
+}
+
+export async function updateDeviceReadingTrainingController(request, response) {
+  const item = await updateDeviceReadingTrainingService(
+    request.user,
+    request.params.id,
+    request.params.readingId,
+    request.body,
+    buildAuditContext(request),
+  );
+  response.json({ item });
+}
+
+export async function removeDeviceReadingController(request, response) {
+  await removeDeviceReadingService(request.user, request.params.id, request.params.readingId, buildAuditContext(request));
   response.status(204).send();
 }
 

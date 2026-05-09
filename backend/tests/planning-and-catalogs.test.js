@@ -229,7 +229,7 @@ if (!hasDb) {
   });
 
   afterEach(async () => {
-    await query(`DELETE FROM audit_events WHERE event_type LIKE 'factors.%' OR event_type LIKE 'equipment.%' OR event_type LIKE 'targets.%' OR event_type LIKE 'actions.%'`);
+    await query(`DELETE FROM audit_events WHERE event_type LIKE 'factors.%' OR event_type LIKE 'equipment.%' OR event_type LIKE 'targets.%' OR event_type LIKE 'actions.%' OR event_type LIKE 'catalogs.%'`);
     await query(
       `
         DELETE FROM audit_events

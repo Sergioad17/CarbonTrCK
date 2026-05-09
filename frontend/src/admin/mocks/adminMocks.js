@@ -27,7 +27,6 @@ export const adminNavTree = [
       { id: "admin-catalogs",       label: "Catálogos",                 icon: "BookOpen",       enabled: true  },
       { id: "admin-periods",        label: "Periodos",                  icon: "Calendar",       enabled: true  },
       { id: "admin-factors",        label: "Factores",                  icon: "FlaskConical",   enabled: true  },
-      { id: "admin-capture",        label: "Captura de datos",          icon: "ClipboardEdit",  enabled: true  },
       { id: "admin-devices",        label: "Dispositivos",              icon: "Cpu",            enabled: true  },
       { id: "admin-records",        label: "Registros",                 icon: "Database",       enabled: true  },
     ],
@@ -43,13 +42,20 @@ export const adminNavTree = [
     ],
   },
   {
+    section: "Control IA",
+    enabled: true,
+    items: [
+      { id: "admin-ai",             label: "Inteligencia artificial",   icon: "Sparkles",       enabled: true },
+      { id: "admin-ai-training",    label: "Entrenamiento IA",          icon: "Brain",          enabled: true },
+    ],
+  },
+  {
     section: "Soporte",
     enabled: true,
     items: [
       { id: "admin-reports",        label: "Reportes y exportaciones",  icon: "FileBarChart",   enabled: true },
       { id: "admin-backups",        label: "Respaldos y mantenimiento", icon: "HardDrive",      enabled: true },
       { id: "admin-help",           label: "Ayuda y documentación",     icon: "LifeBuoy",       enabled: true },
-      { id: "admin-ai",             label: "Inteligencia artificial",   icon: "Sparkles",       enabled: true },
     ],
   },
 ];
@@ -212,129 +218,6 @@ export const orgEntityTypes = [
   { id:"zone",       label:"Zona operativa",  icon:"MapPin",        color:"#CA8A04" },
 ];
 
-// --- Catalogs -----------------------------------------------------------
-export const catalogDefinitions = [
-  { id:"consumption-types",     label:"Tipos de consumo",           count:5, status:"active" },
-  { id:"fuel-types",            label:"Tipos de combustible",       count:6, status:"active" },
-  { id:"emission-sources",      label:"Fuentes de emisión",         count:4, status:"active" },
-  { id:"measurement-units",     label:"Unidades de medida",         count:8, status:"active" },
-  { id:"record-categories",     label:"Categorías de registro",     count:4, status:"active" },
-  { id:"goal-statuses",         label:"Estados de meta",            count:5, status:"active" },
-  { id:"record-statuses",       label:"Estados de registro",        count:4, status:"active" },
-  { id:"device-types",          label:"Tipos de dispositivo",       count:5, status:"active" },
-  { id:"alert-types",           label:"Tipos de alerta",            count:4, status:"active" },
-  { id:"evidence-types",        label:"Tipos de evidencia",         count:4, status:"active" },
-  { id:"user-types",            label:"Tipos de usuario",           count:4, status:"active" },
-  { id:"report-types",          label:"Tipos de reporte",           count:5, status:"active" },
-  { id:"notification-types",    label:"Tipos de notificación",      count:4, status:"active" },
-  { id:"activity-types",        label:"Tipos de actividad",         count:6, status:"active" },
-  { id:"emission-factor-types", label:"Tipos de factor de emisión", count:3, status:"active" },
-];
-
-export const catalogEntries = {
-  "consumption-types": [
-    { id:"ct1", code:"ELEC",  name:"Electricidad",   description:"Consumo de energía eléctrica de la red",              status:"active",   isDefault:true,  order:1 },
-    { id:"ct2", code:"GAS-N", name:"Gas natural",    description:"Consumo de gas natural para calefacción o procesos",   status:"active",   isDefault:false, order:2 },
-    { id:"ct3", code:"DIESEL",name:"Diésel",         description:"Consumo de diésel para generadores o vehículos",       status:"active",   isDefault:false, order:3 },
-    { id:"ct4", code:"GLP",   name:"Gas LP",         description:"Consumo de gas licuado de petróleo",                   status:"active",   isDefault:false, order:4 },
-    { id:"ct5", code:"WATER", name:"Agua",           description:"Consumo de agua potable",                              status:"inactive", isDefault:false, order:5 },
-  ],
-  "fuel-types": [
-    { id:"ft1", code:"GN",   name:"Gas natural",    description:"Gas natural seco",                  status:"active",   isDefault:true,  order:1 },
-    { id:"ft2", code:"DSL",  name:"Diésel",         description:"Diésel automotriz e industrial",    status:"active",   isDefault:false, order:2 },
-    { id:"ft3", code:"GLP",  name:"Gas LP",         description:"Gas licuado de petróleo",           status:"active",   isDefault:false, order:3 },
-    { id:"ft4", code:"GSL",  name:"Gasolina",       description:"Gasolina regular y premium",        status:"active",   isDefault:false, order:4 },
-    { id:"ft5", code:"BIO",  name:"Biodiésel",      description:"Combustible de origen biológico",   status:"inactive", isDefault:false, order:5 },
-    { id:"ft6", code:"CARB", name:"Carbón",         description:"Carbón mineral",                    status:"inactive", isDefault:false, order:6 },
-  ],
-  "emission-sources": [
-    { id:"es1", code:"STAT",  name:"Combustión estacionaria", description:"Calderas, hornos, generadores",             status:"active", isDefault:true,  order:1 },
-    { id:"es2", code:"MOBIL", name:"Combustión móvil",        description:"Vehículos y transporte propio",             status:"active", isDefault:false, order:2 },
-    { id:"es3", code:"FUGI",  name:"Emisiones fugitivas",     description:"Fugas de refrigerantes y gases",            status:"active", isDefault:false, order:3 },
-    { id:"es4", code:"ELECT", name:"Electricidad comprada",   description:"Emisiones indirectas por consumo eléctrico",status:"active", isDefault:true,  order:4 },
-  ],
-  "measurement-units": [
-    { id:"mu1", code:"kWh",   name:"Kilowatt-hora",    description:"Unidad de energía eléctrica",          status:"active",   isDefault:true,  order:1 },
-    { id:"mu2", code:"m3",    name:"Metro cúbico",     description:"Volumen de gas",                       status:"active",   isDefault:false, order:2 },
-    { id:"mu3", code:"L",     name:"Litro",            description:"Volumen de líquidos",                  status:"active",   isDefault:false, order:3 },
-    { id:"mu4", code:"kg",    name:"Kilogramo",        description:"Masa",                                 status:"active",   isDefault:false, order:4 },
-    { id:"mu5", code:"tCO2e", name:"Tonelada CO2e",   description:"Tonelada de CO2 equivalente",          status:"active",   isDefault:true,  order:5 },
-    { id:"mu6", code:"GJ",    name:"Gigajoule",        description:"Unidad de energía térmica",            status:"active",   isDefault:false, order:6 },
-    { id:"mu7", code:"MWh",   name:"Megawatt-hora",    description:"Unidad de energía eléctrica (mayor)",  status:"active",   isDefault:false, order:7 },
-    { id:"mu8", code:"gal",   name:"Galón",            description:"Volumen en galones",                   status:"inactive", isDefault:false, order:8 },
-  ],
-  "record-categories": [
-    { id:"rc1", code:"S1",  name:"Scope 1", description:"Emisiones directas",                 status:"active",   isDefault:true,  order:1 },
-    { id:"rc2", code:"S2",  name:"Scope 2", description:"Emisiones indirectas por energía",   status:"active",   isDefault:true,  order:2 },
-    { id:"rc3", code:"S3",  name:"Scope 3", description:"Otras emisiones indirectas",         status:"inactive", isDefault:false, order:3 },
-    { id:"rc4", code:"OTH", name:"Otros",   description:"Registros generales no categorizados",status:"active",  isDefault:false, order:4 },
-  ],
-  "goal-statuses": [
-    { id:"gs1", code:"DRAFT",  name:"Borrador",   description:"Meta en preparación",           status:"active", isDefault:true,  order:1 },
-    { id:"gs2", code:"ACTIVE", name:"Activa",     description:"Meta en seguimiento activo",     status:"active", isDefault:false, order:2 },
-    { id:"gs3", code:"REVIEW", name:"En revisión",description:"Meta en proceso de evaluación",  status:"active", isDefault:false, order:3 },
-    { id:"gs4", code:"DONE",   name:"Cumplida",   description:"Meta alcanzada exitosamente",    status:"active", isDefault:false, order:4 },
-    { id:"gs5", code:"CANCEL", name:"Cancelada",  description:"Meta cancelada o descartada",    status:"active", isDefault:false, order:5 },
-  ],
-  "record-statuses": [
-    { id:"rs1", code:"PEND",   name:"Pendiente", description:"Registro capturado sin validar",   status:"active", isDefault:true,  order:1 },
-    { id:"rs2", code:"VALID",  name:"Validado",  description:"Registro verificado y aprobado",    status:"active", isDefault:false, order:2 },
-    { id:"rs3", code:"REJECT", name:"Rechazado", description:"Registro devuelto para corrección", status:"active", isDefault:false, order:3 },
-    { id:"rs4", code:"ARCH",   name:"Archivado", description:"Registro archivado",                status:"active", isDefault:false, order:4 },
-  ],
-  "device-types": [
-    { id:"dt1", code:"METER",  name:"Medidor eléctrico", description:"Medidor de consumo eléctrico inteligente", status:"active",   isDefault:true,  order:1 },
-    { id:"dt2", code:"SENSOR", name:"Sensor ambiental",  description:"Sensor de temperatura, humedad, CO2",      status:"active",   isDefault:false, order:2 },
-    { id:"dt3", code:"FLOW",   name:"Medidor de flujo",  description:"Medidor de flujo de gas o agua",            status:"active",   isDefault:false, order:3 },
-    { id:"dt4", code:"GWAY",   name:"Gateway IoT",       description:"Concentrador de datos IoT",                 status:"active",   isDefault:false, order:4 },
-    { id:"dt5", code:"CAM",    name:"Cámara térmica",    description:"Cámara de monitoreo térmico",               status:"inactive", isDefault:false, order:5 },
-  ],
-  "alert-types": [
-    { id:"at1", code:"SYS",   name:"Sistema",       description:"Alertas del sistema operativo",          status:"active", isDefault:true,  order:1 },
-    { id:"at2", code:"LIMIT", name:"Umbral",        description:"Alerta por exceder umbral configurado",  status:"active", isDefault:false, order:2 },
-    { id:"at3", code:"MAINT", name:"Mantenimiento", description:"Alertas de mantenimiento preventivo",    status:"active", isDefault:false, order:3 },
-    { id:"at4", code:"SEC",   name:"Seguridad",     description:"Alertas de seguridad del sistema",       status:"active", isDefault:false, order:4 },
-  ],
-  "evidence-types": [
-    { id:"ev1", code:"PHOTO", name:"Fotografía",       description:"Evidencia fotográfica",                 status:"active", isDefault:true,  order:1 },
-    { id:"ev2", code:"DOC",   name:"Documento",        description:"Documento PDF o escaneado",             status:"active", isDefault:false, order:2 },
-    { id:"ev3", code:"SHEET", name:"Hoja de cálculo",  description:"Archivo Excel o CSV",                   status:"active", isDefault:false, order:3 },
-    { id:"ev4", code:"BILL",  name:"Recibo o factura", description:"Comprobante fiscal o recibo de servicio",status:"active", isDefault:false, order:4 },
-  ],
-  "user-types": [
-    { id:"ut1", code:"INT",  name:"Interno",  description:"Personal de la institución",       status:"active", isDefault:true,  order:1 },
-    { id:"ut2", code:"EXT",  name:"Externo",  description:"Consultor o auditor externo",      status:"active", isDefault:false, order:2 },
-    { id:"ut3", code:"SYS",  name:"Sistema",  description:"Cuenta de servicio automatizada",  status:"active", isDefault:false, order:3 },
-    { id:"ut4", code:"TEMP", name:"Temporal", description:"Acceso temporal por proyecto",      status:"active", isDefault:false, order:4 },
-  ],
-  "report-types": [
-    { id:"rt1", code:"MONTH",  name:"Mensual",       description:"Reporte mensual de emisiones",         status:"active", isDefault:true,  order:1 },
-    { id:"rt2", code:"QUART",  name:"Trimestral",    description:"Reporte trimestral consolidado",       status:"active", isDefault:false, order:2 },
-    { id:"rt3", code:"ANNUAL", name:"Anual",         description:"Reporte anual de huella de carbono",   status:"active", isDefault:false, order:3 },
-    { id:"rt4", code:"AUDIT",  name:"Auditoría",     description:"Reporte para auditoría externa",       status:"active", isDefault:false, order:4 },
-    { id:"rt5", code:"CUSTOM", name:"Personalizado", description:"Reporte con filtros personalizados",   status:"active", isDefault:false, order:5 },
-  ],
-  "notification-types": [
-    { id:"nt1", code:"ALERT",  name:"Alerta",           description:"Notificación de alerta del sistema",    status:"active", isDefault:true,  order:1 },
-    { id:"nt2", code:"REMIND", name:"Recordatorio",     description:"Recordatorio de tarea o vencimiento",   status:"active", isDefault:false, order:2 },
-    { id:"nt3", code:"INFO",   name:"Informativa",      description:"Notificación general informativa",      status:"active", isDefault:false, order:3 },
-    { id:"nt4", code:"ACTION", name:"Acción requerida", description:"Requiere intervención del usuario",     status:"active", isDefault:false, order:4 },
-  ],
-  "activity-types": [
-    { id:"ac1", code:"LOGIN",  name:"Inicio de sesión", description:"Acceso al sistema",                              status:"active", isDefault:false, order:1 },
-    { id:"ac2", code:"CRUD",   name:"Operación CRUD",   description:"Creación, lectura, actualización o eliminación", status:"active", isDefault:true,  order:2 },
-    { id:"ac3", code:"EXPORT", name:"Exportación",      description:"Exportación de datos o reportes",                status:"active", isDefault:false, order:3 },
-    { id:"ac4", code:"CONFIG", name:"Configuración",    description:"Cambio en configuración del sistema",            status:"active", isDefault:false, order:4 },
-    { id:"ac5", code:"VALID",  name:"Validación",       description:"Acción de validación o aprobación",              status:"active", isDefault:false, order:5 },
-    { id:"ac6", code:"SYSTEM", name:"Sistema",          description:"Acción automatizada del sistema",                status:"active", isDefault:false, order:6 },
-  ],
-  "emission-factor-types": [
-    { id:"ef1", code:"GRID",   name:"Factor de red eléctrica", description:"Factor de emisión por kWh de la red",             status:"active", isDefault:true,  order:1 },
-    { id:"ef2", code:"FUEL",   name:"Factor por combustible",  description:"Factor de emisión por tipo de combustible",       status:"active", isDefault:false, order:2 },
-    { id:"ef3", code:"CUSTOM", name:"Factor personalizado",    description:"Factor calculado o proporcionado por auditor",    status:"active", isDefault:false, order:3 },
-  ],
-};
-
 // --- Periods ------------------------------------------------------------
 export const periods = [
   { id:"p1", name:"2025-Q1",    label:"Enero - Marzo 2025",   type:"quarterly", startDate:"2025-01-01", endDate:"2025-03-31", status:"closed", isDefault:false, captureDeadline:"2025-04-10", validationDeadline:"2025-04-20", reportDeadline:"2025-04-30", lockCaptureOnClose:true,  allowSpecialReopen:true,  specialReopenRoles:["admin"],               specialReopenNote:"Solo administracion central puede autorizar reapertura por auditoria." },
@@ -357,67 +240,9 @@ export const periodTypes = [
 ];
 
 /* ------------------------------------------------------------------------
-   PART 3 - Factors, Capture, Devices, Records, Validation,
+   PART 3 - Capture, Devices, Records, Validation,
             Emissions, Goals, Alerts
    ------------------------------------------------------------------------ */
-
-// --- Emission Factors ---------------------------------------------------
-export const emissionFactors = [
-  { id:"f1", code:"GRID-MX-2026", name:"Red eléctrica nacional (MX)", scope:2, type:"electricity", unit:"kgCO2e/kWh",  value:0.435, source:"SENER 2026", validFrom:"2026-01-01", validUntil:"2026-12-31", status:"active",  version:"v3.0", official:true,  notes:"Factor oficial publicado por SENER en enero 2026." },
-  { id:"f2", code:"NG-IPCC",      name:"Gas natural (IPCC)",         scope:1, type:"fuel",        unit:"kgCO2e/m3",   value:1.880, source:"IPCC 2019",  validFrom:"2025-01-01", validUntil:"2027-12-31", status:"active",  version:"v2.1", official:true,  notes:"" },
-  { id:"f3", code:"DSL-IPCC",     name:"Diésel (IPCC)",              scope:1, type:"fuel",        unit:"kgCO2e/L",    value:2.680, source:"IPCC 2019",  validFrom:"2025-01-01", validUntil:"2027-12-31", status:"active",  version:"v2.1", official:true,  notes:"" },
-  { id:"f4", code:"GLP-IPCC",     name:"Gas LP (IPCC)",              scope:1, type:"fuel",        unit:"kgCO2e/L",    value:1.610, source:"IPCC 2019",  validFrom:"2025-01-01", validUntil:"2027-12-31", status:"active",  version:"v2.1", official:true,  notes:"" },
-  { id:"f5", code:"GSL-IPCC",     name:"Gasolina (IPCC)",            scope:1, type:"fuel",        unit:"kgCO2e/L",    value:2.310, source:"IPCC 2019",  validFrom:"2025-01-01", validUntil:"2027-12-31", status:"active",  version:"v2.1", official:true,  notes:"" },
-  { id:"f6", code:"GRID-MX-2025", name:"Red eléctrica nacional (MX)", scope:2, type:"electricity", unit:"kgCO2e/kWh",  value:0.458, source:"SENER 2025", validFrom:"2025-01-01", validUntil:"2025-12-31", status:"expired", version:"v2.0", official:false, notes:"Factor vigente durante 2025." },
-  { id:"f7", code:"WATER-CMT",    name:"Agua potable municipal",     scope:3, type:"water",       unit:"kgCO2e/m3",   value:0.344, source:"CONAGUA",    validFrom:"2025-01-01", validUntil:"2026-12-31", status:"draft",   version:"v1.0", official:false, notes:"En revisión interna." },
-];
-
-// factorId -> array of historical versions
-export const factorVersions = {
-  "f1": [
-    { version:"v3.0", value:0.435, changedAt:"2026-01-15", changedBy:"Sergio Arellano", note:"Actualización SENER 2026." },
-    { version:"v2.0", value:0.458, changedAt:"2025-01-12", changedBy:"Sergio Arellano", note:"Actualización SENER 2025." },
-    { version:"v1.0", value:0.494, changedAt:"2024-01-10", changedBy:"Admin",           note:"Carga inicial del factor." },
-  ],
-  "f2": [
-    { version:"v2.1", value:1.880, changedAt:"2025-03-01", changedBy:"Sergio Arellano", note:"Ajuste menor IPCC." },
-    { version:"v2.0", value:1.890, changedAt:"2024-06-15", changedBy:"Admin",           note:"Migración a IPCC 2019." },
-  ],
-  "f3": [
-    { version:"v2.1", value:2.680, changedAt:"2025-03-01", changedBy:"Sergio Arellano", note:"Ajuste menor IPCC." },
-  ],
-  "f4": [
-    { version:"v2.1", value:1.610, changedAt:"2025-03-01", changedBy:"Sergio Arellano", note:"Ajuste menor IPCC." },
-  ],
-  "f5": [
-    { version:"v2.1", value:2.310, changedAt:"2025-03-01", changedBy:"Sergio Arellano", note:"Ajuste menor IPCC." },
-  ],
-  "f6": [
-    { version:"v2.0", value:0.458, changedAt:"2025-01-12", changedBy:"Sergio Arellano", note:"Actualización SENER 2025." },
-  ],
-  "f7": [
-    { version:"v1.0", value:0.344, changedAt:"2025-11-05", changedBy:"Ana Torres", note:"Borrador inicial pendiente de validación." },
-  ],
-};
-
-// --- Capture Configuration ----------------------------------------------
-export const captureRules = [
-  { id:"cr1", consumptionType:"Electricidad",  category:"Energía", scope:2, appliesTo:"global", areaRef:"",             mode:"manual",   frequency:"Mensual",  unit:"kWh",  evidenceRequired:true,  allowEstimated:false, allowPostEdit:false, requiresPreApproval:true,  validation:"strict",  responsibleRole:"operativo", autoCalc:true,  notes:"Captura manual con evidencia obligatoria (recibo CFE)." },
-  { id:"cr2", consumptionType:"Electricidad",  category:"Energía", scope:2, appliesTo:"area",   areaRef:"Centro de Datos", mode:"device",   frequency:"Diaria",   unit:"kWh",  evidenceRequired:false, allowEstimated:false, allowPostEdit:false, requiresPreApproval:false, validation:"automatic", responsibleRole:"operativo", autoCalc:true,  notes:"Lectura automática desde medidores inteligentes." },
-  { id:"cr3", consumptionType:"Gas natural",   category:"Combustión", scope:1, appliesTo:"category", areaRef:"Laboratorios", mode:"manual",   frequency:"Mensual",  unit:"m3",   evidenceRequired:true,  allowEstimated:true,  allowPostEdit:true,  requiresPreApproval:true,  validation:"strict",  responsibleRole:"operativo", autoCalc:true,  notes:"" },
-  { id:"cr4", consumptionType:"Diésel",        category:"Combustión", scope:1, appliesTo:"global", areaRef:"",             mode:"file",     frequency:"Mensual",  unit:"L",    evidenceRequired:true,  allowEstimated:false, allowPostEdit:true,  requiresPreApproval:false, validation:"flexible", responsibleRole:"operativo", autoCalc:true,  notes:"Carga por archivo CSV con bitácora de despacho." },
-  { id:"cr5", consumptionType:"Gas LP",        category:"Combustión", scope:1, appliesTo:"global", areaRef:"",             mode:"manual",   frequency:"Mensual",  unit:"L",    evidenceRequired:true,  allowEstimated:true,  allowPostEdit:false, requiresPreApproval:true,  validation:"strict",  responsibleRole:"operativo", autoCalc:true,  notes:"" },
-  { id:"cr6", consumptionType:"Gasolina",      category:"Transporte", scope:1, appliesTo:"category", areaRef:"Flotilla", mode:"assisted", frequency:"Quincenal",unit:"L",    evidenceRequired:false, allowEstimated:true,  allowPostEdit:true,  requiresPreApproval:false, validation:"flexible", responsibleRole:"operativo", autoCalc:true,  notes:"Captura asistida vía formulario móvil." },
-  { id:"cr7", consumptionType:"Agua",          category:"Recursos",   scope:3, appliesTo:"global", areaRef:"",             mode:"api",      frequency:"Diaria",   unit:"m3",   evidenceRequired:false, allowEstimated:false, allowPostEdit:false, requiresPreApproval:false, validation:"automatic", responsibleRole:"operativo", autoCalc:false, notes:"Sincronización con API municipal (en piloto)." },
-];
-
-export const captureModes = [
-  { id:"manual",   label:"Manual",      icon:"Edit3",       color:"#2563EB" },
-  { id:"assisted", label:"Asistida",    icon:"Wand2",       color:"#7C3AED" },
-  { id:"device",   label:"Dispositivo", icon:"Cpu",         color:"#059669" },
-  { id:"api",      label:"API externa", icon:"Plug",        color:"#0891B2" },
-  { id:"file",     label:"Archivo",     icon:"FileSpreadsheet", color:"#EA580C" },
-];
 
 // --- Devices & Integrations ---------------------------------------------
 export const devices = [
@@ -493,30 +318,6 @@ export const records = [
   { id:"r11", date:"2026-04-03", periodId:"p7", consumptionType:"Electricidad", areaId:"e17", areaName:"Edificio Administrativo Sur",value:456.7,unit:"kWh",factorId:"f1",emissions:198.66, captureMode:"manual",   capturedBy:"Sofía Medina",   status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
   { id:"r12", date:"2026-04-02", periodId:"p7", consumptionType:"Agua",         areaId:"e17", areaName:"Edificio Administrativo Sur",value:125,  unit:"m3", factorId:"f7", emissions:43.00,  captureMode:"api",      capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:false, notes:"Factor en borrador." },
 ];
-
-export const recordEvidence = {
-  "r4":  [{ id:"ev1", name:"recibo-gas-marzo.pdf",     type:"pdf", size:"245 KB", uploadedAt:"2026-04-09" }],
-  "r5":  [{ id:"ev2", name:"bitacora-despacho.csv",    type:"csv", size:"12 KB",  uploadedAt:"2026-04-08" }],
-  "r8":  [{ id:"ev3", name:"ticket-gasolinera.jpg",    type:"jpg", size:"890 KB", uploadedAt:"2026-04-06" }],
-  "r10": [
-    { id:"ev4", name:"factura-diesel-abril.pdf",       type:"pdf", size:"312 KB", uploadedAt:"2026-04-04" },
-    { id:"ev5", name:"vale-despacho.pdf",              type:"pdf", size:"98 KB",  uploadedAt:"2026-04-04" },
-  ],
-  "r11": [{ id:"ev6", name:"recibo-cfe-marzo.pdf",     type:"pdf", size:"267 KB", uploadedAt:"2026-04-03" }],
-};
-
-export const recordTraceability = {
-  "r4": [
-    { ts:"2026-04-09T10:15:00Z", actor:"Carlos Méndez", action:"Capturó el registro" },
-    { ts:"2026-04-09T10:16:00Z", actor:"Sistema",       action:"Calculó emisiones automáticamente" },
-    { ts:"2026-04-09T11:00:00Z", actor:"Sistema",       action:"Marcó como pendiente de validación" },
-  ],
-  "r5": [
-    { ts:"2026-04-08T08:30:00Z", actor:"María López",   action:"Cargó archivo CSV" },
-    { ts:"2026-04-08T08:31:00Z", actor:"Sistema",       action:"Calculó emisiones automáticamente" },
-    { ts:"2026-04-08T14:20:00Z", actor:"Ana Torres",    action:"Validó el registro" },
-  ],
-};
 
 // --- Validation Queue ---------------------------------------------------
 export const validationQueue = [

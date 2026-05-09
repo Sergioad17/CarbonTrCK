@@ -20,7 +20,8 @@ import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminFormModal from "../components/AdminFormModal";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import { AdminTextField, AdminSelectField, AdminToggleField } from "../components/AdminFormSection";
-import { periods as mockPeriods, periodTypes } from "../mocks/adminMocks";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
+import { createAdminPeriod, fetchAdminPeriods, updateAdminPeriod } from "../../api/admin";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
@@ -46,6 +47,14 @@ const ROLE_LABELS = {
   operativo: "Operativo",
   consulta: "Consulta",
 };
+
+const periodTypes = [
+  { value: "monthly", label: "Mensual" },
+  { value: "bimonthly", label: "Bimestral" },
+  { value: "quarterly", label: "Trimestral" },
+  { value: "semester", label: "Semestral" },
+  { value: "annual", label: "Anual" },
+];
 
 const EMPTY_PERIOD = {
   name: "",
@@ -325,13 +334,34 @@ function RulesSummary({ period }) {
 }
 
 export default function PeriodsPage() {
-  const [periodsList, setPeriodsList] = React.useState(() => mockPeriods.map(normalizePeriod));
+  const [periodsList, setPeriodsList] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState(null);
   const [viewMode, setViewMode] = React.useState("timeline");
   const [search, setSearch] = React.useState("");
   const [filters, setFilters] = React.useState({});
   const [drawerPeriod, setDrawerPeriod] = React.useState(null);
   const [modalPeriod, setModalPeriod] = React.useState(null);
   const [saving, setSaving] = React.useState(false);
+
+  const loadPeriods = React.useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const periods = await fetchAdminPeriods();
+      setPeriodsList(Array.isArray(periods) ? periods.map(normalizePeriod) : []);
+      setDrawerPeriod(null);
+    } catch (error) {
+      console.error("admin_periods_load_failed", error);
+      setLoadError(error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadPeriods();
+  }, [loadPeriods]);
 
   const filtered = React.useMemo(() => {
     let list = [...periodsList];
@@ -344,20 +374,32 @@ export default function PeriodsPage() {
     return list;
   }, [filters, periodsList, search]);
 
-  function handleSave() {
+  async function handleSave() {
+    if (!modalPeriod) return;
     setSaving(true);
-    setTimeout(() => {
+    try {
       const normalized = normalizePeriod(modalPeriod);
+      const saved = normalized.id
+        ? normalizePeriod(await updateAdminPeriod(normalized.id, normalized))
+        : normalizePeriod(await createAdminPeriod(normalized));
+
       if (normalized.id) {
-        setPeriodsList((prev) => prev.map((period) => (period.id === normalized.id ? normalized : period)));
-        setDrawerPeriod((current) => (current?.id === normalized.id ? normalized : current));
+        setPeriodsList((prev) => prev.map((period) => (period.id === saved.id ? saved : period)));
+        setDrawerPeriod((current) => (current?.id === saved.id ? saved : current));
       } else {
-        const created = { ...normalized, id: `p${Date.now()}` };
-        setPeriodsList((prev) => [...prev, created]);
+        setPeriodsList((prev) => [...prev, saved]);
       }
-      setSaving(false);
       setModalPeriod(null);
-    }, 450);
+      await loadPeriods();
+    } catch (error) {
+      console.error("admin_periods_save_failed", error);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return <AdminLoadingScreen />;
   }
 
   const openCount = periodsList.filter((period) => period.status === "open").length;
@@ -465,22 +507,51 @@ export default function PeriodsPage() {
         onChange={setViewMode}
       />
 
+      {loadError && (
+        <div style={{
+          marginBottom: 14,
+          padding: "12px 14px",
+          borderRadius: 10,
+          border: "1px solid rgba(220,38,38,.22)",
+          background: "rgba(220,38,38,.07)",
+          fontFamily: fb,
+          fontSize: 12.5,
+          color: "var(--eco-danger, #DC2626)",
+        }}>
+          No se pudieron cargar los periodos desde el backend. Intenta actualizar la vista.
+        </div>
+      )}
+
       {viewMode === "timeline" ? (
         <>
-          <div style={{
-            display: "flex",
-            gap: 14,
-            overflowX: "auto",
-            padding: "6px 2px 14px",
-            scrollbarWidth: "thin",
-          }}>
-            {periodsList
-              .slice()
-              .sort((a, b) => a.startDate.localeCompare(b.startDate))
-              .map((period) => (
-                <TimelineCard key={period.id} period={period} onClick={setDrawerPeriod} />
-              ))}
-          </div>
+          {periodsList.length > 0 ? (
+            <div style={{
+              display: "flex",
+              gap: 14,
+              overflowX: "auto",
+              padding: "6px 2px 14px",
+              scrollbarWidth: "thin",
+            }}>
+              {periodsList
+                .slice()
+                .sort((a, b) => a.startDate.localeCompare(b.startDate))
+                .map((period) => (
+                  <TimelineCard key={period.id} period={period} onClick={setDrawerPeriod} />
+                ))}
+            </div>
+          ) : (
+            <div style={{
+              padding: "36px 24px",
+              borderRadius: 12,
+              border: "1px dashed var(--eco-border, #E2E8F0)",
+              background: "var(--eco-card, #fff)",
+              textAlign: "center",
+              fontFamily: fb,
+              color: "var(--eco-text-soft, #64748B)",
+            }}>
+              Aún no hay periodos registrados.
+            </div>
+          )}
 
           <div style={{
             marginTop: 10,
@@ -822,7 +893,7 @@ export default function PeriodsPage() {
                   { value: "operativo", label: ROLE_LABELS.operativo },
                 ]}
                 disabled={!modalPeriod.allowSpecialReopen}
-                hint="Puedes dejar un perfil principal aunque la lógica real aún sea frontend-only."
+                hint="El backend aplica este perfil cuando se autoriza una reapertura especial."
               />
 
               <AdminTextField

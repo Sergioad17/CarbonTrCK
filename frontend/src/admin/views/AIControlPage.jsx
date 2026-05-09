@@ -406,7 +406,7 @@ export default function AIControlPage() {
         icon={Sparkles}
         title="Inteligencia artificial"
         subtitle="Control, métricas y resultados del motor de IA del sistema."
-        breadcrumb={["Soporte", "IA"]}
+        breadcrumb={["Control IA", "Inteligencia artificial"]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <button

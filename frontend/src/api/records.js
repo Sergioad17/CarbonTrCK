@@ -193,6 +193,37 @@ export async function fetchEmissionRecords() {
   return sortRecords(Array.isArray(rawItems) ? rawItems.map((item, index) => normalizeRecord(item, `record-${index + 1}`)) : []);
 }
 
+export async function fetchEmissionRecord(recordId) {
+  assertBackendConfigured();
+  if (!recordId) return null;
+  const payload = await apiRequest(`/records/${recordId}`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  const raw = payload?.item || payload?.record || payload?.data?.item || payload?.data?.record || payload?.data || payload;
+  return raw ? normalizeRecord(raw, recordId) : null;
+}
+
+export async function fetchEmissionRecordRevisions(recordId) {
+  assertBackendConfigured();
+  if (!recordId) return [];
+  const payload = await apiRequest(`/records/${recordId}/revisions`, {
+    method: "GET",
+    headers: authHeaders(),
+  });
+  const rawItems = payload?.items || payload?.revisions || payload?.data?.items || payload?.data?.revisions || payload?.data || payload;
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.map((item) => ({
+    id: cleanString(item?.id),
+    revisionNo: Number(item?.revisionNo || item?.revision_no || 0),
+    changedAt: cleanString(item?.changedAt || item?.changed_at),
+    changeReason: cleanString(item?.changeReason || item?.change_reason),
+    changedByName: cleanString(item?.changedByName || item?.changed_by_name),
+    changedByEmail: cleanString(item?.changedByEmail || item?.changed_by_email),
+    snapshot: item?.snapshot || null,
+  }));
+}
+
 export async function createEmissionRecord(input) {
   assertBackendConfigured();
   const evidenceUpload = input?.evidenceUpload || null;

@@ -10,6 +10,17 @@ import {
   upsertAdminGovernmentSettings,
 } from "./admin.repository.js";
 import {
+  createAdminCatalogEntry,
+  listAdminCatalogs,
+  updateAdminCatalogEntry,
+  updateAdminCatalogEntryStatus,
+} from "./admin.catalogs.repository.js";
+import {
+  createAdminPeriod,
+  listAdminPeriods,
+  updateAdminPeriod,
+} from "./admin.periods.repository.js";
+import {
   createCampus as createOrgCampus,
   createEntity as createOrgEntity,
   deleteCampus as deleteOrgCampus,
@@ -35,6 +46,39 @@ export function getAdminHomeSummaryService(actor) {
 
 export function listOrgStructureService(actor) {
   return listOrgStructureRepository(actor);
+}
+
+export function listAdminCatalogsService() {
+  return listAdminCatalogs();
+}
+
+export function listAdminPeriodsService(actor) {
+  return listAdminPeriods(actor);
+}
+
+export function createAdminPeriodService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createAdminPeriod(actor, payload, auditContext);
+}
+
+export function updateAdminPeriodService(actor, periodId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminPeriod(actor, periodId, payload, auditContext);
+}
+
+export function createAdminCatalogEntryService(actor, catalogId, payload, auditContext) {
+  assertObject(payload);
+  return createAdminCatalogEntry(actor, catalogId, payload, auditContext);
+}
+
+export function updateAdminCatalogEntryService(actor, catalogId, entryId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminCatalogEntry(actor, catalogId, entryId, payload, auditContext);
+}
+
+export function updateAdminCatalogEntryStatusService(actor, catalogId, entryId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminCatalogEntryStatus(actor, catalogId, entryId, payload, auditContext);
 }
 
 export function createOrgCampusService(actor, payload, auditContext) {

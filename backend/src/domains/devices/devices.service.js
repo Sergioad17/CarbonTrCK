@@ -5,15 +5,20 @@ import {
   createDevice,
   createDeviceReading,
   duplicateDevice,
+  listDeviceReadings,
+  listDeviceTrainingReadings,
   listDevices,
   removeDevice,
+  removeDeviceReading,
   updateDevice,
+  updateDeviceReadingTraining,
   updateDeviceStatus,
 } from "./devices.repository.js";
 
 const ALLOWED_PROTOCOLS = new Set(["https", "mqtt"]);
 const ALLOWED_STREAM_MODES = new Set(["scheduled", "realtime"]);
 const ALLOWED_DEVICE_TYPES = new Set(["ESP32", "ESP8266", "EDGE_GATEWAY", "CUSTOM"]);
+const ALLOWED_TRAINING_STATUSES = new Set(["ready", "review", "excluded"]);
 
 function cleanString(value) {
   return String(value ?? "").trim();
@@ -189,6 +194,10 @@ function normalizeReadingPayload(payload) {
     });
   }
 
+  const payloadBody = typeof payload.payload === "object" && payload.payload !== null ? payload.payload : {};
+  const batteryLevel = parsePositiveNumber(payload.batteryLevel ?? payload.batteryPercent, "batteryLevel", { allowZero: true, fallback: null, max: 100 });
+  const batteryVoltage = parsePositiveNumber(payload.batteryVoltage, "batteryVoltage", { fallback: null });
+
   return {
     deviceCode: cleanString(payload.deviceCode).toUpperCase(),
     recordedAt: recordedAt.toISOString(),
@@ -199,7 +208,11 @@ function normalizeReadingPayload(payload) {
     currentAmp: parsePositiveNumber(payload.currentAmp, "currentAmp", { allowZero: true }),
     powerFactor: parsePositiveNumber(payload.powerFactor, "powerFactor", { max: 1 }),
     intervalSeconds: parsePositiveInteger(payload.intervalSeconds, "intervalSeconds"),
-    payload: typeof payload.payload === "object" && payload.payload !== null ? payload.payload : {},
+    payload: {
+      ...payloadBody,
+      ...(batteryLevel !== null ? { batteryLevel } : {}),
+      ...(batteryVoltage !== null ? { batteryVoltage } : {}),
+    },
   };
 }
 
@@ -250,6 +263,86 @@ export async function duplicateDeviceService(actor, deviceId, auditContext) {
 
 export async function removeDeviceService(actor, deviceId, auditContext) {
   return removeDevice(actor, deviceId, auditContext);
+}
+
+function normalizeReadingFilters(query = {}) {
+  const dateFrom = cleanString(query.dateFrom || "");
+  const dateTo = cleanString(query.dateTo || "");
+  const limit = query.limit === undefined ? 500 : Number.parseInt(query.limit, 10);
+
+  if (dateFrom && Number.isNaN(new Date(dateFrom).getTime())) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "dateFrom must be a valid date.",
+      details: { field: "dateFrom" },
+    });
+  }
+
+  if (dateTo && Number.isNaN(new Date(dateTo).getTime())) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "dateTo must be a valid date.",
+      details: { field: "dateTo" },
+    });
+  }
+
+  return {
+    dateFrom: dateFrom || null,
+    dateTo: dateTo || null,
+    limit: Number.isInteger(limit) ? limit : 500,
+  };
+}
+
+export async function listDeviceReadingsService(actor, deviceId, query) {
+  return listDeviceReadings(actor, deviceId, normalizeReadingFilters(query));
+}
+
+function normalizeTrainingPayload(payload = {}) {
+  if (typeof payload.included !== "boolean") {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "included must be provided as a boolean.",
+      details: { field: "included" },
+    });
+  }
+
+  const fallbackStatus = payload.included ? "ready" : "excluded";
+  const status = cleanString(payload.status || fallbackStatus).toLowerCase();
+  if (!ALLOWED_TRAINING_STATUSES.has(status)) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "status must be ready, review or excluded.",
+      details: { field: "status" },
+    });
+  }
+
+  const note = cleanString(payload.note || "");
+  if (note.length > 500) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: "note must be 500 characters or less.",
+      details: { field: "note" },
+    });
+  }
+
+  return { included: payload.included, status, note };
+}
+
+export async function listDeviceTrainingReadingsService(actor, deviceId, query) {
+  return listDeviceTrainingReadings(actor, deviceId, normalizeReadingFilters(query));
+}
+
+export async function updateDeviceReadingTrainingService(actor, deviceId, readingId, payload, auditContext) {
+  return updateDeviceReadingTraining(actor, deviceId, readingId, normalizeTrainingPayload(payload), auditContext);
+}
+
+export async function removeDeviceReadingService(actor, deviceId, readingId, auditContext) {
+  return removeDeviceReading(actor, deviceId, readingId, auditContext);
 }
 
 export async function createDeviceReadingService(device, payload, auditContext) {

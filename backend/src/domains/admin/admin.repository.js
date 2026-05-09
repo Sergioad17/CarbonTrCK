@@ -1,6 +1,7 @@
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
+import { ensureAdminPeriodsSchema } from "./admin.periods.repository.js";
 import {
   DEFAULT_INSTITUTIONAL_CONFIG,
   DEFAULT_SECURITY_CONFIG,
@@ -669,6 +670,7 @@ function buildHomeActivityItem(row) {
 }
 
 export async function getAdminHomeSummary(actor) {
+  await ensureAdminPeriodsSchema();
   const startedAt = Date.now();
   const dbPing = await query(`SELECT 1`);
   const dbLatency = Date.now() - startedAt;
@@ -677,6 +679,7 @@ export async function getAdminHomeSummary(actor) {
     usersResult,
     areasResult,
     recordsResult,
+    periodsResult,
     targetsResult,
     devicesResult,
     auditResult,
@@ -707,6 +710,16 @@ export async function getAdminHomeSummary(actor) {
           count(*) FILTER (WHERE deleted_at IS NULL)::int AS total,
           count(*) FILTER (WHERE deleted_at IS NULL AND approved_at IS NULL)::int AS pending
         FROM records
+        WHERE organization_id = $1
+      `,
+      [actor.organizationId],
+    ),
+    query(
+      `
+        SELECT
+          count(*) FILTER (WHERE status = 'open')::int AS open,
+          count(*) FILTER (WHERE status = 'closed')::int AS closed
+        FROM admin_periods
         WHERE organization_id = $1
       `,
       [actor.organizationId],
@@ -764,6 +777,7 @@ export async function getAdminHomeSummary(actor) {
   void dbPing;
   const users = usersResult.rows[0] || {};
   const records = recordsResult.rows[0] || {};
+  const periods = periodsResult.rows[0] || {};
   const devices = devicesResult.rows[0] || {};
   const pendingRecords = intValue(records, "pending");
   const offlineDevices = intValue(devices, "offline");
@@ -819,8 +833,8 @@ export async function getAdminHomeSummary(actor) {
       activeUsers: intValue(users, "active"),
       inactiveUsers: intValue(users, "inactive"),
       areasRegistered: intValue(areasResult.rows[0], "active"),
-      openPeriods: 0,
-      closedPeriods: 0,
+      openPeriods: intValue(periods, "open"),
+      closedPeriods: intValue(periods, "closed"),
       recordsCaptured: intValue(records, "total"),
       recordsPending: pendingRecords,
       activeGoals: intValue(targetsResult.rows[0], "active"),

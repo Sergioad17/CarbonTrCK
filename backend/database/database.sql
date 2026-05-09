@@ -884,6 +884,32 @@ CREATE TABLE monthly_forecasts (
   CONSTRAINT monthly_forecasts_confidence_chk CHECK (confidence IS NULL OR confidence BETWEEN 0 AND 1),
   CONSTRAINT monthly_forecasts_month_uq UNIQUE (model_id,campus_id,area_id,scope_id,category_id,forecast_month)
 );
+CREATE TABLE admin_periods (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  name varchar(80) NOT NULL,
+  label varchar(160),
+  period_type varchar(30) NOT NULL,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  status varchar(20) NOT NULL DEFAULT 'open',
+  is_default boolean NOT NULL DEFAULT false,
+  capture_deadline date,
+  validation_deadline date,
+  report_deadline date,
+  lock_capture_on_close boolean NOT NULL DEFAULT true,
+  allow_special_reopen boolean NOT NULL DEFAULT false,
+  special_reopen_roles text[] NOT NULL DEFAULT ARRAY['admin']::text[],
+  special_reopen_note text,
+  created_by uuid,
+  updated_by uuid,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT admin_periods_org_name_uq UNIQUE (organization_id,name),
+  CONSTRAINT admin_periods_dates_chk CHECK (end_date >= start_date),
+  CONSTRAINT admin_periods_type_chk CHECK (period_type IN ('monthly','bimonthly','quarterly','semester','annual')),
+  CONSTRAINT admin_periods_status_chk CHECK (status IN ('open','review','closed'))
+);
 CREATE TABLE audit_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -955,6 +981,8 @@ CREATE INDEX idx_anomaly_detections_model_detected_at ON anomaly_detections(mode
 CREATE INDEX idx_anomaly_detections_record_id ON anomaly_detections(record_id);
 CREATE INDEX idx_monthly_forecasts_model_month ON monthly_forecasts(model_id,forecast_month DESC);
 CREATE INDEX idx_monthly_forecasts_scope_category_month ON monthly_forecasts(scope_id,category_id,forecast_month DESC);
+CREATE UNIQUE INDEX idx_admin_periods_default_uq ON admin_periods(organization_id) WHERE is_default;
+CREATE INDEX idx_admin_periods_org_dates ON admin_periods(organization_id,start_date,end_date);
 CREATE INDEX idx_audit_events_org_created_at ON audit_events(organization_id,created_at DESC);
 CREATE INDEX idx_audit_events_user_created_at ON audit_events(user_id,created_at DESC);
 CREATE INDEX idx_audit_events_entity ON audit_events(entity_type,entity_id);
@@ -976,6 +1004,7 @@ CREATE TRIGGER profile_change_requests_set_updated_at BEFORE UPDATE ON profile_c
 CREATE TRIGGER iot_devices_set_updated_at BEFORE UPDATE ON iot_devices FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER device_bindings_set_updated_at BEFORE UPDATE ON device_bindings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER ml_models_set_updated_at BEFORE UPDATE ON ml_models FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER admin_periods_set_updated_at BEFORE UPDATE ON admin_periods FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER metrics_validate_before_write BEFORE INSERT OR UPDATE ON metrics FOR EACH ROW EXECUTE FUNCTION trg_metrics_validate();
 CREATE TRIGGER emission_categories_validate_before_write BEFORE INSERT OR UPDATE ON emission_categories FOR EACH ROW EXECUTE FUNCTION trg_emission_categories_validate();
 CREATE TRIGGER emission_factors_validate_before_write BEFORE INSERT OR UPDATE ON emission_factors FOR EACH ROW EXECUTE FUNCTION trg_emission_factors_validate();

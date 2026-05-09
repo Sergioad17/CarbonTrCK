@@ -8,6 +8,10 @@ export const DEVICE_API_CONTRACT = {
   update: (id) => `/devices/${id}`,
   status: (id) => `/devices/${id}/status`,
   duplicate: (id) => `/devices/${id}/duplicate`,
+  readings: (id) => `/devices/${id}/readings`,
+  trainingReadings: (id) => `/devices/${id}/readings/training`,
+  updateReadingTraining: (id, readingId) => `/devices/${id}/readings/${readingId}/training`,
+  removeReading: (id, readingId) => `/devices/${id}/readings/${readingId}`,
   remove: (id) => `/devices/${id}`,
 };
 
@@ -32,6 +36,11 @@ const DEFAULT_FORM = {
   verifyServerCert: true,
   offlineBuffer: true,
   enabled: true,
+  voltage: "127",
+  powerFactor: "0.9",
+  batteryLevel: null,
+  batteryVoltage: null,
+  batteryStatus: "unknown",
 };
 
 function normalizeBackendUrlForProtocol(value, protocol) {
@@ -98,16 +107,67 @@ function normalizeDevice(input = {}) {
     verifyServerCert: typeof input.verifyServerCert === "boolean" ? input.verifyServerCert : DEFAULT_FORM.verifyServerCert,
     offlineBuffer: typeof input.offlineBuffer === "boolean" ? input.offlineBuffer : DEFAULT_FORM.offlineBuffer,
     enabled: typeof input.enabled === "boolean" ? input.enabled : true,
+    voltage: input.voltage !== undefined && input.voltage !== null ? String(input.voltage) : DEFAULT_FORM.voltage,
+    powerFactor: input.powerFactor !== undefined && input.powerFactor !== null ? String(input.powerFactor) : DEFAULT_FORM.powerFactor,
     status: String(input.status || "provisioning"),
     lastSeenAt: input.lastSeenAt || null,
     firmwareVersion: String(input.firmwareVersion || ""),
     readingsToday: Number.isFinite(Number(input.readingsToday)) ? Number(input.readingsToday) : 0,
+    batteryLevel: Number.isFinite(Number(input.batteryLevel)) ? Number(input.batteryLevel) : null,
+    batteryVoltage: Number.isFinite(Number(input.batteryVoltage)) ? Number(input.batteryVoltage) : null,
+    batteryStatus: String(input.batteryStatus || "unknown"),
   };
 }
 
 function normalizeDeviceList(payload) {
   const rawItems = payload?.devices || payload?.items || payload?.data?.devices || payload?.data?.items || payload?.data || payload;
   return Array.isArray(rawItems) ? rawItems.map(normalizeDevice) : [];
+}
+
+function normalizeReading(input = {}) {
+  const payload = input.payload && typeof input.payload === "object" ? input.payload : {};
+  return {
+    id: String(input.id || ""),
+    deviceId: String(input.deviceId || input.device_id || ""),
+    deviceCode: String(input.deviceCode || input.device_code || ""),
+    deviceName: String(input.deviceName || input.device_name || ""),
+    recordedAt: input.recordedAt || input.recorded_at || null,
+    schemaVersion: String(input.schemaVersion || input.schema_version || ""),
+    totalKwh: Number.isFinite(Number(input.totalKwh ?? input.total_kwh)) ? Number(input.totalKwh ?? input.total_kwh) : null,
+    deltaKwh: Number.isFinite(Number(input.deltaKwh ?? input.delta_kwh)) ? Number(input.deltaKwh ?? input.delta_kwh) : null,
+    voltage: Number.isFinite(Number(input.voltage)) ? Number(input.voltage) : null,
+    currentAmp: Number.isFinite(Number(input.currentAmp ?? input.current_amp)) ? Number(input.currentAmp ?? input.current_amp) : null,
+    powerFactor: Number.isFinite(Number(input.powerFactor ?? input.power_factor)) ? Number(input.powerFactor ?? input.power_factor) : null,
+    intervalSeconds: Number.isFinite(Number(input.intervalSeconds ?? input.interval_seconds)) ? Number(input.intervalSeconds ?? input.interval_seconds) : null,
+    batteryLevel: Number.isFinite(Number(input.batteryLevel ?? payload.batteryLevel)) ? Number(input.batteryLevel ?? payload.batteryLevel) : null,
+    batteryVoltage: Number.isFinite(Number(input.batteryVoltage ?? payload.batteryVoltage)) ? Number(input.batteryVoltage ?? payload.batteryVoltage) : null,
+    firmwareVersion: String(input.firmwareVersion || payload.firmwareVersion || ""),
+    createdRecordId: input.createdRecordId || input.created_record_id || null,
+    payload,
+    createdAt: input.createdAt || input.created_at || null,
+  };
+}
+
+function normalizeReadingList(payload) {
+  const rawItems = payload?.readings || payload?.items || payload?.data?.readings || payload?.data?.items || payload?.data || payload;
+  return Array.isArray(rawItems) ? rawItems.map(normalizeReading) : [];
+}
+
+function normalizeTrainingReading(input = {}) {
+  return {
+    ...normalizeReading(input),
+    trainingIncluded: typeof input.trainingIncluded === "boolean" ? input.trainingIncluded : false,
+    trainingStatus: String(input.trainingStatus || "review"),
+    trainingNote: String(input.trainingNote || ""),
+    trainingUpdatedAt: input.trainingUpdatedAt || null,
+    qualityIssues: Array.isArray(input.qualityIssues) ? input.qualityIssues.map(String) : [],
+    features: input.features && typeof input.features === "object" ? input.features : {},
+  };
+}
+
+function normalizeTrainingReadingList(payload) {
+  const rawItems = payload?.readings || payload?.items || payload?.data?.readings || payload?.data?.items || payload?.data || payload;
+  return Array.isArray(rawItems) ? rawItems.map(normalizeTrainingReading) : [];
 }
 
 export function createDeviceDraft() {
@@ -167,6 +227,51 @@ export async function duplicateDevice(deviceId) {
 export async function removeDevice(deviceId) {
   assertBackendConfigured();
   await apiRequest(DEVICE_API_CONTRACT.remove(deviceId), {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return { ok: true };
+}
+
+export async function fetchDeviceReadings(deviceId, filters = {}) {
+  assertBackendConfigured();
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.limit) params.set("limit", String(filters.limit));
+  const suffix = params.toString() ? `?${params}` : "";
+  return normalizeReadingList(await apiRequest(`${DEVICE_API_CONTRACT.readings(deviceId)}${suffix}`, {
+    method: "GET",
+    headers: authHeaders(),
+  }));
+}
+
+export async function fetchDeviceTrainingReadings(deviceId, filters = {}) {
+  assertBackendConfigured();
+  const params = new URLSearchParams();
+  if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) params.set("dateTo", filters.dateTo);
+  if (filters.limit) params.set("limit", String(filters.limit));
+  const suffix = params.toString() ? `?${params}` : "";
+  return normalizeTrainingReadingList(await apiRequest(`${DEVICE_API_CONTRACT.trainingReadings(deviceId)}${suffix}`, {
+    method: "GET",
+    headers: authHeaders(),
+  }));
+}
+
+export async function updateDeviceReadingTraining(deviceId, readingId, payload) {
+  assertBackendConfigured();
+  const response = await apiRequest(DEVICE_API_CONTRACT.updateReadingTraining(deviceId, readingId), {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  return normalizeTrainingReading(response?.item || response?.data?.item || response?.data || response);
+}
+
+export async function removeDeviceReading(deviceId, readingId) {
+  assertBackendConfigured();
+  await apiRequest(DEVICE_API_CONTRACT.removeReading(deviceId, readingId), {
     method: "DELETE",
     headers: authHeaders(),
   });

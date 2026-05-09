@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Landmark, SlidersHorizontal, ShieldCheck, ScrollText,
   Users, Network, BookOpen, Calendar, FlaskConical, ClipboardEdit, Cpu,
   Database, CheckSquare, Calculator, Target, Bell, FileBarChart,
-  HardDrive, LifeBuoy, Sparkles, Lock, ChevronDown, ChevronRight, X,
+  HardDrive, LifeBuoy, Sparkles, Brain, Lock, ChevronDown, ChevronRight, X,
 } from "lucide-react";
 import { adminNavTree } from "../mocks/adminMocks";
 
@@ -14,7 +14,7 @@ const ICON_MAP = {
   LayoutDashboard, Landmark, SlidersHorizontal, ShieldCheck, ScrollText,
   Users, Network, BookOpen, Calendar, FlaskConical, ClipboardEdit, Cpu,
   Database, CheckSquare, Calculator, Target, Bell, FileBarChart,
-  HardDrive, LifeBuoy, Sparkles, Lock,
+  HardDrive, LifeBuoy, Sparkles, Brain, Lock,
 };
 
 export default function AdminSubNav({ activeView, onNavigate, onClose, visible }) {

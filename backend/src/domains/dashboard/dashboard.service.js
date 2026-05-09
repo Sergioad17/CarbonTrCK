@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { listDashboardActivity, persistDashboardActivity } from "./dashboard.repository.js";
+import { listAdminPeriods } from "../admin/admin.periods.repository.js";
 
 function ensureObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -13,6 +14,10 @@ function ensureObject(value) {
 
 export async function getDashboardActivityService(actor) {
   return listDashboardActivity(actor);
+}
+
+export async function listDashboardPeriodsService(actor) {
+  return listAdminPeriods(actor);
 }
 
 export async function putDashboardActivityService(actor, payload, auditContext) {

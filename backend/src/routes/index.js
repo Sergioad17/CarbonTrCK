@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { registerActionsRoutes } from "../domains/actions/actions.routes.js";
 import { registerAdminRoutes } from "../domains/admin/admin.routes.js";
+import { registerAiTrainingRoutes } from "../domains/ai-training/ai-training.routes.js";
 import { registerAreasRoutes } from "../domains/areas/areas.routes.js";
 import { registerAuthRoutes } from "../domains/auth/auth.routes.js";
 import { registerDashboardRoutes } from "../domains/dashboard/dashboard.routes.js";
@@ -46,6 +47,7 @@ export function registerRoutes(app, { env }) {
   registerSettingsRoutes(router);
   registerNotificationsRoutes(router);
   registerProfileChangeRequestsRoutes(router);
+  registerAiTrainingRoutes(router);
 
   app.use("/", router);
 }

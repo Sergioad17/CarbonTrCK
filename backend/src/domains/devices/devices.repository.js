@@ -32,6 +32,19 @@ function parseBoolean(value, fallback = false) {
   return fallback;
 }
 
+function parseNullableNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function batteryStatus(level) {
+  if (level === null) return "unknown";
+  if (level <= 15) return "critical";
+  if (level <= 30) return "low";
+  return "ok";
+}
+
 function buildDeviceMetadata(payload = {}) {
   return {
     protocol: cleanString(payload.protocol || "https").toLowerCase(),
@@ -76,6 +89,76 @@ function buildDeviceShape(row, credential = "") {
     lastSeenAt: row.last_seen_at || null,
     firmwareVersion: cleanString(row.firmware_version || metadata.firmwareVersion || ""),
     readingsToday: Number.parseInt(row.readings_today || 0, 10) || 0,
+    voltage: parseNullableNumber(row.voltage),
+    powerFactor: parseNullableNumber(row.power_factor),
+    batteryLevel: parseNullableNumber(row.battery_level),
+    batteryVoltage: parseNullableNumber(row.battery_voltage),
+    batteryStatus: batteryStatus(parseNullableNumber(row.battery_level)),
+  };
+}
+
+function buildReadingShape(row) {
+  const payload = row.payload || {};
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    deviceCode: cleanString(row.device_code),
+    deviceName: cleanString(row.device_name),
+    recordedAt: row.recorded_at,
+    schemaVersion: cleanString(row.schema_version || ""),
+    totalKwh: parseNullableNumber(row.total_kwh),
+    deltaKwh: parseNullableNumber(row.delta_kwh),
+    voltage: parseNullableNumber(row.voltage),
+    currentAmp: parseNullableNumber(row.current_amp),
+    powerFactor: parseNullableNumber(row.power_factor),
+    intervalSeconds: row.interval_seconds === null || row.interval_seconds === undefined ? null : Number.parseInt(row.interval_seconds, 10),
+    batteryLevel: parseNullableNumber(payload.batteryLevel ?? payload.batteryPercent ?? payload.battery),
+    batteryVoltage: parseNullableNumber(payload.batteryVoltage ?? payload.batteryVolt),
+    firmwareVersion: cleanString(payload.firmwareVersion || ""),
+    createdRecordId: row.created_record_id || null,
+    payload,
+    createdAt: row.created_at,
+  };
+}
+
+function buildTrainingIssues(reading) {
+  const issues = [];
+  if (reading.totalKwh === null) issues.push("Sin total kWh");
+  if (reading.deltaKwh === null) issues.push("Sin delta kWh");
+  if (reading.voltage === null) issues.push("Sin voltaje");
+  if (reading.currentAmp === null) issues.push("Sin corriente");
+  if (reading.powerFactor === null) issues.push("Sin factor de potencia");
+  if (reading.batteryLevel !== null && reading.batteryLevel <= 15) issues.push("Pila crítica");
+  return issues;
+}
+
+function buildTrainingReadingShape(row) {
+  const reading = buildReadingShape(row);
+  const training = reading.payload.training && typeof reading.payload.training === "object" ? reading.payload.training : {};
+  const recordedAt = reading.recordedAt ? new Date(reading.recordedAt) : null;
+  const issues = buildTrainingIssues(reading);
+  const savedIncluded = typeof training.included === "boolean" ? training.included : null;
+  const trainingIncluded = savedIncluded === null ? issues.length === 0 : savedIncluded;
+  const trainingStatus = trainingIncluded ? (issues.length > 0 ? "review" : "ready") : "excluded";
+
+  return {
+    ...reading,
+    trainingIncluded,
+    trainingStatus: cleanString(training.status || trainingStatus),
+    trainingNote: cleanString(training.note || ""),
+    trainingUpdatedAt: training.updatedAt || null,
+    qualityIssues: issues,
+    features: {
+      hour: recordedAt && !Number.isNaN(recordedAt.getTime()) ? recordedAt.getUTCHours() : null,
+      weekday: recordedAt && !Number.isNaN(recordedAt.getTime()) ? recordedAt.getUTCDay() : null,
+      totalKwh: reading.totalKwh,
+      deltaKwh: reading.deltaKwh,
+      voltage: reading.voltage,
+      currentAmp: reading.currentAmp,
+      powerFactor: reading.powerFactor,
+      batteryLevel: reading.batteryLevel,
+      intervalSeconds: reading.intervalSeconds,
+    },
   };
 }
 
@@ -91,8 +174,12 @@ function buildDeviceListQuery() {
       c.code AS campus_code,
       a.code AS area_code,
       b.interval_seconds,
+      b.voltage,
+      b.power_factor,
       latest.recorded_at AS last_seen_at,
       COALESCE(latest.payload->>'firmwareVersion', d.metadata->>'firmwareVersion', '') AS firmware_version,
+      COALESCE(latest.payload->>'batteryLevel', latest.payload->>'batteryPercent', latest.payload->>'battery') AS battery_level,
+      COALESCE(latest.payload->>'batteryVoltage', latest.payload->>'batteryVolt') AS battery_voltage,
       COALESCE(today.readings_today, 0) AS readings_today,
       CASE
         WHEN d.is_active = false THEN 'offline'
@@ -645,6 +732,290 @@ export async function removeDevice(actor, deviceId, auditContext) {
     );
 
     return { ok: true };
+  });
+}
+
+export async function listDeviceReadings(actor, deviceId, filters = {}) {
+  const params = [actor.organizationId, deviceId];
+  const where = ["dr.organization_id = $1", "dr.device_id = $2"];
+
+  if (filters.dateFrom) {
+    params.push(filters.dateFrom);
+    where.push(`dr.recorded_at >= $${params.length}::timestamptz`);
+  }
+
+  if (filters.dateTo) {
+    params.push(filters.dateTo);
+    where.push(`dr.recorded_at < ($${params.length}::date + interval '1 day')`);
+  }
+
+  const limit = Number.isInteger(filters.limit) ? Math.min(Math.max(filters.limit, 1), 1000) : 500;
+  params.push(limit);
+
+  const result = await query(
+    `
+      SELECT
+        dr.id,
+        dr.device_id,
+        d.code AS device_code,
+        d.name AS device_name,
+        dr.recorded_at,
+        dr.schema_version,
+        dr.total_kwh,
+        dr.delta_kwh,
+        dr.voltage,
+        dr.current_amp,
+        dr.power_factor,
+        dr.interval_seconds,
+        dr.payload,
+        dr.created_record_id,
+        dr.created_at
+      FROM device_readings dr
+      JOIN iot_devices d
+        ON d.id = dr.device_id
+       AND d.organization_id = dr.organization_id
+      WHERE ${where.join(" AND ")}
+      ORDER BY dr.recorded_at DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+
+  return result.rows.map(buildReadingShape);
+}
+
+export async function listDeviceTrainingReadings(actor, deviceId, filters = {}) {
+  const params = [actor.organizationId, deviceId];
+  const where = ["dr.organization_id = $1", "dr.device_id = $2"];
+
+  if (filters.dateFrom) {
+    params.push(filters.dateFrom);
+    where.push(`dr.recorded_at >= $${params.length}::timestamptz`);
+  }
+
+  if (filters.dateTo) {
+    params.push(filters.dateTo);
+    where.push(`dr.recorded_at < ($${params.length}::date + interval '1 day')`);
+  }
+
+  const limit = Number.isInteger(filters.limit) ? Math.min(Math.max(filters.limit, 1), 1000) : 500;
+  params.push(limit);
+
+  const result = await query(
+    `
+      SELECT
+        dr.id,
+        dr.device_id,
+        d.code AS device_code,
+        d.name AS device_name,
+        dr.recorded_at,
+        dr.schema_version,
+        dr.total_kwh,
+        dr.delta_kwh,
+        dr.voltage,
+        dr.current_amp,
+        dr.power_factor,
+        dr.interval_seconds,
+        dr.payload,
+        dr.created_record_id,
+        dr.created_at
+      FROM device_readings dr
+      JOIN iot_devices d
+        ON d.id = dr.device_id
+       AND d.organization_id = dr.organization_id
+      WHERE ${where.join(" AND ")}
+      ORDER BY dr.recorded_at DESC
+      LIMIT $${params.length}
+    `,
+    params,
+  );
+
+  return result.rows.map(buildTrainingReadingShape);
+}
+
+export async function updateDeviceReadingTraining(actor, deviceId, readingId, payload, auditContext) {
+  return withTransaction(async (client) => {
+    const existing = await client.query(
+      `
+        SELECT
+          dr.id,
+          dr.device_id,
+          dr.recorded_at,
+          dr.payload,
+          d.code AS device_code,
+          d.name AS device_name
+        FROM device_readings dr
+        JOIN iot_devices d
+          ON d.id = dr.device_id
+         AND d.organization_id = dr.organization_id
+        WHERE dr.id = $1
+          AND dr.device_id = $2
+          AND dr.organization_id = $3
+        LIMIT 1
+      `,
+      [readingId, deviceId, actor.organizationId],
+    );
+
+    if (existing.rowCount < 1) {
+      throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Device reading not found." });
+    }
+
+    const training = {
+      included: payload.included,
+      status: payload.status,
+      note: payload.note,
+      updatedAt: new Date().toISOString(),
+      updatedBy: actor.id,
+    };
+
+    const updated = await client.query(
+      `
+        UPDATE device_readings
+        SET payload = jsonb_set(COALESCE(payload, '{}'::jsonb), '{training}', $1::jsonb, true)
+        WHERE id = $2
+          AND device_id = $3
+          AND organization_id = $4
+        RETURNING
+          id,
+          device_id,
+          recorded_at,
+          schema_version,
+          total_kwh,
+          delta_kwh,
+          voltage,
+          current_amp,
+          power_factor,
+          interval_seconds,
+          payload,
+          created_record_id,
+          created_at
+      `,
+      [JSON.stringify(training), readingId, deviceId, actor.organizationId],
+    );
+
+    await insertAuditEvent(
+      client,
+      {
+        ...buildAuditPayload(actor, auditContext, {
+          target: existing.rows[0].device_code,
+          deviceCode: existing.rows[0].device_code,
+          readingId,
+          recordedAt: existing.rows[0].recorded_at,
+          training,
+        }),
+        eventType: "devices.readings.training_update",
+        entityType: "device",
+        entityId: deviceId,
+      },
+    );
+
+    return buildTrainingReadingShape({
+      ...updated.rows[0],
+      device_code: existing.rows[0].device_code,
+      device_name: existing.rows[0].device_name,
+    });
+  });
+}
+
+export async function removeDeviceReading(actor, deviceId, readingId, auditContext) {
+  return withTransaction(async (client) => {
+    const existing = await client.query(
+      `
+        SELECT
+          dr.id,
+          dr.device_id,
+          dr.recorded_at,
+          dr.total_kwh,
+          d.code AS device_code,
+          d.name AS device_name
+        FROM device_readings dr
+        JOIN iot_devices d
+          ON d.id = dr.device_id
+         AND d.organization_id = dr.organization_id
+        WHERE dr.id = $1
+          AND dr.device_id = $2
+          AND dr.organization_id = $3
+        LIMIT 1
+      `,
+      [readingId, deviceId, actor.organizationId],
+    );
+
+    if (existing.rowCount < 1) {
+      throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Device reading not found." });
+    }
+
+    const reading = existing.rows[0];
+
+    await client.query(
+      `
+        DELETE FROM device_readings
+        WHERE id = $1
+          AND device_id = $2
+          AND organization_id = $3
+      `,
+      [readingId, deviceId, actor.organizationId],
+    );
+
+    const latestTotal = await client.query(
+      `
+        SELECT total_kwh, recorded_at
+        FROM device_readings
+        WHERE device_id = $1
+          AND organization_id = $2
+          AND total_kwh IS NOT NULL
+        ORDER BY recorded_at DESC
+        LIMIT 1
+      `,
+      [deviceId, actor.organizationId],
+    );
+
+    if (latestTotal.rowCount > 0) {
+      await client.query(
+        `
+          INSERT INTO device_last_totals (
+            organization_id,
+            device_id,
+            last_total_kwh,
+            last_timestamp
+          )
+          VALUES ($1,$2,$3,$4)
+          ON CONFLICT (device_id)
+          DO UPDATE
+          SET
+            last_total_kwh = EXCLUDED.last_total_kwh,
+            last_timestamp = EXCLUDED.last_timestamp,
+            updated_at = now()
+        `,
+        [actor.organizationId, deviceId, latestTotal.rows[0].total_kwh, latestTotal.rows[0].recorded_at],
+      );
+    } else {
+      await client.query(
+        `
+          DELETE FROM device_last_totals
+          WHERE device_id = $1
+            AND organization_id = $2
+        `,
+        [deviceId, actor.organizationId],
+      );
+    }
+
+    await insertAuditEvent(
+      client,
+      {
+        ...buildAuditPayload(actor, auditContext, {
+          target: reading.device_code,
+          deviceCode: reading.device_code,
+          readingId,
+          recordedAt: reading.recorded_at,
+          totalKwh: reading.total_kwh,
+        }),
+        eventType: "devices.readings.remove",
+        entityType: "device",
+        entityId: deviceId,
+      },
+    );
+
+    return { ok: true, id: readingId };
   });
 }
 

@@ -26,6 +26,13 @@ export async function fetchDashboardActivity(seedItems = [], normalizeItem, getK
   return activityCache;
 }
 
+export async function fetchDashboardPeriods() {
+  assertBackendConfigured();
+  const payload = await apiRequest("/dashboard/periods");
+  const rawItems = payload?.periods || payload?.data?.periods || [];
+  return Array.isArray(rawItems) ? rawItems : [];
+}
+
 export async function persistDashboardActivity(items = []) {
   assertBackendConfigured();
   const nextItems = Array.isArray(items) ? items.slice(0, 20) : [];

@@ -1,6 +1,12 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { assertRequiredString } from "../../shared/utils/validation.js";
-import { archiveRecord, createRecord, listRecords } from "./records.repository.js";
+import {
+  archiveRecord,
+  createRecord,
+  getRecordByIdForActor,
+  listRecordRevisionsForActor,
+  listRecords,
+} from "./records.repository.js";
 
 function ensureObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -14,6 +20,32 @@ function ensureObject(value) {
 
 export async function listRecordsService(actor, filters) {
   return listRecords(actor, filters);
+}
+
+export async function getRecordService(actor, recordId) {
+  assertRequiredString(recordId, "recordId");
+  const record = await getRecordByIdForActor(actor, recordId);
+  if (!record) {
+    throw new AppError({
+      statusCode: 404,
+      code: "NOT_FOUND",
+      message: "Record not found.",
+    });
+  }
+  return record;
+}
+
+export async function listRecordRevisionsService(actor, recordId) {
+  assertRequiredString(recordId, "recordId");
+  const revisions = await listRecordRevisionsForActor(actor, recordId);
+  if (revisions === null) {
+    throw new AppError({
+      statusCode: 404,
+      code: "NOT_FOUND",
+      message: "Record not found.",
+    });
+  }
+  return revisions;
 }
 
 export async function createRecordService(actor, payload, auditContext) {

@@ -164,8 +164,20 @@ async function ensureCatalogFixtures(query) {
 export async function cleanupTestAuthFixtures(query) {
   const orgs = await query(`SELECT id FROM organizations WHERE name = $1`, [TEST_ORGANIZATION_NAME]);
   const orgIds = orgs.rows.map((row) => row.id);
+  const periodsTable = await query(`SELECT to_regclass('public.admin_periods') AS table_name`);
+  const hasAdminPeriods = Boolean(periodsTable.rows[0]?.table_name);
+  const aiTrainingTable = await query(`SELECT to_regclass('public.ai_training_runs') AS table_name`);
+  const hasAiTraining = Boolean(aiTrainingTable.rows[0]?.table_name);
+  const aiModelVersionsTable = await query(`SELECT to_regclass('public.ai_model_versions') AS table_name`);
+  const hasAiModelVersions = Boolean(aiModelVersionsTable.rows[0]?.table_name);
 
   for (const organizationId of orgIds) {
+    if (hasAiModelVersions) {
+      await query(`DELETE FROM ai_model_versions WHERE organization_id = $1`, [organizationId]);
+    }
+    if (hasAiTraining) {
+      await query(`DELETE FROM ai_training_runs WHERE organization_id = $1`, [organizationId]);
+    }
     await query(`DELETE FROM profile_change_request_events WHERE request_id IN (SELECT id FROM profile_change_requests WHERE organization_id = $1) OR actor_organization_id = $1`, [organizationId]);
     await query(`DELETE FROM device_readings WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM device_last_totals WHERE organization_id = $1`, [organizationId]);
@@ -189,6 +201,9 @@ export async function cleanupTestAuthFixtures(query) {
     await query(`DELETE FROM ml_models WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM iot_devices WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM dashboard_activity_feeds WHERE organization_id = $1`, [organizationId]);
+    if (hasAdminPeriods) {
+      await query(`DELETE FROM admin_periods WHERE organization_id = $1`, [organizationId]);
+    }
     await query(`DELETE FROM organization_admin_settings WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM notifications WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM user_settings WHERE organization_id = $1`, [organizationId]);
