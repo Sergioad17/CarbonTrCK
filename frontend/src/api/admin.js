@@ -28,6 +28,19 @@ export async function fetchAdminPeriods() {
   return payload?.periods || payload?.data?.periods || [];
 }
 
+export async function fetchAdminEmissionCalculation() {
+  const payload = await apiRequest("/admin/emissions-calculation");
+  return payload?.data || payload?.calculation || payload;
+}
+
+export async function recalculateAdminEmissions(input = {}) {
+  const payload = await apiRequest("/admin/emissions-calculation/recalculate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return payload?.data || payload?.result || payload;
+}
+
 export async function createAdminPeriod(period) {
   const payload = await apiRequest("/admin/periods", {
     method: "POST",

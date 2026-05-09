@@ -21,6 +21,10 @@ import {
   updateAdminPeriod,
 } from "./admin.periods.repository.js";
 import {
+  getAdminEmissionCalculation,
+  recalculateAdminEmissions,
+} from "./admin.emissions.repository.js";
+import {
   createCampus as createOrgCampus,
   createEntity as createOrgEntity,
   deleteCampus as deleteOrgCampus,
@@ -54,6 +58,15 @@ export function listAdminCatalogsService() {
 
 export function listAdminPeriodsService(actor) {
   return listAdminPeriods(actor);
+}
+
+export function getAdminEmissionCalculationService(actor) {
+  return getAdminEmissionCalculation(actor);
+}
+
+export function recalculateAdminEmissionsService(actor, payload, auditContext) {
+  assertObject(payload);
+  return recalculateAdminEmissions(actor, payload, auditContext);
 }
 
 export function createAdminPeriodService(actor, payload, auditContext) {

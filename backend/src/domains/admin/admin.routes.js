@@ -11,6 +11,7 @@ import {
   getAdminHomeSummaryController,
   createAdminAuditEventController,
   createAdminPeriodController,
+  getAdminEmissionCalculationController,
   listAdminCatalogsController,
   listAdminPeriodsController,
   listOrgStructureController,
@@ -18,6 +19,7 @@ import {
   listAuditEventsController,
   revokeOtherSessionsController,
   revokeSessionController,
+  recalculateAdminEmissionsController,
   updateAdminCatalogEntryController,
   updateAdminCatalogEntryStatusController,
   updateAdminPeriodController,
@@ -31,6 +33,8 @@ export function registerAdminRoutes(router) {
 
   adminRouter.use(requireAuth, requireRole("admin"));
   adminRouter.get("/home", asyncHandler(getAdminHomeSummaryController));
+  adminRouter.get("/emissions-calculation", asyncHandler(getAdminEmissionCalculationController));
+  adminRouter.post("/emissions-calculation/recalculate", asyncHandler(recalculateAdminEmissionsController));
   adminRouter.get("/catalogs", asyncHandler(listAdminCatalogsController));
   adminRouter.post("/catalogs/:catalogId/entries", asyncHandler(createAdminCatalogEntryController));
   adminRouter.put("/catalogs/:catalogId/entries/:entryId", asyncHandler(updateAdminCatalogEntryController));

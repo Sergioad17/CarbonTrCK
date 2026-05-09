@@ -5,6 +5,7 @@ import {
   deleteOrgCampusService,
   deleteOrgEntityService,
   getAdminGovernmentSettingsService,
+  getAdminEmissionCalculationService,
   getAdminHomeSummaryService,
   createAdminPeriodService,
   createAdminAuditEventService,
@@ -15,6 +16,7 @@ import {
   listAuditEventsService,
   revokeOtherSessionsService,
   revokeSessionService,
+  recalculateAdminEmissionsService,
   updateAdminCatalogEntryService,
   updateAdminCatalogEntryStatusService,
   updateAdminPeriodService,
@@ -35,6 +37,16 @@ export async function getAdminGovernmentSettingsController(request, response) {
 
 export async function getAdminHomeSummaryController(request, response) {
   response.json({ summary: await getAdminHomeSummaryService(request.user) });
+}
+
+export async function getAdminEmissionCalculationController(request, response) {
+  response.json({ data: await getAdminEmissionCalculationService(request.user) });
+}
+
+export async function recalculateAdminEmissionsController(request, response) {
+  response.json({
+    data: await recalculateAdminEmissionsService(request.user, request.body, auditContextFromRequest(request)),
+  });
 }
 
 export async function listOrgStructureController(request, response) {
