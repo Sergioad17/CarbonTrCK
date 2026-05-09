@@ -9,6 +9,7 @@ import {
   MapPin,
   Paperclip,
   RefreshCw,
+  X,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminFilterBar from "../components/AdminFilterBar";
@@ -22,6 +23,7 @@ import {
   fetchEmissionRecordRevisions,
   fetchEmissionRecords,
 } from "../../api/records";
+import { getSession } from "../../lib/sessionStore";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
@@ -191,6 +193,7 @@ export default function RecordsPage() {
   const [revisionsLoading, setRevisionsLoading] = React.useState(false);
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [notice, setNotice] = React.useState(EMPTY_NOTICE);
+  const [evidencePreview, setEvidencePreview] = React.useState(null);
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -582,21 +585,20 @@ export default function RecordsPage() {
                         </div>
                       </div>
                       {file.url ? (
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noreferrer noopener"
+                        <button
+                          type="button"
+                          onClick={() => setEvidencePreview(file)}
                           style={{
                             display: "inline-flex", alignItems: "center", gap: 4,
                             padding: "5px 10px", borderRadius: 7,
                             background: "rgba(37,99,235,.10)",
                             color: "var(--eco-info, #2563EB)",
                             fontFamily: fb, fontSize: 11, fontWeight: 700,
-                            textDecoration: "none",
+                            border: "none", cursor: "pointer",
                           }}
                         >
                           <Download size={12} /> Abrir
-                        </a>
+                        </button>
                       ) : null}
                     </div>
                   ))}
@@ -641,6 +643,248 @@ export default function RecordsPage() {
           </>
         )}
       </AdminEntityDrawer>
+
+      <EvidencePreviewModal
+        file={evidencePreview}
+        onClose={() => setEvidencePreview(null)}
+      />
+    </div>
+  );
+}
+
+function EvidencePreviewModal({ file, onClose }) {
+  const [blobUrl, setBlobUrl] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState("");
+
+  React.useEffect(() => {
+    if (!file) return undefined;
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [file, onClose]);
+
+  const fileUrl = file?.url || "";
+  const mimeType = String(file?.mimeType || "").toLowerCase();
+  const isImage = mimeType.startsWith("image/");
+
+  React.useEffect(() => {
+    if (!file || !isImage || !fileUrl) {
+      setBlobUrl(null);
+      setLoading(false);
+      setErrorMsg("");
+      return undefined;
+    }
+
+    let revoked = false;
+    let createdUrl = null;
+    setLoading(true);
+    setErrorMsg("");
+
+    const session = getSession();
+    const headers = session?.token ? { Authorization: `Bearer ${session.token}` } : {};
+
+    fetch(fileUrl, { headers })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`http_${response.status}`);
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (revoked) return;
+        createdUrl = URL.createObjectURL(blob);
+        setBlobUrl(createdUrl);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (revoked) return;
+        setErrorMsg("No se pudo cargar la imagen.");
+        setLoading(false);
+      });
+
+    return () => {
+      revoked = true;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [file, fileUrl, isImage]);
+
+  if (!file) return null;
+
+  const fileName = file.fileName || file.name || "archivo";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Vista previa de ${fileName}`}
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        background: "rgba(15, 23, 42, .65)",
+        backdropFilter: "blur(3px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        animation: "adminFadeIn .15s ease-out",
+      }}
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          background: "var(--eco-card, #fff)",
+          color: "var(--eco-text, #1E293B)",
+          border: "1px solid var(--eco-border, #E2E8F0)",
+          borderRadius: 14,
+          boxShadow: "0 24px 60px rgba(0, 0, 0, .35)",
+          maxWidth: "min(960px, 100%)",
+          maxHeight: "calc(100vh - 48px)",
+          width: isImage ? "auto" : "min(520px, 100%)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 18px",
+            borderBottom: "1px solid var(--eco-border, #E2E8F0)",
+            background: "var(--eco-card, #fff)",
+          }}
+        >
+          <FileText size={16} color="var(--eco-info, #2563EB)" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontFamily: fd,
+                fontSize: 14,
+                fontWeight: 700,
+                color: "var(--eco-text, #1E293B)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={fileName}
+            >
+              {fileName}
+            </div>
+            <div style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, #64748B)", marginTop: 2 }}>
+              {mimeType || "archivo"}
+              {file.sizeBytes ? ` - ${formatBytes(file.sizeBytes)}` : ""}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: "1px solid var(--eco-border, #E2E8F0)",
+              background: "transparent",
+              color: "var(--eco-text-soft, #94A3B8)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--eco-card-muted, #F1F5F9)",
+            padding: isImage ? 18 : 28,
+            overflow: "auto",
+          }}
+        >
+          {isImage ? (
+            loading ? (
+              <div style={{ fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, #64748B)" }}>
+                Cargando imagen...
+              </div>
+            ) : errorMsg ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, color: "var(--eco-danger, #DC2626)" }}>
+                <AlertTriangle size={32} />
+                <div style={{ fontFamily: fb, fontSize: 13 }}>{errorMsg}</div>
+              </div>
+            ) : blobUrl ? (
+              <img
+                src={blobUrl}
+                alt={fileName}
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "min(72vh, 720px)",
+                  objectFit: "contain",
+                  borderRadius: 8,
+                  background: "var(--eco-card, #fff)",
+                }}
+              />
+            ) : null
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 14,
+                textAlign: "center",
+                color: "var(--eco-text, #1E293B)",
+              }}
+            >
+              <FileText size={48} color="var(--eco-info, #2563EB)" />
+              <div style={{ fontFamily: fb, fontSize: 13, color: "var(--eco-text-soft, #64748B)" }}>
+                Este tipo de archivo no se puede previsualizar aqui.
+              </div>
+              {file.url ? (
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    background: "rgba(37,99,235,.12)",
+                    color: "var(--eco-info, #2563EB)",
+                    fontFamily: fb,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    textDecoration: "none",
+                  }}
+                >
+                  <Download size={14} /> Abrir en otra pestana
+                </a>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
