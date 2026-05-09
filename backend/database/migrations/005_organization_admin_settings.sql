@@ -14,9 +14,16 @@ CREATE TABLE IF NOT EXISTS organization_admin_settings (
     ON DELETE SET NULL
 );
 
-CREATE TRIGGER organization_admin_settings_set_updated_at
-  BEFORE UPDATE ON organization_admin_settings
-  FOR EACH ROW
-  EXECUTE FUNCTION set_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'organization_admin_settings_set_updated_at'
+  ) THEN
+    CREATE TRIGGER organization_admin_settings_set_updated_at
+      BEFORE UPDATE ON organization_admin_settings
+      FOR EACH ROW
+      EXECUTE FUNCTION set_updated_at();
+  END IF;
+END $$;
 
 COMMIT;
