@@ -248,7 +248,6 @@ const navItems = [{
   id: "catalog",
   label: "Catálogos",
   icon: Database,
-  tag: "ADM",
   children: [{
     id: "factors",
     label: "Factores",
@@ -263,13 +262,18 @@ const navItems = [{
     id: "devices",
     label: "Dispositivos",
     icon: Cpu
+  },
+  {
+    id: "users",
+    label: "Usuarios",
+    icon: Users
+  },
+  {
+    id: "advanced",
+    label: "Avanzado",
+    icon: Shield,
+    tag: "ADM"
   }]
-},
-{
-  id: "users",
-  label: "Usuarios",
-  icon: Users,
-  tag: "ADM"
 },
 {
   type: "div"
@@ -277,15 +281,6 @@ const navItems = [{
   id: "settings",
   label: "Configuración",
   icon: Settings
-},
-{
-  type: "div"
-},
-{
-  id: "advanced",
-  label: "Avanzado",
-  icon: Shield,
-  tag: "ADM"
 }]
 
 const NAV_TO_PATH = {

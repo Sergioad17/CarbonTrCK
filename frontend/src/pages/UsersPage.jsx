@@ -188,12 +188,22 @@ const isRecentLogin = (iso) => {
 };
 
 function generateTempPassword() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let password = "CT-";
-  for (let i = 0; i < 10; i += 1) {
-    password += alphabet[Math.floor(Math.random() * alphabet.length)];
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghijkmnopqrstuvwxyz";
+  const numbers = "23456789";
+  const special = "!@#$%";
+  const pick = (alphabet) => alphabet[Math.floor(Math.random() * alphabet.length)];
+  const chars = [
+    pick(uppercase),
+    pick(lowercase),
+    pick(numbers),
+    pick(special),
+  ];
+  const pool = `${uppercase}${lowercase}${numbers}`;
+  while (chars.length < 10) {
+    chars.push(pick(pool));
   }
-  return password;
+  return chars.sort(() => Math.random() - 0.5).join("");
 }
 
 function getInitials(name) {
@@ -974,7 +984,7 @@ export function UserFormModal({ state, roles, campusOptions, areaOptions, onClos
           {!isEdit && (
             <div>
               <p style={{ ...sectionLabel, marginBottom: 12 }}>Credenciales iniciales</p>
-              <div className="ct-users-modal-grid" style={{ display: "grid", gridTemplateColumns: "1.6fr auto", gap: 14, alignItems: "end" }}>
+              <div className="ct-users-modal-grid" style={{ display: "grid", gridTemplateColumns: "1.6fr auto", gap: 14, alignItems: "start" }}>
                 <Field label="Contraseña temporal" error={state.errors.tempPassword} helper="Solo visible durante esta captura inicial.">
                   <StyledInput
                     value={form.tempPassword}
@@ -982,9 +992,11 @@ export function UserFormModal({ state, roles, campusOptions, areaOptions, onClos
                     placeholder="Genera o escribe una contraseña"
                   />
                 </Field>
-                <ActionButton type="button" icon={KeyRound} onClick={onGeneratePassword}>
-                  Generar
-                </ActionButton>
+                <div style={{ paddingTop: 22, display: "flex", alignItems: "flex-start" }}>
+                  <ActionButton type="button" icon={KeyRound} onClick={onGeneratePassword}>
+                    Generar
+                  </ActionButton>
+                </div>
               </div>
               <p style={{ ...subtleText, marginTop: 8 }}>
                 Si se deja vacío, el sistema generará una contraseña segura automáticamente y la mostrará al guardar.
