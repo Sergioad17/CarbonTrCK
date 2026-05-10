@@ -17,6 +17,19 @@ function ensureObject(value) {
   }
 }
 
+function scopeForCategory(category) {
+  const normalized = String(category || "").trim().toLowerCase();
+  if (normalized === "combustible") return "scope1";
+  if (normalized === "electricidad") return "scope2";
+  if (normalized === "otros") return "scope3";
+  return "";
+}
+
+function withDerivedScope(payload) {
+  const derivedScope = scopeForCategory(payload?.category);
+  return derivedScope ? { ...payload, scope: derivedScope } : payload;
+}
+
 export async function listFactorsService(actor) {
   return listFactors(actor);
 }
@@ -34,8 +47,9 @@ export async function getFactorUsageCountService(actor, factorId) {
 
 export async function createFactorService(actor, payload, auditContext) {
   ensureObject(payload);
-  assertRequiredString(payload.scope, "scope");
   assertRequiredString(payload.category, "category");
+  payload = withDerivedScope(payload);
+  assertRequiredString(payload.scope, "scope");
   assertRequiredString(payload.metric, "metric");
   assertRequiredString(payload.denominatorUnit, "denominatorUnit");
   assertRequiredString(payload.validFrom, "validFrom");
@@ -45,14 +59,14 @@ export async function createFactorService(actor, payload, auditContext) {
 export async function updateFactorService(actor, factorId, payload, auditContext) {
   ensureObject(payload);
   assertRequiredString(factorId, "factorId");
-  return updateFactor(actor, factorId, payload, auditContext);
+  return updateFactor(actor, factorId, withDerivedScope(payload), auditContext);
 }
 
 export async function createFactorNewVersionService(actor, factorId, payload, auditContext) {
   ensureObject(payload);
   assertRequiredString(factorId, "factorId");
   assertRequiredString(payload.validFrom, "validFrom");
-  return createFactorNewVersion(actor, factorId, payload, auditContext);
+  return createFactorNewVersion(actor, factorId, withDerivedScope(payload), auditContext);
 }
 
 export async function updateFactorDefaultService(actor, factorId, payload, auditContext) {

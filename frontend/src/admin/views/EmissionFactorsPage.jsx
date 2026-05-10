@@ -8,7 +8,7 @@ import AdminDataTable from "../components/AdminDataTable";
 import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminLoadingScreen from "../components/AdminLoadingScreen";
-import FactorModal, { createEmptyFactorForm, resolveFactorDenominator } from "../../components/FactorModal";
+import FactorModal, { createEmptyFactorForm, resolveFactorDenominator, scopeForFactorCategory } from "../../components/FactorModal";
 import { exportRowsToCsv } from "../../lib/csvExport";
 import {
   fetchFactorUsageCount,
@@ -186,7 +186,6 @@ function buildBackendPayload(form) {
   const region = form.region === "Custom" ? String(form.customRegion || "").trim() : form.region;
   const denominatorUnit = resolveFactorDenominator(form.category, form.denominatorUnit);
   return {
-    scope: form.scope,
     category: form.category,
     metric: metricForCategory(form.category),
     numeratorUnit: "kgCO2e",
@@ -210,7 +209,6 @@ function validateModalForm(form, { isEdit, usageCount } = {}) {
   const errors = {};
   const numericValue = Number(form.value);
   const region = form.region === "Custom" ? String(form.customRegion || "").trim() : form.region;
-  if (!form.scope) errors.scope = "Selecciona un scope.";
   if (!form.category) errors.category = "Selecciona una categoría.";
   if (!Number.isFinite(numericValue) || numericValue <= 0) errors.value = "El valor debe ser mayor a 0.";
   if (!region) errors.region = "Selecciona una región.";
@@ -410,7 +408,7 @@ export default function EmissionFactorsPage() {
         title: factor
           ? (mode === "newVersion" ? "Nueva versión creada" : "Factor actualizado")
           : "Factor creado",
-        message: `${payload.scope.replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
+        message: `${scopeForFactorCategory(payload.category).replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
       });
       setModalState(null);
     } catch (error) {

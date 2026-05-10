@@ -147,6 +147,20 @@ const normalizeAreaOptions = (items) => {
     });
 };
 
+const buildCampusOptions = (areas) => {
+  const seen = new Set();
+  return (Array.isArray(areas) ? areas : [])
+    .map((area) => {
+      const value = String(area?.campusCode || "").trim();
+      return value ? { value, label: value } : null;
+    })
+    .filter((campus) => {
+      if (!campus || seen.has(campus.value)) return false;
+      seen.add(campus.value);
+      return true;
+    });
+};
+
 const monthFieldValue = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -788,6 +802,7 @@ export default function EquipmentPage({ user }) {
   }, [loadEquipment]);
 
   const factorValue = defaultFactor?.value ?? 0;
+  const campusOptions = useMemo(() => buildCampusOptions(areaOptions), [areaOptions]);
   const areaLabelMap = useMemo(() => new Map(areaOptions.map((item) => [item.value, item.label])), [areaOptions]);
   const labelArea = useCallback((areaCode) => areaLabelMap.get(areaCode) || getAreaLabel(areaCode), [areaLabelMap]);
   const usingFallbackFactor = !defaultFactor;
@@ -826,8 +841,7 @@ export default function EquipmentPage({ user }) {
       denyAction(setToast, "Tu rol no permite crear equipos.");
       return;
     }
-    const defaultArea = areaOptions[0] || null;
-    setModalState({ equipment: null, form: createEmptyEquipmentForm({ areaCode: defaultArea?.value || "", campusCode: defaultArea?.campusCode || "CAMPUS-CT" }), errors: {}, saving: false });
+    setModalState({ equipment: null, form: createEmptyEquipmentForm(), errors: {}, saving: false });
   };
 
   const openEdit = (equipment) => {
@@ -1462,6 +1476,7 @@ export default function EquipmentPage({ user }) {
         onSubmit={persistModal}
         onFormChange={(updater) => setModalState((prev) => ({ ...prev, form: typeof updater === "function" ? updater(prev.form) : updater }))}
         areaOptions={areaOptions}
+        campusOptions={campusOptions}
       />
       <DetailDrawer
         state={detailState}

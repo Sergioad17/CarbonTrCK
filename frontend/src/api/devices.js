@@ -19,10 +19,10 @@ const DEFAULT_FORM = {
   id: "",
   name: "",
   code: "",
-  campusCode: "CAMPUS-CT",
-  areaCode: "LAB",
-  protocol: "https",
-  streamMode: "scheduled",
+  campusCode: "",
+  areaCode: "",
+  protocol: "",
+  streamMode: "",
   intervalSeconds: "60",
   metric: "electricity_consumption",
   unit: "kWh",
@@ -43,11 +43,13 @@ const DEFAULT_FORM = {
   batteryStatus: "unknown",
 };
 
-function normalizeBackendUrlForProtocol(value, protocol) {
+function normalizeBackendUrlForProtocol(value, protocol, tlsRequired = true) {
   const raw = String(value || API_URL || "").trim();
   if (!raw) return "";
 
-  const expectedProtocol = protocol === "mqtt" ? "mqtts:" : "https:";
+  const expectedProtocol = protocol === "mqtt"
+    ? tlsRequired ? "mqtts:" : "mqtt:"
+    : tlsRequired ? "https:" : "http:";
 
   try {
     const parsed = new URL(raw);
@@ -66,14 +68,15 @@ function normalizeEndpointPathForProtocol(value, protocol) {
 }
 
 function normalizeDevicePayloadForRequest(payload = {}) {
-  const protocol = String(payload.protocol || DEFAULT_FORM.protocol).trim().toLowerCase() || DEFAULT_FORM.protocol;
+  const protocol = String(payload.protocol || "").trim().toLowerCase();
   return {
     ...payload,
     protocol,
     code: String(payload.code || "").trim().toUpperCase(),
-    campusCode: String(payload.campusCode || DEFAULT_FORM.campusCode).trim().toUpperCase(),
-    areaCode: String(payload.areaCode || DEFAULT_FORM.areaCode).trim().toUpperCase(),
-    backendUrl: normalizeBackendUrlForProtocol(payload.backendUrl, protocol),
+    campusCode: String(payload.campusCode || "").trim().toUpperCase(),
+    areaCode: String(payload.areaCode || "").trim().toUpperCase(),
+    verifyServerCert: payload.tlsRequired === false ? false : payload.verifyServerCert,
+    backendUrl: normalizeBackendUrlForProtocol(payload.backendUrl, protocol, payload.tlsRequired !== false),
     endpointPath: normalizeEndpointPathForProtocol(payload.endpointPath, protocol),
   };
 }
@@ -173,7 +176,7 @@ function normalizeTrainingReadingList(payload) {
 export function createDeviceDraft() {
   return normalizeDevice({
     ...DEFAULT_FORM,
-    backendUrl: normalizeBackendUrlForProtocol(DEFAULT_FORM.backendUrl, DEFAULT_FORM.protocol),
+    backendUrl: normalizeBackendUrlForProtocol(DEFAULT_FORM.backendUrl, DEFAULT_FORM.protocol, DEFAULT_FORM.tlsRequired),
     endpointPath: normalizeEndpointPathForProtocol(DEFAULT_FORM.endpointPath, DEFAULT_FORM.protocol),
   });
 }

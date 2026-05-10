@@ -67,9 +67,9 @@ function buildTargetForm(overrides) {
     id: "",
     title: "",
     scope: "all",
-    category: "all",
-    areaId: "all",
-    type: "reduction_percent",
+    category: "",
+    areaId: "",
+    type: "",
     baselineStart: "",
     baselineEnd: "",
     baselineValue: "",
@@ -77,7 +77,7 @@ function buildTargetForm(overrides) {
     targetEnd: "",
     targetValue: "",
     description: "",
-    status: "active",
+    status: "",
     createdBy: ADMIN_CREATOR_NAME,
     createdById: "admin-panel",
     pauseReason: "",
@@ -91,7 +91,7 @@ function buildActionForm(overrides) {
     targetId: "",
     title: "",
     owner: "",
-    status: "planned",
+    status: "",
     startDate: "",
     endDate: "",
     impact_tco2e: "",
@@ -238,6 +238,7 @@ export default function GoalsPage() {
 
   function handleGoalSave(event) {
     event.preventDefault();
+    if (!targetForm.title.trim() || !targetForm.type || !targetForm.category || !targetForm.areaId || !targetForm.status) return;
     const baseline = Number(targetForm.baselineValue || 0);
     const currentGoal = goals.find(goal => goal.id === targetForm.id);
     const targetValue = Number(targetForm.targetValue || 0);
@@ -279,6 +280,7 @@ export default function GoalsPage() {
 
   function handleActionSave(event) {
     event.preventDefault();
+    if (!actionForm.targetId || !actionForm.title.trim() || !actionForm.status) return;
     const existing = actions.find(action => action.id === actionForm.id);
     const impactValue = Number(actionForm.impact_tco2e || 0);
     const nextAction = normalizeAction({
@@ -334,7 +336,7 @@ export default function GoalsPage() {
     }
     const goalId = goalOrAction?.id || selected?.id || goals[0]?.id || "";
     const owner = goalOrAction?.responsible || selected?.responsible || "";
-    setActionForm(buildActionForm({ targetId: goalId, owner }));
+    setActionForm(buildActionForm({ targetId: "", owner }));
     setModalAction({ ...EMPTY_ACTION, goalId, responsible: owner });
   }
 

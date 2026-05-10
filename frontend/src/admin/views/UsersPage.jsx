@@ -30,6 +30,7 @@ import { deleteUser, fetchUsersModuleData, resetUserPassword, saveUser, updateUs
 import { fetchAreas } from "../../api/areas";
 import { fetchOrgStructure } from "../../api/admin";
 import { canUse, disabledActionStyle } from "../../lib/permissions";
+import { UserFormModal as SharedUserFormModal } from "../../pages/UsersPage";
 
 const DEFAULT_CAMPUS_CODE = "CAMPUS-CT";
 
@@ -62,7 +63,7 @@ function mapApiUser(apiUser, campusOptions = []) {
     status: apiUser.isActive ? "active" : "inactive",
     createdAt: apiUser.createdAt || null,
     lastAccess: apiUser.lastLoginAt || null,
-    forcePasswordChange: false,
+    forcePasswordChange: Boolean(apiUser.forcePasswordChange),
     notes: apiUser.notes || "",
   };
 }
@@ -97,10 +98,15 @@ function emptyUserForm(user) {
     maternalLastName: user?.maternalLastName || parts.maternalLastName,
     email: user?.email || "",
     identifier: user?.identifier || "",
-    role: user?.role || "operativo",
-    campus: user?.campusCode || user?.campus || DEFAULT_CAMPUS_CODE,
+    internalIdentifier: user?.identifier || "",
+    role: user?.role || "",
+    campus: user?.campusCode || user?.campus || "",
+    campusCode: user?.campusCode || user?.campus || "",
     areas: user?.areas || [],
+    areaAccessMode: user?.areas?.length ? "custom" : "all",
+    areaCodes: user?.areas || [],
     status: user?.status || "active",
+    isActive: user?.status ? user.status === "active" : true,
     forcePasswordChange: typeof user?.forcePasswordChange === "boolean" ? user.forcePasswordChange : false,
     notes: user?.notes || "",
     tempPassword: "",
@@ -580,9 +586,11 @@ function UserFormModal({ state, roles: roleOptions, campuses: campusOptions, are
     }));
   }
 
-  const visibleAreaOptions = areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campus);
+  const campusCode = form.campusCode || form.campus;
+  const selectedAreaCodes = form.areaCodes || form.areas || [];
+  const visibleAreaOptions = areaOptions.filter((area) => !area.campusCode || area.campusCode === campusCode);
   const visibleAreaCodes = visibleAreaOptions.map((area) => area.value);
-  const allVisibleAreasSelected = visibleAreaCodes.length > 0 && visibleAreaCodes.every((code) => form.areas.includes(code));
+  const allVisibleAreasSelected = visibleAreaCodes.length > 0 && visibleAreaCodes.every((code) => selectedAreaCodes.includes(code));
 
   function toggleAllAreas() {
     setForm((current) => ({
@@ -1190,6 +1198,8 @@ export default function UsersPage({ user }) {
       const duplicate = usersList.find((user) => user.id !== editingUserId && user.email.toLowerCase() === email);
       if (duplicate) errors.email = "Este correo ya está registrado.";
     }
+    if (!form.role) errors.role = "Selecciona un rol.";
+    if (!(form.campusCode || form.campus)) errors.campusCode = "Selecciona un campus.";
     return errors;
   }
 
@@ -1214,9 +1224,9 @@ export default function UsersPage({ user }) {
     setFormState((prev) => (prev ? { ...prev, saving: true, errors: {} } : prev));
     const fullName = buildFullName(form.firstName, form.paternalLastName, form.maternalLastName);
     const trimmedEmail = form.email.trim().toLowerCase();
-    const trimmedIdentifier = form.identifier.trim();
-    const numericIdPayload = /^\d+$/.test(trimmedIdentifier) ? trimmedIdentifier : null;
-    const isActive = form.status === "active";
+    const trimmedIdentifier = String(form.internalIdentifier || form.identifier || "").trim();
+    const selectedAreas = form.areaAccessMode === "custom" ? (form.areaCodes || form.areas || []) : [];
+    const isActive = typeof form.isActive === "boolean" ? form.isActive : form.status === "active";
 
     const payload = {
       id: user?.id,
@@ -1226,13 +1236,14 @@ export default function UsersPage({ user }) {
       fullName,
       email: trimmedEmail,
       role: form.role,
-      campusCode: form.campus || user?.apiUser?.campusCode || DEFAULT_CAMPUS_CODE,
-      areaAccess: form.areas.length > 0
-        ? { mode: "custom", areaCodes: form.areas }
+      campusCode: form.campusCode || form.campus || user?.apiUser?.campusCode || DEFAULT_CAMPUS_CODE,
+      areaAccess: selectedAreas.length > 0
+        ? { mode: "custom", areaCodes: selectedAreas }
         : { mode: "all", areaCodes: [] },
       isActive,
+      forcePasswordChange: form.forcePasswordChange,
       notes: form.notes.trim(),
-      numericId: numericIdPayload,
+      numericId: trimmedIdentifier,
     };
 
     if (form.tempPassword) {
@@ -1815,10 +1826,10 @@ export default function UsersPage({ user }) {
         )}
       </AdminEntityDrawer>
 
-      <UserFormModal
+      <SharedUserFormModal
         state={formState}
-        roles={roleOptions}
-        campuses={campusOptions}
+        roles={roleOptions.map((role) => ({ value: role.key || role.value || role.id, label: role.label }))}
+        campusOptions={campusOptions}
         areaOptions={areaOptions}
         onClose={() => setFormState(null)}
         onSubmit={handleSaveUser}

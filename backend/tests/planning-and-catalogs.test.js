@@ -266,7 +266,6 @@ if (!hasDb) {
       method: "POST",
       headers: { Authorization: `Bearer ${auth.body.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        scope: "scope2",
         category: "electricidad",
         metric: "electricity_consumption",
         numeratorUnit: "kgCO2e",

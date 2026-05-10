@@ -49,6 +49,7 @@ function normalizeUser(input = {}) {
     campusCode: String(input.campusCode || "CAMPUS-CT").trim(),
     areaAccess: normalizeAreaAccess(input.areaAccess),
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
+    forcePasswordChange: typeof input.forcePasswordChange === "boolean" ? input.forcePasswordChange : false,
     permissions: Array.isArray(input.permissions) ? input.permissions.map(String) : [],
     roles: Array.isArray(input.roles) ? input.roles : [],
     lastLoginAt: input.lastLoginAt || null,

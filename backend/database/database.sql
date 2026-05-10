@@ -199,6 +199,7 @@ CREATE TABLE users (
   full_name varchar(200) NOT NULL,
   notes text,
   is_active boolean NOT NULL DEFAULT true,
+  force_password_change boolean NOT NULL DEFAULT false,
   last_login_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

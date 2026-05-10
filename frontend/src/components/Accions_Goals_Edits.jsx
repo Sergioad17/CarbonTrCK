@@ -221,13 +221,14 @@ function Section({ icon: Icon, iconBg, iconColor, title, subtitle, children, del
 }
 
 /* ─── Status pill select ─── */
-function StatusSelect({ value, onChange, options, colorMap }) {
+function StatusSelect({ value, onChange, options, colorMap, placeholder = "-- Seleccionar --", required = false }) {
   const current = colorMap[value] || {};
   return (
     <div style={{ position: "relative" }}>
       <select
         value={value}
         onChange={onChange}
+        required={required}
         onFocus={onFocus}
         onBlur={onBlur}
         style={{
@@ -243,6 +244,9 @@ function StatusSelect({ value, onChange, options, colorMap }) {
           cursor: "pointer",
         }}
       >
+        <option value="" disabled>
+          {placeholder}
+        </option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
@@ -567,27 +571,31 @@ export default function Accions_Goals_Edits({
                   />
                 </Field>
 
-                <Field label="Tipo de objetivo">
+                <Field label="Tipo de objetivo" required>
                   <select
                     value={tf.type}
                     onChange={set("type")}
+                    required
                     onFocus={onFocus}
                     onBlur={onBlur}
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
+                    <option value="" disabled>-- Seleccionar --</option>
                     <option value="reduction_percent">Reducción %</option>
                     <option value="absolute">Absoluto tCO₂e</option>
                   </select>
                 </Field>
 
-                <Field label="Categoría">
+                <Field label="Categoría" required>
                   <select
                     value={tf.category}
                     onChange={set("category")}
+                    required
                     onFocus={onFocus}
                     onBlur={onBlur}
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
+                    <option value="" disabled>-- Seleccionar --</option>
                     <option value="all">Todas las categorías</option>
                     <option value="electricidad">Electricidad</option>
                     <option value="combustible">Combustible</option>
@@ -595,14 +603,16 @@ export default function Accions_Goals_Edits({
                   </select>
                 </Field>
 
-                <Field label="Área de aplicación">
+                <Field label="Área de aplicación" required>
                   <select
                     value={tf.areaId}
                     onChange={set("areaId")}
+                    required
                     onFocus={onFocus}
                     onBlur={onBlur}
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
+                    <option value="" disabled>-- Seleccionar --</option>
                     <option value="all">Todas las áreas</option>
                     {areas.map((area) => {
                       const value = typeof area === "string" ? area : area.value;
@@ -616,11 +626,12 @@ export default function Accions_Goals_Edits({
                   </select>
                 </Field>
 
-                <Field label="Estado de la meta">
+                <Field label="Estado de la meta" required>
                   <StatusSelect
                     value={tf.status}
                     onChange={set("status")}
                     colorMap={TARGET_STATUS_COLORS}
+                    required
                     options={[
                       { value: "active", label: "Activa" },
                       { value: "paused", label: "Pausada" },
@@ -864,6 +875,7 @@ export default function Accions_Goals_Edits({
                 <select
                   value={af.targetId}
                   onChange={setA("targetId")}
+                  required
                   onFocus={onFocus}
                   onBlur={onBlur}
                   style={{
@@ -873,7 +885,7 @@ export default function Accions_Goals_Edits({
                     WebkitAppearance: "none",
                   }}
                 >
-                  <option value="">— Selecciona una meta —</option>
+                  <option value="" disabled>-- Seleccionar --</option>
                   {targets.map((target) => (
                     <option key={target.id} value={target.id}>
                       {target.title}
@@ -935,11 +947,12 @@ export default function Accions_Goals_Edits({
                 gap: 10,
               }}
             >
-              <Field label="Estado de la acción">
+              <Field label="Estado de la acción" required>
                 <StatusSelect
                   value={af.status}
                   onChange={setA("status")}
                   colorMap={ACTION_STATUS_COLORS}
+                  required
                   options={[
                     { value: "planned", label: "Planificada" },
                     { value: "in_progress", label: "En progreso" },

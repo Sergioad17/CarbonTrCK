@@ -94,9 +94,9 @@ const LOGIN_CSS = `
 .ct-login-aside-foot-ico{color:#86EFAC;flex-shrink:0}
 
 /* ─── Dark mode ─── */
-:root[data-theme="dark"] .ct-login-card{background:rgba(17,24,39,.78);border-color:rgba(255,255,255,.10);box-shadow:0 30px 80px -32px rgba(0,0,0,.65),0 8px 24px -10px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.05)}
-:root[data-theme="dark"] .ct-login-card::before{background:radial-gradient(circle,rgba(74,222,128,.22),transparent 70%)}
-:root[data-theme="dark"] .ct-login-card::after{background:radial-gradient(circle,rgba(96,165,250,.18),transparent 70%)}
+:root[data-theme="dark"] .ct-login-card{background:rgba(17,24,39,1);border-color:rgba(255,255,255,.10);box-shadow:0 30px 80px -32px rgba(0,0,0,.65),0 8px 24px -10px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.05)}
+:root[data-theme="dark"] .ct-login-card::before{background:radial-gradient(circle,rgba(108, 116, 139, 0.23),transparent 70%)}
+:root[data-theme="dark"] .ct-login-card::after{background:radial-gradient(circle,rgba(89, 100, 114, 0.1),transparent 70%)}
 :root[data-theme="dark"] .ct-login-logo-text-title{color:var(--eco-text-strong)}
 :root[data-theme="dark"] .ct-login-logo-text-sub{color:var(--eco-text-soft)}
 :root[data-theme="dark"] .ct-login-eyebrow{background:linear-gradient(135deg,rgba(74,222,128,.14),rgba(96,165,250,.12));border-color:rgba(74,222,128,.30);color:#86EFAC}
@@ -114,7 +114,7 @@ const LOGIN_CSS = `
 /* Aside dark mode (already dark — refine for AA contrast in dark theme) */
 :root[data-theme="dark"] .ct-login-aside{background:linear-gradient(155deg,rgba(20,83,45,.96) 0%,rgba(7,40,22,.97) 55%,rgba(2,28,15,.98) 100%);border-color:rgba(74,222,128,.32);box-shadow:0 30px 80px -32px rgba(0,0,0,.65),0 8px 24px -10px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.06)}
 :root[data-theme="dark"] .ct-login-aside::before{background:radial-gradient(circle,rgba(74,222,128,.34),transparent 70%)}
-:root[data-theme="dark"] .ct-login-aside::after{background:radial-gradient(circle,rgba(96,165,250,.20),transparent 70%)}
+:root[data-theme="dark"] .ct-login-aside::after{background:radial-gradient(circle,rgba(96, 250, 116, 0.23),transparent 70%)}
 :root[data-theme="dark"] .ct-login-stat:hover{background:rgba(74,222,128,.12);border-color:rgba(134,239,172,.36)}
 
 @media (max-width: 920px){
@@ -478,7 +478,6 @@ export default function LoginPage({ onLogin }) {
           ) : (
             <div style={{ animation: "eco-fadeInUp 0.35s ease-out" }}>
               <span className="ct-login-eyebrow">
-                <span className="ct-login-eyebrow-spark"><Sparkles size={11} strokeWidth={2.6} /></span>
                 Bienvenido de vuelta
               </span>
               <h1 className="ct-login-title">¡Hola de nuevo!</h1>

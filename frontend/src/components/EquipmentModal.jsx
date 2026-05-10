@@ -220,11 +220,11 @@ function Section({ icon: Icon, iconBg, iconColor, title, subtitle, children, del
 /* ─── Exported helpers (preserved exactly) ─── */
 export const createEmptyEquipmentForm = (item) => ({
   id: item?.id || "",
-  campusCode: item?.campusCode || "CAMPUS-CT",
-  areaCode: item?.areaCode || "Aulas",
+  campusCode: item?.campusCode || "",
+  areaCode: item?.areaCode || "",
   name: item?.name || "",
-  category: item?.category || "electricidad",
-  type: item?.type || "it",
+  category: item?.category || "",
+  type: item?.type || "",
   quantity: item?.quantity ?? 1,
   powerW: item?.powerW ?? 0,
   hoursPerDay: item?.usage?.hoursPerDay ?? 0,
@@ -241,8 +241,8 @@ export function parseEquipmentFormData(formElement, currentForm) {
     campusCode: String(formData.get("campusCode") || ""),
     areaCode: String(formData.get("areaCode") || ""),
     name: String(formData.get("name") || ""),
-    category: String(formData.get("category") || "electricidad"),
-    type: String(formData.get("type") || "it"),
+    category: String(formData.get("category") || ""),
+    type: String(formData.get("type") || ""),
     quantity: Number(formData.get("quantity") || 0),
     powerW: Number(formData.get("powerW") || 0),
     usage: {
@@ -258,20 +258,22 @@ export function parseEquipmentFormData(formElement, currentForm) {
 export function validateEquipmentForm(payload) {
   const errors = {};
   if (!payload.name.trim()) errors.name = "Escribe un nombre.";
-  if (!payload.campusCode.trim()) errors.campusCode = "Indica el campus.";
-  if (!payload.areaCode.trim()) errors.areaCode = "Selecciona un area.";
-  if (payload.quantity < 0 || !Number.isFinite(payload.quantity)) errors.quantity = "Debe ser un numero valido.";
-  if (payload.category === "electricidad" && (payload.powerW < 0 || !Number.isFinite(payload.powerW))) errors.powerW = "Debe ser un numero valido.";
-  if (payload.usage.hoursPerDay < 0 || !Number.isFinite(payload.usage.hoursPerDay)) errors.hoursPerDay = "Debe ser un numero valido.";
-  if (payload.usage.daysPerWeek < 0 || !Number.isFinite(payload.usage.daysPerWeek)) errors.daysPerWeek = "Debe ser un numero valido.";
-  if (payload.usage.weeksPerMonth < 0 || !Number.isFinite(payload.usage.weeksPerMonth)) errors.weeksPerMonth = "Debe ser un numero valido.";
+  if (!payload.campusCode.trim()) errors.campusCode = "Selecciona un campus.";
+  if (!payload.areaCode.trim()) errors.areaCode = "Selecciona un área.";
+  if (!payload.type.trim()) errors.type = "Selecciona un tipo de equipo.";
+  if (!payload.category.trim()) errors.category = "Selecciona una categoría.";
+  if (payload.quantity < 0 || !Number.isFinite(payload.quantity)) errors.quantity = "Debe ser un número válido.";
+  if (payload.category === "electricidad" && (payload.powerW < 0 || !Number.isFinite(payload.powerW))) errors.powerW = "Debe ser un número válido.";
+  if (payload.usage.hoursPerDay < 0 || !Number.isFinite(payload.usage.hoursPerDay)) errors.hoursPerDay = "Debe ser un número válido.";
+  if (payload.usage.daysPerWeek < 0 || !Number.isFinite(payload.usage.daysPerWeek)) errors.daysPerWeek = "Debe ser un número válido.";
+  if (payload.usage.weeksPerMonth < 0 || !Number.isFinite(payload.usage.weeksPerMonth)) errors.weeksPerMonth = "Debe ser un número válido.";
   return errors;
 }
 
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
-export default function EquipmentModal({ state, onClose, onSubmit, onFormChange, areaOptions = [] }) {
+export default function EquipmentModal({ state, onClose, onSubmit, onFormChange, areaOptions = [], campusOptions = [] }) {
   const [ready, setReady] = useState(false);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
@@ -296,7 +298,9 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange,
   const { form, errors, saving, equipment } = state;
   const isElectric = form.category === "electricidad";
   const isEdit = Boolean(equipment);
-  const availableAreaOptions = areaOptions;
+  const availableAreaOptions = form.campusCode
+    ? areaOptions.filter((area) => !area.campusCode || area.campusCode === form.campusCode)
+    : [];
 
   return (
     <div
@@ -462,37 +466,52 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange,
                       style={inBase}
                     />
                   </Field>
-                  <Field label="Campus" error={errors.campusCode}>
-                    <input
-                      name="campusCode"
-                      defaultValue={form.campusCode}
-                      placeholder="CAMPUS-CT"
-                      onFocus={onFocus}
-                      onBlur={onBlur}
-                      style={inBase}
-                    />
-                  </Field>
-                  <Field label="Área" error={errors.areaCode}>
+                  <Field label="Campus" error={errors.campusCode} required>
                     <select
-                      name="areaCode"
-                      defaultValue={form.areaCode}
+                      name="campusCode"
+                      value={form.campusCode}
+                      onChange={(e) => {
+                        const campusCode = e.target.value;
+                        onFormChange((p) => ({ ...p, campusCode, areaCode: "" }));
+                      }}
+                      required
                       onFocus={onFocus}
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
+                      <option value="" disabled>-- Seleccionar --</option>
+                      {campusOptions.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Área" error={errors.areaCode} required>
+                    <select
+                      name="areaCode"
+                      value={form.areaCode}
+                      onChange={(e) => onFormChange((p) => ({ ...p, areaCode: e.target.value }))}
+                      required
+                      onFocus={onFocus}
+                      onBlur={onBlur}
+                      style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
+                    >
+                      <option value="" disabled>-- Seleccionar --</option>
                       {availableAreaOptions.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
                   </Field>
-                  <Field label="Tipo de equipo" error={errors.type}>
+                  <Field label="Tipo de equipo" error={errors.type} required>
                     <select
                       name="type"
-                      defaultValue={form.type}
+                      value={form.type}
+                      onChange={(e) => onFormChange((p) => ({ ...p, type: e.target.value }))}
+                      required
                       onFocus={onFocus}
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
+                      <option value="" disabled>-- Seleccionar --</option>
                       {EQUIPMENT_TYPE_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
@@ -503,10 +522,12 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange,
                       name="category"
                       value={form.category}
                       onChange={(e) => onFormChange((p) => ({ ...p, category: e.target.value }))}
+                      required
                       onFocus={onFocus}
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
+                      <option value="" disabled>-- Seleccionar --</option>
                       {EQUIPMENT_CATEGORY_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
@@ -534,13 +555,13 @@ export default function EquipmentModal({ state, onClose, onSubmit, onFormChange,
                 iconColor="var(--eco-warning)"
                 title="Parámetros de consumo"
                 subtitle={
-                  isElectric
+                  true
                     ? "kWh/mes = (W × horas/día × días/sem × sem/mes × cantidad) ÷ 1 000"
                     : "Combustible: inventario disponible; algunos parámetros requieren datos adicionales del equipo."
                 }
                 delay={60}
               >
-                {!isElectric && (
+                {false && (
                   <div
                     style={{
                       display: "flex",

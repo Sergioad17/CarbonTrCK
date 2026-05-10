@@ -39,14 +39,21 @@ export const categoryOptions = [
 
 export const regionOptions = ["MX-SEN", "MX", "Tamaulipas", "Custom"];
 
+export const scopeForFactorCategory = (category) => {
+  if (category === "combustible") return "scope1";
+  if (category === "electricidad") return "scope2";
+  if (category === "otros") return "scope3";
+  return "";
+};
+
 /* ─── Exported factory/helpers (unchanged) ─── */
 export const createEmptyFactorForm = (factor) => ({
   id: factor?.id || "",
-  scope: factor?.scope || "scope2",
-  category: factor?.category || "electricidad",
-  denominatorUnit: factor?.denominatorUnit || "kWh",
+  scope: factor?.scope || scopeForFactorCategory(factor?.category) || "",
+  category: factor?.category || "",
+  denominatorUnit: factor?.denominatorUnit || resolveFactorDenominator(factor?.category, ""),
   value: factor?.value ?? "",
-  region: regionOptions.includes(factor?.region) ? factor.region : "Custom",
+  region: factor ? (regionOptions.includes(factor?.region) ? factor.region : "Custom") : "",
   customRegion: regionOptions.includes(factor?.region) ? "" : factor?.region || "",
   provider: factor?.provider || "",
   sourceUrl: factor?.sourceUrl || "",
@@ -61,6 +68,7 @@ export const createEmptyFactorForm = (factor) => ({
 });
 
 export const resolveFactorDenominator = (category, currentValue) => {
+  if (!category) return "";
   if (category === "electricidad") return "kWh";
   if (category === "combustible") return "L";
   return currentValue || "kWh";
@@ -711,20 +719,7 @@ export default function FactorModal({ state, onClose, onSubmit }) {
                 subtitle="Scope, categoría y unidad de denominador del factor de emisión."
                 delay={isEdit ? 60 : 0}
               >
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 8 }}>
-                  <Field label="Scope" error={errors.scope} required>
-                    <select
-                      value={form.scope}
-                      onChange={(e) => state.setForm((p) => ({ ...p, scope: e.target.value }))}
-                      onFocus={onFocus}
-                      onBlur={onBlur}
-                      style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
-                    >
-                      {scopeOptions.slice(1).map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
-                  </Field>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8 }}>
                   <Field label="Categoría" error={errors.category} required>
                     <select
                       value={form.category}
@@ -732,13 +727,16 @@ export default function FactorModal({ state, onClose, onSubmit }) {
                         state.setForm((p) => ({
                           ...p,
                           category: e.target.value,
+                          scope: scopeForFactorCategory(e.target.value),
                           denominatorUnit: resolveFactorDenominator(e.target.value, p.denominatorUnit),
                         }))
                       }
+                      required
                       onFocus={onFocus}
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
+                      <option value="" disabled>-- Seleccionar --</option>
                       {categoryOptions.slice(1).map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
@@ -853,10 +851,12 @@ export default function FactorModal({ state, onClose, onSubmit }) {
                     <select
                       value={form.region}
                       onChange={(e) => state.setForm((p) => ({ ...p, region: e.target.value }))}
+                      required
                       onFocus={onFocus}
                       onBlur={onBlur}
                       style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                     >
+                      <option value="" disabled>-- Seleccionar --</option>
                       {regionOptions.map((r) => (
                         <option key={r} value={r}>{r}</option>
                       ))}

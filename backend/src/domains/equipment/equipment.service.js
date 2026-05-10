@@ -23,6 +23,8 @@ export async function createEquipmentService(actor, payload, auditContext) {
   assertRequiredString(payload.campusCode, "campusCode");
   assertRequiredString(payload.areaCode, "areaCode");
   assertRequiredString(payload.name, "name");
+  assertRequiredString(payload.category, "category");
+  assertRequiredString(payload.type, "type");
   return createEquipment(actor, payload, auditContext);
 }
 

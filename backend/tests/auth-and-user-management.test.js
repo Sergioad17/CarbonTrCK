@@ -46,6 +46,7 @@ function assertNormalizedUserShape(user, options = {}) {
     "email",
     "firstName",
     "fullName",
+    "forcePasswordChange",
     "id",
     "isActive",
     "lastLoginAt",
@@ -80,6 +81,7 @@ function assertNormalizedUserShape(user, options = {}) {
   assert.equal(typeof user.roleKey, "string");
   assert.equal(typeof user.campusCode, "string");
   assert.equal(typeof user.isActive, "boolean");
+  assert.equal(typeof user.forcePasswordChange, "boolean");
   assert.ok(user.lastLoginAt === null || typeof user.lastLoginAt === "string");
   assert.ok(user.previousLoginAt === undefined || user.previousLoginAt === null || typeof user.previousLoginAt === "string");
   assert.ok(user.createdAt === null || typeof user.createdAt === "string");

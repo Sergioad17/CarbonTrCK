@@ -40,6 +40,7 @@ import {
   updateDevice,
   updateDeviceStatus,
 } from "../api/devices";
+import { fetchAreas } from "../api/areas";
 import { API_URL } from "../api/config";
 import { canUse, denyAction, disabledActionStyle } from "../lib/permissions";
 
@@ -146,20 +147,6 @@ const subtleText = {
   lineHeight: 1.55,
 };
 
-const AREA_OPTIONS = [
-  { value: "ADM", label: "Administracion" },
-  { value: "LAB", label: "Laboratorio" },
-  { value: "CC", label: "Centro de computo" },
-  { value: "IND", label: "Taller industrial" },
-  { value: "AUL", label: "Aulas" },
-];
-
-const CAMPUS_OPTIONS = [
-  { value: "CAMPUS-CT", label: "Campus central" },
-  { value: "CAMPUS-NORTE", label: "Campus norte" },
-  { value: "CAMPUS-SUR", label: "Campus sur" },
-];
-
 const PROTOCOL_OPTIONS = [
   { value: "https", label: "HTTPS push" },
   { value: "mqtt", label: "MQTT sobre TLS" },
@@ -188,10 +175,10 @@ const DEFAULT_FORM = {
   id: "",
   name: "",
   code: "",
-  campusCode: "CAMPUS-CT",
-  areaCode: "LAB",
-  protocol: "https",
-  streamMode: "scheduled",
+  campusCode: "",
+  areaCode: "",
+  protocol: "",
+  streamMode: "",
   intervalSeconds: "60",
   metric: "electricity_consumption",
   unit: "kWh",
@@ -211,6 +198,36 @@ const DEFAULT_FORM = {
 
 function createFormFromDevice(device) {
   return { ...DEFAULT_FORM, ...device };
+}
+
+function normalizeAreaOptions(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const value = String(item?.code || item?.areaCode || item?.id || "").trim();
+      const label = String(item?.name || item?.area || item?.label || value).trim();
+      const campusCode = String(item?.campusCode || item?.campus_code || "").trim();
+      return { value, label, campusCode };
+    })
+    .filter((item) => {
+      if (!item.value || !item.label || seen.has(`${item.campusCode}:${item.value}`)) return false;
+      seen.add(`${item.campusCode}:${item.value}`);
+      return true;
+    });
+}
+
+function buildCampusOptions(areas) {
+  const seen = new Set();
+  return (Array.isArray(areas) ? areas : [])
+    .map((area) => {
+      const value = String(area?.campusCode || "").trim();
+      return value ? { value, label: value } : null;
+    })
+    .filter((campus) => {
+      if (!campus || seen.has(campus.value)) return false;
+      seen.add(campus.value);
+      return true;
+    });
 }
 
 function normalizeRole(value) {
@@ -242,10 +259,13 @@ function statusMeta(status) {
   return STATUS_META[status] || STATUS_META.provisioning;
 }
 
-function suggestBackendUrl(protocol, currentValue = API_URL) {
+function suggestBackendUrl(protocol, currentValue = API_URL, tlsRequired = true) {
   const raw = String(currentValue || "").trim();
-  if (!raw) return protocol === "mqtt" ? "mqtts://broker.carbontreck.local" : "https://api.carbontreck.local";
-  const expectedProtocol = protocol === "mqtt" ? "mqtts:" : "https:";
+  if (!raw) {
+    if (protocol === "mqtt") return tlsRequired ? "mqtts://broker.carbontreck.local" : "mqtt://broker.carbontreck.local";
+    return tlsRequired ? "https://api.carbontreck.local" : "http://api.carbontreck.local";
+  }
+  const expectedProtocol = protocol === "mqtt" ? (tlsRequired ? "mqtts:" : "mqtt:") : (tlsRequired ? "https:" : "http:");
 
   try {
     const parsed = new URL(raw);
@@ -276,8 +296,11 @@ function buildDeviceErrorMessage(error, protocol) {
   }
   if (field === "backendUrl") {
     return protocol === "mqtt"
-      ? "La URL de ingesta debe usar mqtts:// para dispositivos MQTT."
-      : "La URL de ingesta debe usar https:// para dispositivos HTTPS.";
+      ? "La URL de ingesta debe usar mqtts:// con TLS activo, o mqtt:// si TLS esta apagado."
+      : "La URL de ingesta debe usar https:// con TLS activo, o http:// si TLS esta apagado.";
+  }
+  if (field === "verifyServerCert") {
+    return "La validacion de certificado requiere que TLS obligatorio este activo.";
   }
   if (field === "intervalSeconds") {
     return "El intervalo de lectura debe ser un entero positivo.";
@@ -298,7 +321,7 @@ function buildLocalDraftDevice(form, selectedId, currentDevices) {
     code: String(form.code || "").trim().toUpperCase(),
     campusCode: String(form.campusCode || "").trim().toUpperCase(),
     areaCode: String(form.areaCode || "").trim().toUpperCase(),
-    backendUrl: suggestBackendUrl(form.protocol, form.backendUrl),
+    backendUrl: suggestBackendUrl(form.protocol, form.backendUrl, form.tlsRequired),
     endpointPath: normalizeEndpointPath(form.protocol, form.endpointPath),
     token: existing?.token || "",
     status: existing?.status || "provisioning",
@@ -536,13 +559,16 @@ function StatusBadge({ status }) {
   );
 }
 
-function ToggleCard({ icon: Icon, title, description, checked, onChange }) {
+function ToggleCard({ icon: Icon, title, description, checked, onChange, disabled = false }) {
   const [hovered, setHovered] = useState(false);
   return (
     <button
       type="button"
-      onClick={() => onChange(!checked)}
-      onMouseEnter={() => setHovered(true)}
+      disabled={disabled}
+      onClick={() => {
+        if (!disabled) onChange(!checked);
+      }}
+      onMouseEnter={() => setHovered(!disabled)}
       onMouseLeave={() => setHovered(false)}
       style={{
         width: "100%",
@@ -555,7 +581,8 @@ function ToggleCard({ icon: Icon, title, description, checked, onChange }) {
         alignItems: "center",
         justifyContent: "space-between",
         gap: 12,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.58 : 1,
         transition: "all .2s ease",
         transform: hovered ? "translateY(-1px)" : "translateY(0)",
         boxShadow: hovered ? "0 4px 12px rgba(0,0,0,.06)" : "none",
@@ -978,6 +1005,7 @@ export default function DevicePage({ user }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteInput, setDeleteInput] = useState("");
+  const [areaOptions, setAreaOptions] = useState([]);
   const canCreateDevice = canUse(user, "devices:create");
   const canEditDevice = canUse(user, "devices:edit");
   const canDeleteDevice = canUse(user, "devices:delete");
@@ -987,10 +1015,14 @@ export default function DevicePage({ user }) {
   useEffect(() => {
     let mounted = true;
     const timer = window.setTimeout(() => setPageReady(true), 220);
-    fetchDevices()
-      .then((items) => {
+    Promise.all([
+      fetchDevices(),
+      fetchAreas().then(normalizeAreaOptions).catch(() => []),
+    ])
+      .then(([items, areas]) => {
         if (!mounted) return;
         setDevices(items);
+        setAreaOptions(areas);
       })
       .catch(() => {
         if (!mounted) return;
@@ -1001,6 +1033,12 @@ export default function DevicePage({ user }) {
       window.clearTimeout(timer);
     };
   }, []);
+
+  const campusOptions = useMemo(() => buildCampusOptions(areaOptions), [areaOptions]);
+  const availableAreaOptions = useMemo(
+    () => (form.campusCode ? areaOptions.filter((area) => area.campusCode === form.campusCode) : []),
+    [areaOptions, form.campusCode],
+  );
 
   useEffect(() => {
     if (!copied) return undefined;
@@ -1112,9 +1150,14 @@ export default function DevicePage({ user }) {
       setToast({ title: "Campos obligatorios", message: "Completa nombre, codigo y backend URL antes de guardar." });
       return;
     }
+    if (!form.campusCode || !form.areaCode || !form.protocol || !form.streamMode) {
+      setToast({ title: "Campos obligatorios", message: "Selecciona campus, area, protocolo y modo de envio antes de guardar." });
+      return;
+    }
     const payload = {
       ...form,
-      backendUrl: suggestBackendUrl(form.protocol, form.backendUrl),
+      verifyServerCert: form.tlsRequired ? form.verifyServerCert : false,
+      backendUrl: suggestBackendUrl(form.protocol, form.backendUrl, form.tlsRequired),
       endpointPath: normalizeEndpointPath(form.protocol, form.endpointPath),
     };
     try {
@@ -1386,23 +1429,38 @@ export default function DevicePage({ user }) {
                     onBlur={(e) => { e.target.style.borderColor = "var(--eco-border)"; e.target.style.boxShadow = "none"; }}
                   />
                 </Field>
-                <Field label="Campus">
-                  <select value={form.campusCode} onChange={(event) => updateForm("campusCode", event.target.value)} style={inputBase}>
-                    {CAMPUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                <Field label="Campus" required>
+                  <select
+                    value={form.campusCode}
+                    onChange={(event) => setForm((current) => ({ ...current, campusCode: event.target.value, areaCode: "" }))}
+                    style={inputBase}
+                    required
+                  >
+                    <option value="" disabled>-- Seleccionar --</option>
+                    {campusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Area vinculada">
-                  <select value={form.areaCode} onChange={(event) => updateForm("areaCode", event.target.value)} style={inputBase}>
-                    {AREA_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                <Field label="Area vinculada" required>
+                  <select
+                    value={form.areaCode}
+                    onChange={(event) => updateForm("areaCode", event.target.value)}
+                    style={inputBase}
+                    required
+                    disabled={!form.campusCode}
+                  >
+                    <option value="" disabled>-- Seleccionar --</option>
+                    {availableAreaOptions.map((option) => <option key={`${option.campusCode}-${option.value}`} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Protocolo de conexion">
-                  <select value={form.protocol} onChange={(event) => updateForm("protocol", event.target.value)} style={inputBase}>
+                <Field label="Protocolo de conexion" required>
+                  <select value={form.protocol} onChange={(event) => updateForm("protocol", event.target.value)} style={inputBase} required>
+                    <option value="" disabled>-- Seleccionar --</option>
                     {PROTOCOL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
-                <Field label="Modo de envio">
-                  <select value={form.streamMode} onChange={(event) => updateForm("streamMode", event.target.value)} style={inputBase}>
+                <Field label="Modo de envio" required>
+                  <select value={form.streamMode} onChange={(event) => updateForm("streamMode", event.target.value)} style={inputBase} required>
+                    <option value="" disabled>-- Seleccionar --</option>
                     {STREAM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </Field>
@@ -1446,8 +1504,26 @@ export default function DevicePage({ user }) {
                   <h3 style={{ margin: 0, fontFamily: fd, fontSize: 16, fontWeight: 800, color: "var(--eco-text-strong)" }}>Postura de seguridad</h3>
                 </div>
                 <div className="ct-device-security-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
-                  <ToggleCard icon={Lock} title="TLS obligatorio" description="Fuerza canal seguro para todas las lecturas." checked={form.tlsRequired} onChange={(value) => updateForm("tlsRequired", value)} />
-                  <ToggleCard icon={Shield} title="Validar certificado" description="Bloquea conexiones a hosts no confiables." checked={form.verifyServerCert} onChange={(value) => updateForm("verifyServerCert", value)} />
+                  <ToggleCard
+                    icon={Lock}
+                    title="TLS obligatorio"
+                    description="Exige HTTPS o MQTTS cuando el dispositivo envia lecturas."
+                    checked={form.tlsRequired}
+                    onChange={(value) => setForm((current) => ({
+                      ...current,
+                      tlsRequired: value,
+                      verifyServerCert: value ? current.verifyServerCert : false,
+                      backendUrl: suggestBackendUrl(current.protocol, current.backendUrl, value),
+                    }))}
+                  />
+                  <ToggleCard
+                    icon={Shield}
+                    title="Validar certificado"
+                    description="Solo disponible con TLS activo; bloquea certificados no confiables."
+                    checked={form.verifyServerCert}
+                    onChange={(value) => updateForm("verifyServerCert", value)}
+                    disabled={!form.tlsRequired}
+                  />
                   <ToggleCard icon={TimerReset} title="Buffer offline" description="Conserva lecturas si se corta la red." checked={form.offlineBuffer} onChange={(value) => updateForm("offlineBuffer", value)} />
                 </div>
               </div>

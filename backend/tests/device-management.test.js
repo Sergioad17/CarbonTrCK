@@ -230,6 +230,69 @@ if (!hasDb) {
     assert.equal(statusResult.body.item.status, "offline");
   });
 
+  test("POST /devices respeta TLS obligatorio y validacion de certificado", async () => {
+    const seed = await getSeedContext();
+    const auth = await login();
+    const suffix = `${Date.now()}`.slice(-6);
+    const basePayload = buildDevicePayload(seed, suffix);
+
+    const insecureAllowed = await request("/devices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...basePayload,
+        code: `${basePayload.code}-NO-TLS`,
+        tlsRequired: false,
+        verifyServerCert: false,
+        backendUrl: "http://api.carbontreck.com",
+      }),
+    });
+
+    assert.equal(insecureAllowed.response.status, 201);
+    assert.equal(insecureAllowed.body.item.tlsRequired, false);
+    assert.equal(insecureAllowed.body.item.verifyServerCert, false);
+    assert.equal(insecureAllowed.body.item.backendUrl, "http://api.carbontreck.com");
+
+    const insecureRejected = await request("/devices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...basePayload,
+        code: `${basePayload.code}-TLS-HTTP`,
+        tlsRequired: true,
+        verifyServerCert: false,
+        backendUrl: "http://api.carbontreck.com",
+      }),
+    });
+
+    assert.equal(insecureRejected.response.status, 422);
+    assert.equal(insecureRejected.body.details.field, "backendUrl");
+
+    const invalidCertValidation = await request("/devices", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth.body.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...basePayload,
+        code: `${basePayload.code}-CERT`,
+        tlsRequired: false,
+        verifyServerCert: true,
+        backendUrl: "http://api.carbontreck.com",
+      }),
+    });
+
+    assert.equal(invalidCertValidation.response.status, 422);
+    assert.equal(invalidCertValidation.body.details.field, "verifyServerCert");
+  });
+
   test("POST /devices/:id/duplicate emite nueva credencial y DELETE /devices/:id elimina", async () => {
     const seed = await getSeedContext();
     const auth = await login();
@@ -297,11 +360,24 @@ if (!hasDb) {
       },
     };
 
+    const insecureTransportResult = await request("/iot/readings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${credential}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(readingPayload),
+    });
+
+    assert.equal(insecureTransportResult.response.status, 426);
+    assert.equal(insecureTransportResult.body.code, "TLS_REQUIRED");
+
     const ingestResult = await request("/iot/readings", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${credential}`,
         "Content-Type": "application/json",
+        "X-Forwarded-Proto": "https",
       },
       body: JSON.stringify(readingPayload),
     });
@@ -315,6 +391,7 @@ if (!hasDb) {
       headers: {
         Authorization: `Bearer ${credential}`,
         "Content-Type": "application/json",
+        "X-Forwarded-Proto": "https",
       },
       body: JSON.stringify(readingPayload),
     });

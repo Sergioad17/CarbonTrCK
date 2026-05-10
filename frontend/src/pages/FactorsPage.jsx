@@ -31,6 +31,7 @@ import FactorModal, {
   createEmptyFactorForm,
   regionOptions,
   resolveFactorDenominator,
+  scopeForFactorCategory,
   scopeOptions,
 } from "../components/FactorModal";
 import { exportRowsToCsv } from "../lib/csvExport";
@@ -868,7 +869,6 @@ export default function FactorsPage({ user }) {
     const numericValue = Number(form.value);
     const region = form.region === "Custom" ? form.customRegion.trim() : form.region;
 
-    if (!form.scope) errors.scope = "Selecciona un scope.";
     if (!form.category) errors.category = "Selecciona una categoría.";
     if (!form.denominatorUnit) errors.denominatorUnit = "Falta la unidad.";
     if (!Number.isFinite(numericValue) || numericValue <= 0) errors.value = "El valor debe ser mayor a 0.";
@@ -897,7 +897,6 @@ export default function FactorsPage({ user }) {
 
     const payload = {
       id: form.id || undefined,
-      scope: form.scope,
       category: form.category,
       metric: form.category === "electricidad" ? "electricity_consumption" : form.category === "combustible" ? "fuel_volume" : "custom",
       numeratorUnit: "kgCO2e",
@@ -916,7 +915,7 @@ export default function FactorsPage({ user }) {
 
     const conflict = findDefaultConflict(
       factors,
-      { ...payload, isDefault: payload.isDefault, isActive: payload.isActive },
+      { ...payload, scope: scopeForFactorCategory(payload.category), isDefault: payload.isDefault, isActive: payload.isActive },
       factor?.id
     );
     if (payload.isDefault && conflict && !forceDefaultOverride) {
@@ -950,7 +949,7 @@ export default function FactorsPage({ user }) {
       createNotification({
         type: "factor_updated",
         title: factor ? (form.editMode === "newVersion" ? "Nueva versión de factor" : "Factor actualizado") : "Factor guardado",
-        message: `${payload.scope.replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
+        message: `${scopeForFactorCategory(payload.category).replace("scope", "Scope ")} / ${payload.category} / ${payload.region}`,
         link: "/catalogos/factores",
         meta: {
           factorId: result.factor?.id || factor?.id || null,

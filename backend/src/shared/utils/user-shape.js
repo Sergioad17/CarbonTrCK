@@ -33,6 +33,7 @@ export function buildNormalizedUserShape(rawUser) {
     campusCode: String(rawUser.campusCode || ""),
     areaAccess: normalizeAreaAccess(rawUser.areaAccessMode, rawUser.areaCodes),
     isActive: Boolean(rawUser.isActive),
+    forcePasswordChange: Boolean(rawUser.forcePasswordChange),
     lastLoginAt: rawUser.lastLoginAt || null,
     createdAt: rawUser.createdAt || null,
     updatedAt: rawUser.updatedAt || null,

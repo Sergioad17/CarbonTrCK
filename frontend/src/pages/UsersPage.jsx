@@ -148,11 +148,13 @@ const emptyForm = (user) => ({
   maternalLastName: user?.maternalLastName || "",
   fullName: user?.fullName || "",
   email: user?.email || "",
-  role: user?.role || "operativo",
-  campusCode: user?.campusCode || DEFAULT_CAMPUS,
+  internalIdentifier: user?.numericId || user?.internalIdentifier || "",
+  role: user?.role || "",
+  campusCode: user?.campusCode || "",
   areaAccessMode: user?.areaAccess?.mode || "all",
   areaCodes: user?.areaAccess?.areaCodes || [],
   isActive: typeof user?.isActive === "boolean" ? user.isActive : true,
+  forcePasswordChange: typeof user?.forcePasswordChange === "boolean" ? user.forcePasswordChange : false,
   notes: user?.notes || "",
   tempPassword: "",
 });
@@ -669,13 +671,13 @@ function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    User Form Modal
    â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
-function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSubmit, onGeneratePassword }) {
+export function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSubmit, onGeneratePassword }) {
   if (!state) return null;
   const { user, form, errors, saving } = state;
   const isEdit = Boolean(user);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 120, display: "grid", placeItems: "center", padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 120, display: "grid", placeItems: "center", padding: "64px 16px 56px" }}>
       <div
         style={{ position: "absolute", inset: 0, background: "var(--eco-overlay)", backdropFilter: "blur(4px)", animation: "ctOverlay .2s ease-out" }}
         onClick={onClose}
@@ -686,17 +688,19 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
         style={{
           position: "relative",
           width: "min(96vw, 880px)",
-          maxHeight: "92vh",
-          overflowY: "auto",
+          maxHeight: "calc(100vh - 132px)",
+          overflow: "hidden",
           background: "var(--eco-card)",
           border: "1px solid var(--eco-border)",
           borderRadius: "var(--eco-radius-xl)",
           boxShadow: "var(--eco-shadow-xl)",
           animation: "ctPop .22s ease-out",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {/* Modal header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ padding: "16px 22px", borderBottom: "1px solid var(--eco-border)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
             <div
               style={{
@@ -729,7 +733,8 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
         </div>
 
         {/* Form body */}
-        <form onSubmit={onSubmit} style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+        <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 18, overflowY: "auto", minHeight: 0 }}>
           {/* Identity section */}
           <div>
             <p style={{ ...sectionLabel, marginBottom: 12 }}>Identidad</p>
@@ -762,8 +767,16 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
                   placeholder="usuario@itsmante.edu.mx"
                 />
               </Field>
+              <Field label="Identificador interno">
+                <StyledInput
+                  value={form.internalIdentifier}
+                  onChange={(e) => state.setForm((p) => ({ ...p, internalIdentifier: e.target.value }))}
+                  placeholder="ADM-001"
+                />
+              </Field>
               <Field label="Rol" required error={errors.role}>
                 <StyledSelect
+                  required
                   value={form.role}
                   onChange={(e) => {
                     const nextRole = e.target.value;
@@ -775,13 +788,15 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
                     }));
                   }}
                 >
+                  <option value="" disabled>-- Seleccionar --</option>
                   {roles.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </StyledSelect>
               </Field>
-              <Field label="Campus" required helper="Selecciona el campus donde se registrará el usuario.">
+              <Field label="Campus" required error={errors.campusCode} helper="Selecciona el campus donde se registrará el usuario.">
                 <StyledSelect
+                  required
                   value={form.campusCode}
                   onChange={(e) => {
                     const nextCampus = e.target.value;
@@ -792,6 +807,7 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
                     }));
                   }}
                 >
+                  <option value="" disabled>-- Seleccionar --</option>
                   {campusOptions.map((campus) => (
                     <option key={campus.code} value={campus.code}>{campus.name || campus.code}</option>
                   ))}
@@ -940,14 +956,17 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
 
           {/* Permissions summary */}
           <div style={{ borderRadius: "var(--eco-radius-lg)", background: "var(--eco-card-muted)", border: "1px dashed var(--eco-border)", padding: 16 }}>
-            <p style={{ ...sectionLabel, marginBottom: 10 }}>Permisos del rol: {getRoleLabel(form.role)}</p>
+            <p style={{ ...sectionLabel, marginBottom: 10 }}>Permisos del rol: {form.role ? getRoleLabel(form.role) : "--"}</p>
             <div style={{ display: "grid", gap: 4 }}>
-              {USER_ROLE_SUMMARY[form.role].map((line) => (
+              {(USER_ROLE_SUMMARY[form.role] || []).map((line) => (
                 <div key={line} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                   <ChevronRight size={12} style={{ color: "var(--eco-primary-500)", marginTop: 2, flexShrink: 0 }} />
                   <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text)", lineHeight: 1.55 }}>{line}</p>
                 </div>
               ))}
+              {!form.role ? (
+                <p style={{ ...subtleText }}>Selecciona un rol para ver sus permisos.</p>
+              ) : null}
             </div>
           </div>
 
@@ -967,6 +986,9 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
                   Generar
                 </ActionButton>
               </div>
+              <p style={{ ...subtleText, marginTop: 8 }}>
+                Si se deja vacío, el sistema generará una contraseña segura automáticamente y la mostrará al guardar.
+              </p>
             </div>
           )}
 
@@ -1012,6 +1034,44 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
                   </span>
                 </button>
               </Field>
+              <Field label="Forzar cambio de contraseña">
+                <button
+                  type="button"
+                  onClick={() => state.setForm((p) => ({ ...p, forcePasswordChange: !p.forcePasswordChange }))}
+                  style={{
+                    width: "100%",
+                    height: 42,
+                    borderRadius: "var(--eco-radius-md)",
+                    border: `1.5px solid ${form.forcePasswordChange ? "var(--eco-primary-300)" : "var(--eco-border)"}`,
+                    background: form.forcePasswordChange ? "var(--eco-primary-50)" : "var(--eco-card)",
+                    padding: "0 14px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <span style={{ fontFamily: fb, fontSize: 13, fontWeight: 600, color: form.forcePasswordChange ? "var(--eco-primary-700)" : "var(--eco-text-soft)" }}>
+                    {form.forcePasswordChange ? "Activado" : "Desactivado"}
+                  </span>
+                  <span
+                    style={{
+                      width: 40,
+                      height: 22,
+                      borderRadius: "var(--eco-radius-full)",
+                      background: form.forcePasswordChange ? "var(--eco-primary-500)" : "var(--eco-gray-300)",
+                      padding: 3,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: form.forcePasswordChange ? "flex-end" : "flex-start",
+                      transition: "background 0.25s ease",
+                    }}
+                  >
+                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#FAFBFC", boxShadow: "0 1px 3px rgba(0,0,0,0.3)", transition: "transform 0.2s ease" }} />
+                  </span>
+                </button>
+              </Field>
               <Field label="Nota interna" helper="Campo opcional para contexto operativo.">
                 <StyledTextarea
                   value={form.notes}
@@ -1022,6 +1082,7 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
               </Field>
             </div>
           </div>
+          </div>
 
           {/* Footer */}
           <div
@@ -1031,8 +1092,10 @@ function UserFormModal({ state, roles, campusOptions, areaOptions, onClose, onSu
               justifyContent: "space-between",
               alignItems: "center",
               gap: 12,
-              paddingTop: 16,
+              padding: "14px 22px",
               borderTop: "1px solid var(--eco-border)",
+              background: "var(--eco-card)",
+              flexShrink: 0,
             }}
           >
             <p style={{ ...subtleText, fontSize: 11 }}>Los campos con * son obligatorios.</p>
@@ -1486,10 +1549,9 @@ export default function UsersPage({ user }) {
 
   const openCreateModal = () => {
     if (!canCreateUsers) return;
-    const defaultCampusCode = campusOptions[0]?.code || DEFAULT_CAMPUS;
     const s = {
       user: null,
-      form: emptyForm({ campusCode: defaultCampusCode }),
+      form: emptyForm(null),
       errors: {},
       saving: false,
       setForm: (updater) => {
@@ -1536,6 +1598,7 @@ export default function UsersPage({ user }) {
       if (dup) errs.email = "Este correo ya está registrado.";
     }
     if (!form.role) errs.role = "Selecciona un rol.";
+    if (!form.campusCode) errs.campusCode = "Selecciona un campus.";
     if (form.role !== "admin" && form.areaAccessMode === "custom" && !form.areaCodes.length) {
       errs.areaCodes = "Selecciona al menos un área para acceso personalizado.";
     }
@@ -1562,13 +1625,15 @@ export default function UsersPage({ user }) {
       maternalLastName: form.maternalLastName.trim(),
       fullName,
       email: form.email.trim().toLowerCase(),
+      numericId: form.internalIdentifier.trim(),
       role: form.role,
-      campusCode: form.campusCode || DEFAULT_CAMPUS,
+      campusCode: form.campusCode,
       areaAccess: {
         mode: form.role === "admin" ? "all" : form.areaAccessMode,
         areaCodes: form.role === "admin" || form.areaAccessMode === "all" ? [] : form.areaCodes,
       },
       isActive: form.isActive,
+      forcePasswordChange: form.forcePasswordChange,
       notes: form.notes.trim(),
       lastLoginAt: user?.lastLoginAt || null,
     };

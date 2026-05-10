@@ -80,6 +80,10 @@ function cleanString(value, fallback = "") {
   return String(value ?? fallback).trim();
 }
 
+function summaryValue(value) {
+  return cleanString(value) || "--";
+}
+
 function normalizeAreaOptions(items) {
   const seen = new Set();
   return (Array.isArray(items) ? items : [])
@@ -266,7 +270,7 @@ function EcoInput({
   );
 }
 
-function EcoSelect({ value, onChange, options, hasError, icon, placeholder, disabled }) {
+function EcoSelect({ value, onChange, options, hasError, icon, placeholder = "-- Seleccionar --", disabled }) {
   const [focused, setFocused] = useState(false);
   const borderColor = hasError
     ? "var(--eco-danger)"
@@ -700,11 +704,11 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
   const [recordMode, setRecordMode] = useState("manual");
   const [isEstimated, setIsEstimated] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [area, setArea] = useState(initialAreaCode);
-  const [source, setSource] = useState("Medicion");
+  const [area, setArea] = useState("");
+  const [source, setSource] = useState("");
   const [activity, setActivity] = useState("");
   const [value, setValue] = useState("");
-  const [fuelType, setFuelType] = useState("Diesel");
+  const [fuelType, setFuelType] = useState("");
   const [factor, setFactor] = useState(DEFAULT_FACTORS.electricidad);
   const [note, setNote] = useState("");
   const [evidenceEnabled, setEvidenceEnabled] = useState(false);
@@ -781,17 +785,17 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setRecordMode("manual");
     setIsEstimated(false);
     setDate(new Date().toISOString().slice(0, 10));
-    setArea(initialAreaCode);
-    setSource("Medicion");
+    setArea("");
+    setSource("");
     setActivity("");
     setValue("");
-    setFuelType("Diesel");
+    setFuelType("");
     setFactor(factorDefaults.electricidad);
     setNote("");
     setDeviceBinding({
       ...getDefaultBinding(""),
       campusCode,
-      areaCode: initialAreaCode,
+      areaCode: "",
     });
   }, [open, editRecord, factorDefaults, initialAreaCode, campusCode]);
 
@@ -828,11 +832,14 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
       setAreaOptions(options);
       if (!options.length) return;
       const preferredArea = getPreferredAreaCode(currentUser, options);
-      setArea((prev) => (findAreaOption(options, prev) ? prev : preferredArea));
+      setArea((prev) => {
+        if (findAreaOption(options, prev)) return prev;
+        return isEditMode ? preferredArea : "";
+      });
       setDeviceBinding((prev) => ({
         ...prev,
         campusCode: prev.campusCode || campusCode,
-        areaCode: findAreaOption(options, prev.areaCode) ? prev.areaCode : preferredArea,
+        areaCode: findAreaOption(options, prev.areaCode) ? prev.areaCode : isEditMode ? preferredArea : "",
       }));
     };
 
@@ -842,7 +849,7 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     return () => {
       cancelled = true;
     };
-  }, [open, currentUser, campusCode]);
+  }, [open, currentUser, campusCode, isEditMode]);
 
   useEffect(() => {
     if (skipCatFactorRef.current) {
@@ -852,7 +859,6 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     setFactor(cat === "electricidad" ? factorDefaults.electricidad : factorDefaults.combustible);
     if (cat !== "electricidad") {
       setRecordMode("manual");
-      setSource("Medicion");
     }
   }, [cat, factorDefaults]);
 
@@ -895,12 +901,13 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
     if (!date) nextErrors.date = "Selecciona una fecha";
     if (!area) nextErrors.area = "Selecciona un area";
     if (!source) nextErrors.source = "Selecciona una fuente";
+    if (cat === "combustible" && !fuelType) nextErrors.fuelType = "Selecciona un combustible";
     if (!activity.trim()) nextErrors.activity = "Describe la actividad";
     if (!numericValue || numericValue <= 0) nextErrors.value = `Ingresa un valor valido en ${unit}`;
     if (!factorNum || factorNum <= 0) nextErrors.factor = "Factor invalido";
     if (evidenceEnabled && !evidenceFile) nextErrors.evidence = "Adjunta un archivo de evidencia";
     return nextErrors;
-  }, [recordMode, date, area, source, activity, numericValue, unit, factorNum, evidenceEnabled, evidenceFile]);
+  }, [recordMode, date, area, source, fuelType, cat, activity, numericValue, unit, factorNum, evidenceEnabled, evidenceFile]);
 
   const canSaveDevice = Boolean(deviceCounts.registrable > 0 && factorNum > 0);
   const canSave = recordMode === "device" ? canSaveDevice : Object.keys(errors).length === 0;
@@ -1514,10 +1521,11 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
 
                     {cat === "combustible" && (
                       <div style={{ marginTop: 12 }}>
-                        <Field label="Tipo de combustible">
+                        <Field label="Tipo de combustible" required error={touched && errors.fuelType}>
                           <EcoSelect
                             value={fuelType}
                             onChange={(event) => setFuelType(event.target.value)}
+                            hasError={touched && errors.fuelType}
                             options={[
                               { value: "Diesel", label: "Diesel" },
                               { value: "Gasolina", label: "Gasolina" },
@@ -2049,9 +2057,9 @@ export default function NewRecordModal({ open, onClose, onCreate, onCreateRecord
                     { label: "Categoria", value: categoryLabel },
                     { label: "Modo", value: recordMode === "device" ? "Dispositivo" : "Manual" },
                     { label: "Tipo de dato", value: previewEstimated ? "Estimado" : "Real" },
-                    { label: "Area", value: findAreaOption(availableAreaOptions, area)?.label || area },
+                    { label: "Area", value: summaryValue(findAreaOption(availableAreaOptions, area)?.label || area) },
                     { label: "Fecha", value: formatDateLabel(date) },
-                    { label: "Fuente", value: SOURCES.find((item) => item.value === previewSource)?.label || previewSource },
+                    { label: "Fuente", value: summaryValue(SOURCES.find((item) => item.value === previewSource)?.label || previewSource) },
                     { label: "Actividad", value: previewActivity || "Pendiente" },
                     {
                       label: "Consumo",

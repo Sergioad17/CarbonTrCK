@@ -62,7 +62,16 @@ function parsePositiveInteger(value, field, fallback = null) {
   return parsed;
 }
 
-function normalizeUrlByProtocol(url, protocol) {
+function secureSchemeForProtocol(protocol) {
+  return protocol === "mqtt" ? "mqtts:" : "https:";
+}
+
+function allowedSchemesForProtocol(protocol, tlsRequired) {
+  if (tlsRequired) return [secureSchemeForProtocol(protocol)];
+  return protocol === "mqtt" ? ["mqtt:", "mqtts:"] : ["http:", "https:"];
+}
+
+function normalizeUrlByProtocol(url, protocol, { tlsRequired, verifyServerCert } = {}) {
   const normalized = cleanString(url);
   if (!normalized) {
     throw new AppError({
@@ -85,12 +94,23 @@ function normalizeUrlByProtocol(url, protocol) {
     });
   }
 
-  const expectedProtocol = protocol === "mqtt" ? "mqtts:" : "https:";
-  if (parsed.protocol !== expectedProtocol) {
+  if (verifyServerCert && !tlsRequired) {
     throw new AppError({
       statusCode: 422,
       code: "VALIDATION_ERROR",
-      message: `backendUrl must use ${expectedProtocol.replace(":", "").toUpperCase()}.`,
+      message: "verifyServerCert requires tlsRequired to be enabled.",
+      details: { field: "verifyServerCert" },
+    });
+  }
+
+  const allowedSchemes = allowedSchemesForProtocol(protocol, tlsRequired);
+  if (!allowedSchemes.includes(parsed.protocol)) {
+    throw new AppError({
+      statusCode: 422,
+      code: "VALIDATION_ERROR",
+      message: tlsRequired
+        ? `backendUrl must use ${secureSchemeForProtocol(protocol).replace(":", "").toUpperCase()} when tlsRequired is enabled.`
+        : `backendUrl must use ${allowedSchemes.map((scheme) => scheme.replace(":", "").toUpperCase()).join(" or ")}.`,
       details: { field: "backendUrl" },
     });
   }
@@ -148,6 +168,8 @@ function normalizeDeviceType(value) {
 function normalizeDevicePayload(payload, { partial = false } = {}) {
   const protocol = normalizeProtocol(payload.protocol);
   const streamMode = normalizeStreamMode(payload.streamMode);
+  const tlsRequired = parseBoolean(payload.tlsRequired, true);
+  const verifyServerCert = parseBoolean(payload.verifyServerCert, true);
 
   if (!partial) {
     assertRequiredString(payload.name, "name");
@@ -166,13 +188,13 @@ function normalizeDevicePayload(payload, { partial = false } = {}) {
     intervalSeconds: parsePositiveInteger(payload.intervalSeconds, "intervalSeconds", 60),
     metric: cleanString(payload.metric || "electricity_consumption"),
     unit: cleanString(payload.unit || "kWh"),
-    backendUrl: normalizeUrlByProtocol(payload.backendUrl, protocol),
+    backendUrl: normalizeUrlByProtocol(payload.backendUrl, protocol, { tlsRequired, verifyServerCert }),
     endpointPath: normalizeEndpointPath(payload.endpointPath, protocol),
     wifiProfile: cleanString(payload.wifiProfile || "Campus-IoT"),
     deviceType: normalizeDeviceType(payload.deviceType),
     notes: cleanString(payload.notes || ""),
-    tlsRequired: parseBoolean(payload.tlsRequired, true),
-    verifyServerCert: parseBoolean(payload.verifyServerCert, true),
+    tlsRequired,
+    verifyServerCert,
     offlineBuffer: parseBoolean(payload.offlineBuffer, true),
     enabled: parseBoolean(payload.enabled, true),
     voltage: parsePositiveNumber(payload.voltage, "voltage", { fallback: 127 }),
@@ -346,6 +368,16 @@ export async function removeDeviceReadingService(actor, deviceId, readingId, aud
 }
 
 export async function createDeviceReadingService(device, payload, auditContext) {
+  const metadata = device?.metadata && typeof device.metadata === "object" ? device.metadata : {};
+  if (parseBoolean(metadata.tlsRequired, true) && !auditContext?.secureTransport) {
+    throw new AppError({
+      statusCode: 426,
+      code: "TLS_REQUIRED",
+      message: "This device requires a secure transport to submit readings.",
+      details: { field: "tlsRequired" },
+    });
+  }
+
   const normalized = normalizeReadingPayload(payload);
 
   if (normalized.deviceCode !== cleanString(device.code).toUpperCase()) {

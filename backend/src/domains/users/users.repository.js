@@ -121,6 +121,7 @@ function mapUserRow(row, authorization = {}) {
     areaAccessMode: row.area_access_mode,
     areaCodes: row.area_codes || [],
     isActive: row.is_active,
+    forcePasswordChange: row.force_password_change,
     lastLoginAt: row.last_login_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -210,6 +211,7 @@ export async function getUserAuthorizationContext(userId) {
         u.notes,
         u.area_access_mode,
         u.is_active,
+        u.force_password_change,
         u.last_login_at,
         u.created_at,
         u.updated_at,
@@ -427,6 +429,7 @@ export async function listUsers(actor, filters) {
         u.email::text AS email,
         u.notes,
         u.is_active,
+        u.force_password_change,
         u.last_login_at,
         u.created_at,
         u.updated_at,
@@ -820,9 +823,10 @@ export async function createUser(actor, payload, auditContext) {
           password_hash,
           full_name,
           notes,
-          is_active
+          is_active,
+          force_password_change
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         RETURNING id
       `,
       [
@@ -838,6 +842,7 @@ export async function createUser(actor, payload, auditContext) {
         payload.fullName,
         payload.notes || null,
         payload.isActive ?? true,
+        payload.forcePasswordChange ?? false,
       ],
     );
 
@@ -899,6 +904,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
           u.full_name,
           u.numeric_id,
           u.is_active,
+          u.force_password_change,
           u.area_access_mode,
           c.code AS campus_code,
           COALESCE(r.name, '') AS role
@@ -936,6 +942,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
       campusCode: currentUser.rows[0].campus_code,
       areaAccessMode: currentUser.rows[0].area_access_mode,
       isActive: Boolean(currentUser.rows[0].is_active),
+      forcePasswordChange: Boolean(currentUser.rows[0].force_password_change),
     };
     const after = {
       email: String(payload.email).trim().toLowerCase(),
@@ -944,6 +951,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
       campusCode: validPayload.campus.code,
       areaAccessMode: validPayload.areaAccessMode,
       isActive: payload.isActive ?? true,
+      forcePasswordChange: payload.forcePasswordChange ?? false,
     };
 
     await client.query(
@@ -959,8 +967,9 @@ export async function updateUser(actor, userId, payload, auditContext) {
           email = $7,
           full_name = $8,
           notes = $9,
-          is_active = $10
-        WHERE id = $11
+          is_active = $10,
+          force_password_change = $11
+        WHERE id = $12
       `,
       [
         validPayload.campus.id,
@@ -973,6 +982,7 @@ export async function updateUser(actor, userId, payload, auditContext) {
         payload.fullName,
         payload.notes || null,
         payload.isActive ?? true,
+        payload.forcePasswordChange ?? false,
         userId,
       ],
     );

@@ -13,9 +13,11 @@ import {
 } from "./devices.service.js";
 
 function buildAuditContext(request) {
+  const forwardedProto = String(request.headers["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase();
   return {
     ipAddress: request.ip,
     userAgent: request.headers["user-agent"] || null,
+    secureTransport: Boolean(request.secure || request.protocol === "https" || forwardedProto === "https"),
   };
 }
 
