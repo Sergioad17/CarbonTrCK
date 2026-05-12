@@ -75,4 +75,12 @@ export const env = Object.freeze({
   APP_BASE_URL: String(process.env.APP_BASE_URL).trim(),
   BCRYPT_ROUNDS: bcryptRounds,
   FORGOT_PASSWORD_TOKEN_TTL: String(process.env.FORGOT_PASSWORD_TOKEN_TTL || "30m").trim(),
+  RESEND_API_KEY: String(process.env.RESEND_API_KEY || "").trim(),
+  RESEND_FROM_EMAIL: String(process.env.RESEND_FROM_EMAIL || "CarbonTrack <onboarding@resend.dev>").trim(),
+  RESEND_REPLY_TO: String(process.env.RESEND_REPLY_TO || "").trim(),
+  ALERTS_SCHEDULER_ENABLED: String(process.env.ALERTS_SCHEDULER_ENABLED || "true").trim().toLowerCase() !== "false",
+  ALERTS_SCHEDULER_CRON: String(process.env.ALERTS_SCHEDULER_CRON || "*/5 * * * *").trim(),
+  ALERTS_DEDUPE_RETENTION_DAYS: Number(process.env.ALERTS_DEDUPE_RETENTION_DAYS || 30),
+  ALERTS_WEBHOOK_TIMEOUT_MS: Number(process.env.ALERTS_WEBHOOK_TIMEOUT_MS || 5000),
+  ALERTS_APP_URL: String(process.env.ALERTS_APP_URL || process.env.APP_BASE_URL || "").trim(),
 });

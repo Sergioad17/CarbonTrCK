@@ -2,14 +2,17 @@ import { createApp } from "./app.js";
 import { env } from "./shared/config/env.js";
 import { closePool } from "./shared/db/pool.js";
 import { logger } from "./shared/logger/index.js";
+import { startAlertsScheduler, stopAlertsScheduler } from "./shared/scheduler/alerts-scheduler.js";
 
 const app = createApp();
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT, env: env.NODE_ENV }, "backend_started");
+  startAlertsScheduler();
 });
 
 async function shutdown(signal) {
   logger.info({ signal }, "backend_shutdown_started");
+  stopAlertsScheduler();
   server.close(async (error) => {
     if (error) {
       logger.error({ err: error }, "backend_shutdown_http_close_failed");

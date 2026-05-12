@@ -11,6 +11,32 @@ import { createForgotPasswordToken, getRefreshSession, revokeRefreshSession, rot
 import { getAnyOrganizationId, getUserAuthorizationContext, getUserForAuthByEmail, updateLastLoginAt } from "../users/users.repository.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { getSecurityConfigForOrganization } from "../admin/admin.repository.js";
+import { evaluateSecurityLoginFailureAlerts } from "../admin/admin.alerts-engine.js";
+
+async function recordSecurityFailure(client, { organizationId, userId, email, auditContext, reason }) {
+  if (!organizationId) return;
+  await client.query(
+    `
+      INSERT INTO admin_security_events (organization_id, user_id, event_type, ip_address, user_agent, metadata)
+      VALUES ($1, $2, 'auth.login.failure', $3, $4, $5::jsonb)
+    `,
+    [
+      organizationId,
+      userId || null,
+      auditContext?.ipAddress || null,
+      auditContext?.userAgent || null,
+      JSON.stringify({ email: String(email || "").trim().toLowerCase(), reason: reason || "invalid_credentials" }),
+    ],
+  );
+  try {
+    await evaluateSecurityLoginFailureAlerts(client, organizationId, {
+      email: String(email || "").trim().toLowerCase(),
+      ipAddress: auditContext?.ipAddress || null,
+    });
+  } catch (alertError) {
+    logger.warn({ err: alertError?.message }, "security_alert_evaluation_failed");
+  }
+}
 
 function parseJwtExpiryToDate(ttl) {
   const now = Date.now();
@@ -82,6 +108,13 @@ export async function loginService(payload, auditContext, env) {
             email: String(payload.email).trim().toLowerCase(),
             reason: "user_not_found",
           },
+        });
+        await recordSecurityFailure(client, {
+          organizationId: fallbackOrganizationId,
+          userId: null,
+          email: payload.email,
+          auditContext,
+          reason: "user_not_found",
         });
       });
     }
@@ -176,6 +209,13 @@ export async function loginService(payload, auditContext, env) {
           email: String(payload.email).trim().toLowerCase(),
           reason: "invalid_password",
         },
+      });
+      await recordSecurityFailure(client, {
+        organizationId: userRecord.organization_id,
+        userId: userRecord.id,
+        email: payload.email,
+        auditContext,
+        reason: "invalid_password",
       });
     });
 

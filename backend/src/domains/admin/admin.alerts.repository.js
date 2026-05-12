@@ -1,9 +1,13 @@
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
-import { runScheduledAdminAlertChecks } from "./admin.alerts-engine.js";
+import { runScheduledAdminAlertChecksForOrganization } from "./admin.alerts-engine.js";
+import {
+  listAdminAlertTemplates,
+  seedDefaultTemplatesIfNeeded,
+} from "./admin.alert-templates.repository.js";
 
-const ALERT_TYPES = new Set(["device", "anomaly", "factor", "period", "goal", "validation", "security", "system"]);
+const ALERT_TYPES = new Set(["device", "anomaly", "factor", "period", "goal", "validation", "security", "system", "custom"]);
 const SEVERITIES = new Set(["info", "warning", "critical"]);
 const PRIORITIES = new Set(["low", "normal", "high"]);
 const FREQUENCIES = new Set(["immediate", "hourly", "daily", "weekly"]);
@@ -12,117 +16,99 @@ const CHANNELS = [
   { id: "push", label: "Push", icon: "Bell" },
   { id: "inapp", label: "En la app", icon: "MessageSquare" },
   { id: "sms", label: "SMS", icon: "Smartphone" },
+  { id: "webhook", label: "Webhook", icon: "Webhook" },
 ];
 const CHANNEL_IDS = new Set(CHANNELS.map((channel) => channel.id));
-
-const TEMPLATES = [
-  {
-    id: "device-offline",
-    name: "Dispositivo desconectado",
-    subject: "[CarbonTrack] Dispositivo {{deviceName}} sin reporte",
-    body: "El dispositivo {{deviceName}} en {{areaName}} no ha enviado lectura desde {{lastReading}}.",
-    channel: "email",
-  },
-  {
-    id: "anomaly-detected",
-    name: "Anomalía detectada",
-    subject: "[CarbonTrack] Lectura anómala en {{areaName}}",
-    body: "Se detectó una variación de {{delta}}% en la lectura del {{date}}.",
-    channel: "email",
-  },
-  {
-    id: "factor-expired",
-    name: "Factor vencido",
-    subject: "[CarbonTrack] Factor {{factorCode}} vencido",
-    body: "El factor {{factorCode}} venció el {{validUntil}}. Actualícelo lo antes posible.",
-    channel: "email",
-  },
-  {
-    id: "period-closing",
-    name: "Cierre de periodo",
-    subject: "[CarbonTrack] Periodo {{periodName}} próximo a cerrar",
-    body: "El periodo {{periodName}} cierra el {{endDate}}. Captura pendiente: {{pendingCount}}.",
-    channel: "email",
-  },
-];
 
 const DEFAULT_RULES = [
   {
     name: "Dispositivo desconectado",
     type: "device",
     condition: "sin lectura > 24h",
+    conditionJson: { hours: 24 },
     severity: "critical",
     priority: "high",
     frequency: "immediate",
-    channels: ["email", "push", "inapp"],
+    channels: ["email", "inapp", "webhook"],
     recipients: ["admin", "Mantenimiento"],
+    templateCode: "device-offline",
   },
   {
     name: "Lectura fuera de rango",
     type: "anomaly",
     condition: "delta > 30% vs media",
+    conditionJson: { percent: 30 },
     severity: "warning",
     priority: "normal",
     frequency: "immediate",
     channels: ["email", "inapp"],
     recipients: ["Validadores"],
+    templateCode: "anomaly-detected",
   },
   {
     name: "Factor de emisión vencido",
     type: "factor",
     condition: "validUntil < hoy",
+    conditionJson: {},
     severity: "critical",
     priority: "high",
     frequency: "daily",
     channels: ["email", "inapp"],
     recipients: ["admin"],
+    templateCode: "factor-expired",
   },
   {
     name: "Periodo próximo a cerrar",
     type: "period",
     condition: "endDate <= 7 días",
+    conditionJson: { days: 7 },
     severity: "info",
     priority: "low",
     frequency: "daily",
     channels: ["email", "inapp"],
     recipients: ["directivo", "operativo"],
+    templateCode: "period-closing",
   },
   {
     name: "Meta en riesgo",
     type: "goal",
     condition: "progreso < 50% al 75% del plazo",
+    conditionJson: {},
     severity: "warning",
     priority: "high",
     frequency: "weekly",
     channels: ["email", "inapp"],
     recipients: ["directivo"],
+    templateCode: "goal-risk",
   },
   {
     name: "Registro pendiente > 5 días",
     type: "validation",
     condition: "submittedAt > 5 días",
+    conditionJson: { days: 5 },
     severity: "warning",
     priority: "normal",
     frequency: "daily",
     channels: ["inapp"],
     recipients: ["Validadores"],
+    templateCode: "validation-overdue",
   },
   {
     name: "Login fallido reiterado",
     type: "security",
     condition: "5 intentos en 10 min",
+    conditionJson: { attempts: 5, minutes: 10 },
     severity: "critical",
     priority: "high",
     frequency: "immediate",
     channels: ["email"],
     recipients: ["admin"],
-    enabled: false,
+    enabled: true,
+    templateCode: "security-login-failed",
   },
 ];
 
-function cleanString(value, fallback = "") {
-  return String(value ?? fallback).trim();
-}
+function cleanString(value, fallback = "") { return String(value ?? fallback).trim(); }
 
 function cleanStringList(value, field, allowedSet) {
   if (!Array.isArray(value)) return [];
@@ -152,6 +138,49 @@ function requireText(value, field, maxLength) {
   return normalized;
 }
 
+function normalizeConditionJson(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out = {};
+  for (const [key, raw] of Object.entries(value)) {
+    const cleanKey = String(key).trim().slice(0, 40);
+    if (!cleanKey) continue;
+    if (typeof raw === "number" && Number.isFinite(raw)) out[cleanKey] = raw;
+    else if (typeof raw === "string") out[cleanKey] = raw.slice(0, 200);
+    else if (typeof raw === "boolean") out[cleanKey] = raw;
+  }
+  return out;
+}
+
+function normalizeWebhookUrl(value) {
+  const clean = cleanString(value);
+  if (!clean) return null;
+  if (!/^https?:\/\//i.test(clean)) {
+    throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "webhookUrl must start with http(s)://", details: { field: "webhookUrl" } });
+  }
+  if (clean.length > 500) {
+    throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "webhookUrl is too long.", details: { field: "webhookUrl" } });
+  }
+  return clean;
+}
+
+function normalizeCooldown(value) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 60 * 24 * 7) {
+    throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "cooldownMinutes must be between 0 and 10080.", details: { field: "cooldownMinutes" } });
+  }
+  return Math.round(parsed);
+}
+
+function normalizeHour(value, field) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 23) {
+    throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: `${field} must be an integer 0-23.`, details: { field } });
+  }
+  return parsed;
+}
+
 function auditPayload(actor, auditContext, details = {}) {
   return {
     organizationId: actor.organizationId,
@@ -167,16 +196,28 @@ function normalizeRulePayload(payload) {
     throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "Alert rule must be a valid object." });
   }
 
+  const channels = cleanStringList(payload.channels, "channels", CHANNEL_IDS);
+  const webhookUrl = normalizeWebhookUrl(payload.webhookUrl);
+  if (channels.includes("webhook") && !webhookUrl) {
+    throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "webhookUrl is required when channel webhook is selected.", details: { field: "webhookUrl" } });
+  }
+
   return {
     name: requireText(payload.name, "name", 160),
     type: requireChoice(payload.type, "type", ALERT_TYPES, "system"),
     condition: requireText(payload.condition, "condition"),
+    conditionJson: normalizeConditionJson(payload.conditionJson),
     severity: requireChoice(payload.severity, "severity", SEVERITIES, "warning"),
     priority: requireChoice(payload.priority, "priority", PRIORITIES, "normal"),
     frequency: requireChoice(payload.frequency, "frequency", FREQUENCIES, "immediate"),
-    channels: cleanStringList(payload.channels, "channels", CHANNEL_IDS),
+    channels,
     recipients: cleanStringList(payload.recipients, "recipients"),
     enabled: typeof payload.enabled === "boolean" ? payload.enabled : true,
+    templateId: cleanString(payload.templateId) || null,
+    webhookUrl,
+    cooldownMinutes: normalizeCooldown(payload.cooldownMinutes),
+    quietHoursStart: normalizeHour(payload.quietHoursStart, "quietHoursStart"),
+    quietHoursEnd: normalizeHour(payload.quietHoursEnd, "quietHoursEnd"),
   };
 }
 
@@ -186,6 +227,7 @@ function shapeRule(row) {
     name: cleanString(row.name),
     type: cleanString(row.type),
     condition: cleanString(row.condition),
+    conditionJson: row.condition_json && typeof row.condition_json === "object" ? row.condition_json : {},
     severity: cleanString(row.severity),
     priority: cleanString(row.priority),
     frequency: cleanString(row.frequency),
@@ -193,21 +235,30 @@ function shapeRule(row) {
     recipients: Array.isArray(row.recipients) ? row.recipients : [],
     enabled: Boolean(row.enabled),
     triggeredCount: Number(row.triggered_count || 0),
+    templateId: cleanString(row.template_id),
+    webhookUrl: cleanString(row.webhook_url),
+    cooldownMinutes: row.cooldown_minutes,
+    quietHoursStart: row.quiet_hours_start,
+    quietHoursEnd: row.quiet_hours_end,
+    lastTriggeredAt: row.last_triggered_at,
+    lastEvaluatedAt: row.last_evaluated_at,
+    deliveryFailures: Number(row.delivery_failures || 0),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 function shapeHistory(row) {
-  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata) ? row.metadata : {};
   return {
     id: cleanString(row.id),
     ts: row.created_at,
-    ruleId: cleanString(metadata.ruleId || metadata.alertRuleId),
-    title: cleanString(row.title),
-    channel: cleanString(metadata.channel || metadata.deliveryChannel || "inapp"),
-    recipients: Number(row.recipients || 1),
-    status: row.status === "archived" ? "archived" : "sent",
+    ruleId: cleanString(row.rule_id),
+    title: cleanString(row.title || row.recipient),
+    channel: cleanString(row.channel),
+    recipients: Number(row.recipient_count || 1),
+    status: cleanString(row.status) || "sent",
+    error: cleanString(row.error),
+    providerMessageId: cleanString(row.provider_message_id),
   };
 }
 
@@ -218,26 +269,36 @@ async function seedDefaultRulesIfNeeded(client, actor) {
   );
   if (count.rows[0]?.total > 0) return;
 
+  await seedDefaultTemplatesIfNeeded(client, actor);
+
+  const templates = await client.query(
+    `SELECT id, code FROM admin_alert_templates WHERE organization_id = $1`,
+    [actor.organizationId],
+  );
+  const templateByCode = new Map(templates.rows.map((row) => [row.code, row.id]));
+
   for (const rule of DEFAULT_RULES) {
     await client.query(
       `
         INSERT INTO admin_alert_rules (
-          organization_id, name, type, condition, severity, priority, frequency,
-          channels, recipients, enabled, created_by, updated_by
+          organization_id, name, type, condition, condition_json, severity, priority, frequency,
+          channels, recipients, enabled, template_id, created_by, updated_by
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::text[],$9::text[],$10,$11,$11)
+        VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::text[],$10::text[],$11,$12,$13,$13)
       `,
       [
         actor.organizationId,
         rule.name,
         rule.type,
         rule.condition,
+        JSON.stringify(rule.conditionJson || {}),
         rule.severity,
         rule.priority,
         rule.frequency,
         rule.channels,
         rule.recipients,
         rule.enabled !== false,
+        templateByCode.get(rule.templateCode) || null,
         actor.id,
       ],
     );
@@ -247,11 +308,13 @@ async function seedDefaultRulesIfNeeded(client, actor) {
 export async function listAdminAlerts(actor) {
   return withTransaction(async (client) => {
     await seedDefaultRulesIfNeeded(client, actor);
-    await runScheduledAdminAlertChecks(client, actor);
+
     const rulesResult = await client.query(
       `
-        SELECT id, name, type, condition, severity, priority, frequency, channels, recipients,
-               enabled, triggered_count, created_at, updated_at
+        SELECT id, name, type, condition, condition_json, severity, priority, frequency,
+               channels, recipients, enabled, triggered_count, template_id, webhook_url,
+               cooldown_minutes, quiet_hours_start, quiet_hours_end, last_triggered_at,
+               last_evaluated_at, delivery_failures, created_at, updated_at
         FROM admin_alert_rules
         WHERE organization_id = $1
         ORDER BY enabled DESC, severity DESC, updated_at DESC, name ASC
@@ -261,21 +324,54 @@ export async function listAdminAlerts(actor) {
 
     const historyResult = await client.query(
       `
-        SELECT n.id, n.title, n.status::text AS status, n.metadata, n.created_at,
-               count(*) OVER (PARTITION BY n.title, date_trunc('minute', n.created_at))::int AS recipients
-        FROM notifications n
-        WHERE n.organization_id = $1
-        ORDER BY n.created_at DESC, n.id DESC
+        SELECT d.id, d.rule_id, d.channel, d.recipient, d.status, d.provider_message_id,
+               d.error, d.created_at, COALESCE(n.title, d.event_key) AS title,
+               (SELECT count(*) FROM admin_alert_deliveries d2
+                WHERE d2.organization_id = d.organization_id
+                  AND d2.event_key = d.event_key
+                  AND d2.created_at = d.created_at)::int AS recipient_count
+        FROM admin_alert_deliveries d
+        LEFT JOIN notifications n ON n.id = d.notification_id
+        WHERE d.organization_id = $1
+        ORDER BY d.created_at DESC, d.id DESC
         LIMIT 100
       `,
       [actor.organizationId],
     );
 
+    const metricsResult = await client.query(
+      `
+        SELECT
+          count(*) FILTER (WHERE status = 'sent') ::int AS sent,
+          count(*) FILTER (WHERE status = 'failed') ::int AS failed,
+          count(*) FILTER (WHERE status = 'skipped') ::int AS skipped,
+          count(*) FILTER (WHERE channel = 'email' AND status = 'sent') ::int AS email_sent,
+          count(*) FILTER (WHERE channel = 'inapp' AND status = 'sent') ::int AS inapp_sent,
+          count(*) FILTER (WHERE channel = 'webhook' AND status = 'sent') ::int AS webhook_sent,
+          count(*) FILTER (WHERE created_at >= now() - interval '24 hours') ::int AS last_24h
+        FROM admin_alert_deliveries
+        WHERE organization_id = $1
+      `,
+      [actor.organizationId],
+    );
+
+    const templates = await listAdminAlertTemplates(actor);
+    const metricsRow = metricsResult.rows[0] || {};
+
     return {
       rules: rulesResult.rows.map(shapeRule),
-      templates: TEMPLATES,
+      templates,
       history: historyResult.rows.map(shapeHistory),
       channels: CHANNELS,
+      metrics: {
+        sent: Number(metricsRow.sent || 0),
+        failed: Number(metricsRow.failed || 0),
+        skipped: Number(metricsRow.skipped || 0),
+        emailSent: Number(metricsRow.email_sent || 0),
+        inappSent: Number(metricsRow.inapp_sent || 0),
+        webhookSent: Number(metricsRow.webhook_sent || 0),
+        last24h: Number(metricsRow.last_24h || 0),
+      },
     };
   });
 }
@@ -288,24 +384,23 @@ export async function createAdminAlertRule(actor, payload, auditContext) {
     const result = await client.query(
       `
         INSERT INTO admin_alert_rules (
-          organization_id, name, type, condition, severity, priority, frequency,
-          channels, recipients, enabled, created_by, updated_by
+          organization_id, name, type, condition, condition_json, severity, priority, frequency,
+          channels, recipients, enabled, template_id, webhook_url, cooldown_minutes,
+          quiet_hours_start, quiet_hours_end, created_by, updated_by
         )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8::text[],$9::text[],$10,$11,$11)
-        RETURNING id, name, type, condition, severity, priority, frequency, channels, recipients,
-                  enabled, triggered_count, created_at, updated_at
+        VALUES ($1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9::text[],$10::text[],$11,$12,$13,$14,$15,$16,$17,$17)
+        RETURNING id, name, type, condition, condition_json, severity, priority, frequency,
+                  channels, recipients, enabled, triggered_count, template_id, webhook_url,
+                  cooldown_minutes, quiet_hours_start, quiet_hours_end, last_triggered_at,
+                  last_evaluated_at, delivery_failures, created_at, updated_at
       `,
       [
         actor.organizationId,
-        rule.name,
-        rule.type,
-        rule.condition,
-        rule.severity,
-        rule.priority,
-        rule.frequency,
-        rule.channels,
-        rule.recipients,
-        rule.enabled,
+        rule.name, rule.type, rule.condition, JSON.stringify(rule.conditionJson),
+        rule.severity, rule.priority, rule.frequency,
+        rule.channels, rule.recipients, rule.enabled,
+        rule.templateId, rule.webhookUrl, rule.cooldownMinutes,
+        rule.quietHoursStart, rule.quietHoursEnd,
         actor.id,
       ],
     );
@@ -327,36 +422,26 @@ export async function updateAdminAlertRule(actor, ruleId, payload, auditContext)
   return withTransaction(async (client) => {
     const result = await client.query(
       `
-        UPDATE admin_alert_rules
-        SET name = $1,
-            type = $2,
-            condition = $3,
-            severity = $4,
-            priority = $5,
-            frequency = $6,
-            channels = $7::text[],
-            recipients = $8::text[],
-            enabled = $9,
-            updated_by = $10,
-            updated_at = now()
-        WHERE id = $11
-          AND organization_id = $12
-        RETURNING id, name, type, condition, severity, priority, frequency, channels, recipients,
-                  enabled, triggered_count, created_at, updated_at
+        UPDATE admin_alert_rules SET
+          name = $1, type = $2, condition = $3, condition_json = $4::jsonb,
+          severity = $5, priority = $6, frequency = $7,
+          channels = $8::text[], recipients = $9::text[], enabled = $10,
+          template_id = $11, webhook_url = $12, cooldown_minutes = $13,
+          quiet_hours_start = $14, quiet_hours_end = $15,
+          updated_by = $16, updated_at = now()
+        WHERE id = $17 AND organization_id = $18
+        RETURNING id, name, type, condition, condition_json, severity, priority, frequency,
+                  channels, recipients, enabled, triggered_count, template_id, webhook_url,
+                  cooldown_minutes, quiet_hours_start, quiet_hours_end, last_triggered_at,
+                  last_evaluated_at, delivery_failures, created_at, updated_at
       `,
       [
-        rule.name,
-        rule.type,
-        rule.condition,
-        rule.severity,
-        rule.priority,
-        rule.frequency,
-        rule.channels,
-        rule.recipients,
-        rule.enabled,
-        actor.id,
-        ruleId,
-        actor.organizationId,
+        rule.name, rule.type, rule.condition, JSON.stringify(rule.conditionJson),
+        rule.severity, rule.priority, rule.frequency,
+        rule.channels, rule.recipients, rule.enabled,
+        rule.templateId, rule.webhookUrl, rule.cooldownMinutes,
+        rule.quietHoursStart, rule.quietHoursEnd,
+        actor.id, ruleId, actor.organizationId,
       ],
     );
     if (result.rowCount < 1) {
@@ -381,14 +466,12 @@ export async function updateAdminAlertRuleStatus(actor, ruleId, enabled, auditCo
   return withTransaction(async (client) => {
     const result = await client.query(
       `
-        UPDATE admin_alert_rules
-        SET enabled = $1,
-            updated_by = $2,
-            updated_at = now()
-        WHERE id = $3
-          AND organization_id = $4
-        RETURNING id, name, type, condition, severity, priority, frequency, channels, recipients,
-                  enabled, triggered_count, created_at, updated_at
+        UPDATE admin_alert_rules SET enabled = $1, updated_by = $2, updated_at = now()
+        WHERE id = $3 AND organization_id = $4
+        RETURNING id, name, type, condition, condition_json, severity, priority, frequency,
+                  channels, recipients, enabled, triggered_count, template_id, webhook_url,
+                  cooldown_minutes, quiet_hours_start, quiet_hours_end, last_triggered_at,
+                  last_evaluated_at, delivery_failures, created_at, updated_at
       `,
       [enabled, actor.id, ruleId, actor.organizationId],
     );
@@ -406,18 +489,51 @@ export async function updateAdminAlertRuleStatus(actor, ruleId, enabled, auditCo
   });
 }
 
+export async function deleteAdminAlertRule(actor, ruleId, auditContext) {
+  return withTransaction(async (client) => {
+    const result = await client.query(
+      `DELETE FROM admin_alert_rules WHERE id = $1 AND organization_id = $2 RETURNING name`,
+      [ruleId, actor.organizationId],
+    );
+    if (result.rowCount < 1) {
+      throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Alert rule not found." });
+    }
+    await insertAuditEvent(client, {
+      ...auditPayload(actor, auditContext, { name: cleanString(result.rows[0]?.name) }),
+      eventType: "admin_alerts.delete",
+      entityType: "admin_alert_rule",
+      entityId: ruleId,
+    });
+    return { deleted: true };
+  });
+}
+
+export async function runAlertRuleManually(actor, ruleId) {
+  return withTransaction(async (client) => {
+    const rule = await client.query(
+      `SELECT id, type FROM admin_alert_rules WHERE id = $1 AND organization_id = $2 AND enabled = true LIMIT 1`,
+      [ruleId, actor.organizationId],
+    );
+    if (rule.rowCount < 1) {
+      throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Alert rule not found or disabled." });
+    }
+    await runScheduledAdminAlertChecksForOrganization(client, actor.organizationId);
+    return { triggered: true };
+  });
+}
+
 export async function getActiveAlertRulesForOrganization(organizationId, type) {
   const params = [organizationId];
   const typeFilter = type ? "AND type = $2" : "";
   if (type) params.push(type);
   const result = await query(
     `
-      SELECT id, name, type, condition, severity, priority, frequency, channels, recipients,
-             enabled, triggered_count, created_at, updated_at
+      SELECT id, name, type, condition, condition_json, severity, priority, frequency,
+             channels, recipients, enabled, triggered_count, template_id, webhook_url,
+             cooldown_minutes, quiet_hours_start, quiet_hours_end, last_triggered_at,
+             last_evaluated_at, delivery_failures, created_at, updated_at
       FROM admin_alert_rules
-      WHERE organization_id = $1
-        AND enabled = true
-        ${typeFilter}
+      WHERE organization_id = $1 AND enabled = true ${typeFilter}
       ORDER BY priority DESC, severity DESC, name ASC
     `,
     params,
