@@ -25,6 +25,12 @@ import {
   recalculateAdminEmissions,
 } from "./admin.emissions.repository.js";
 import {
+  createAdminAlertRule,
+  listAdminAlerts,
+  updateAdminAlertRule,
+  updateAdminAlertRuleStatus,
+} from "./admin.alerts.repository.js";
+import {
   createCampus as createOrgCampus,
   createEntity as createOrgEntity,
   deleteCampus as deleteOrgCampus,
@@ -155,4 +161,23 @@ export function listAuditEventsService(actor, query) {
 export function createAdminAuditEventService(actor, payload, auditContext) {
   assertObject(payload);
   return createAdminAuditEvent(actor, payload, auditContext);
+}
+
+export function listAdminAlertsService(actor) {
+  return listAdminAlerts(actor);
+}
+
+export function createAdminAlertRuleService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createAdminAlertRule(actor, payload, auditContext);
+}
+
+export function updateAdminAlertRuleService(actor, ruleId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminAlertRule(actor, ruleId, payload, auditContext);
+}
+
+export function updateAdminAlertRuleStatusService(actor, ruleId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminAlertRuleStatus(actor, ruleId, payload.enabled, auditContext);
 }

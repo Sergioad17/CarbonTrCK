@@ -1,6 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { assertRequiredString } from "../../shared/utils/validation.js";
-import { createTarget, deleteTarget, listTargets, updateTarget, updateTargetStatus } from "./targets.repository.js";
+import { createTarget, deleteTarget, listTargetOptions, listTargets, updateTarget, updateTargetStatus } from "./targets.repository.js";
 
 function ensureObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -10,6 +10,10 @@ function ensureObject(value) {
 
 export async function listTargetsService(actor) {
   return listTargets(actor);
+}
+
+export async function listTargetOptionsService(actor) {
+  return listTargetOptions(actor);
 }
 
 export async function createTargetService(actor, payload, auditContext) {

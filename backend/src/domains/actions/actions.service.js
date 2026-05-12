@@ -1,6 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { assertRequiredString } from "../../shared/utils/validation.js";
-import { createAction, listActions, updateAction } from "./actions.repository.js";
+import { createAction, deleteAction, listActions, updateAction } from "./actions.repository.js";
 
 function ensureObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -23,4 +23,9 @@ export async function updateActionService(actor, actionId, payload, auditContext
   ensureObject(payload);
   assertRequiredString(actionId, "actionId");
   return updateAction(actor, actionId, payload, auditContext);
+}
+
+export async function deleteActionService(actor, actionId, auditContext) {
+  assertRequiredString(actionId, "actionId");
+  return deleteAction(actor, actionId, auditContext);
 }

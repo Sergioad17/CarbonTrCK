@@ -14,6 +14,7 @@ const fm = "var(--eco-font-mono)";
 const MODULE_LABELS = {
   actions: "Acciones",
   admin: "Administración",
+  admin_alerts: "Alertas",
   ai: "Inteligencia artificial",
   auth: "Autenticación",
   dashboard: "Tablero",
@@ -74,6 +75,9 @@ const EVENT_LABELS = {
   "actions.update": "Acción actualizada",
   "admin.government.read": "Configuración general consultada",
   "admin.government.update": "Configuración general actualizada",
+  "admin_alerts.create": "Regla de alerta creada",
+  "admin_alerts.status_change": "Estado de regla de alerta actualizado",
+  "admin_alerts.update": "Regla de alerta actualizada",
   "admin.security.session_revoke": "Sesión remota cerrada",
   "admin.security.sessions_revoke_all": "Sesiones remotas cerradas",
   "ai.engine.update": "Motor IA actualizado",

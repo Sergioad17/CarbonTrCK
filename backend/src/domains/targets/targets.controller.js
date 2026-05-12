@@ -1,6 +1,7 @@
 import {
   createTargetService,
   deleteTargetService,
+  listTargetOptionsService,
   listTargetsService,
   updateTargetService,
   updateTargetStatusService,
@@ -12,6 +13,10 @@ function auditContextFromRequest(request) {
 
 export async function listTargetsController(request, response) {
   response.json({ targets: await listTargetsService(request.user) });
+}
+
+export async function listTargetOptionsController(request, response) {
+  response.json({ options: await listTargetOptionsService(request.user) });
 }
 
 export async function createTargetController(request, response) {

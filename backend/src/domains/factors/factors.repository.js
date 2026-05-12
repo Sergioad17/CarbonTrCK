@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
+import { evaluateFactorAlerts } from "../admin/admin.alerts-engine.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 function cleanString(value) {
@@ -349,6 +350,7 @@ export async function createFactor(actor, payload, auditContext) {
       userAgent: auditContext.userAgent,
       details: { scope: factor.scope, category: factor.category, metric: factor.metric },
     });
+    await evaluateFactorAlerts(client, actor, factor, "created");
     return factor;
   });
 }
@@ -455,6 +457,7 @@ export async function updateFactor(actor, factorId, payload, auditContext) {
         changes: changedFields(existing, factor),
       },
     });
+    await evaluateFactorAlerts(client, actor, factor, "updated");
     return factor;
   });
 }
@@ -565,6 +568,7 @@ export async function createFactorNewVersion(actor, factorId, payload, auditCont
       userAgent: auditContext.userAgent,
       details: { previousFactorId: factorId },
     });
+    await evaluateFactorAlerts(client, actor, factor, "new_version");
     return factor;
   });
 }
@@ -606,6 +610,7 @@ export async function updateFactorDefault(actor, factorId, force, auditContext) 
       userAgent: auditContext.userAgent,
       details: { force: Boolean(force) },
     });
+    await evaluateFactorAlerts(client, actor, updated, "default_change");
     return updated;
   });
 }
@@ -633,6 +638,7 @@ export async function updateFactorStatus(actor, factorId, isActive, auditContext
       userAgent: auditContext.userAgent,
       details: { isActive: Boolean(isActive) },
     });
+    await evaluateFactorAlerts(client, actor, updated, "status_change");
     return updated;
   });
 }

@@ -18,8 +18,8 @@ function normalizeTarget(target) {
   return {
     id: String(target.id || uid("target")),
     title: String(target.title || "Meta sin nombre"),
-    scope: ["scope1", "scope2", "scope3", "all"].includes(target.scope) ? target.scope : "all",
-    category: ["electricidad", "combustible", "otros", "all"].includes(target.category) ? target.category : "all",
+    scope: String(target.scope || "all"),
+    category: String(target.category || "all"),
     areaId: target.areaId ? String(target.areaId) : "all",
     type: target.type === "absolute" ? "absolute" : "reduction_percent",
     baselineStart: String(target.baselineStart || ""),

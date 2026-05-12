@@ -170,6 +170,8 @@ export async function cleanupTestAuthFixtures(query) {
   const hasAiTraining = Boolean(aiTrainingTable.rows[0]?.table_name);
   const aiModelVersionsTable = await query(`SELECT to_regclass('public.ai_model_versions') AS table_name`);
   const hasAiModelVersions = Boolean(aiModelVersionsTable.rows[0]?.table_name);
+  const adminAlertRulesTable = await query(`SELECT to_regclass('public.admin_alert_rules') AS table_name`);
+  const hasAdminAlertRules = Boolean(adminAlertRulesTable.rows[0]?.table_name);
 
   for (const organizationId of orgIds) {
     if (hasAiModelVersions) {
@@ -206,6 +208,9 @@ export async function cleanupTestAuthFixtures(query) {
     }
     await query(`DELETE FROM organization_admin_settings WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM notifications WHERE organization_id = $1`, [organizationId]);
+    if (hasAdminAlertRules) {
+      await query(`DELETE FROM admin_alert_rules WHERE organization_id = $1`, [organizationId]);
+    }
     await query(`DELETE FROM user_settings WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM profile_change_requests WHERE organization_id = $1`, [organizationId]);
     await query(`DELETE FROM password_reset_tokens WHERE organization_id = $1`, [organizationId]);

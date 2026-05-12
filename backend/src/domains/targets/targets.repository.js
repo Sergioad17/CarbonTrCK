@@ -1,5 +1,6 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
+import { evaluateTargetAlerts } from "../admin/admin.alerts-engine.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 function cleanString(value) {
@@ -269,6 +270,73 @@ export async function listTargets(actor) {
   return result.rows.map(buildTargetShape);
 }
 
+export async function listTargetOptions(actor) {
+  const [typesResult, statusesResult, categoriesResult, areasResult] = await Promise.all([
+    query(`SELECT unnest(enum_range(NULL::target_type))::text AS value ORDER BY value`),
+    query(`SELECT unnest(enum_range(NULL::target_status))::text AS value ORDER BY value`),
+    query(
+      `
+        SELECT
+          ec.code AS value,
+          ec.name AS label,
+          es.code::text AS scope,
+          m.code AS metric,
+          u.code AS unit
+        FROM emission_categories ec
+        JOIN emission_scopes es ON es.id = ec.scope_id
+        JOIN metrics m ON m.id = ec.default_metric_id
+        JOIN units u ON u.id = ec.default_unit_id
+        WHERE ec.is_active = true
+        ORDER BY es.code::text, ec.name
+      `,
+    ),
+    query(
+      `
+        SELECT
+          a.code AS value,
+          a.name AS label,
+          c.code AS campus
+        FROM areas a
+        JOIN campuses c ON c.id = a.campus_id
+        WHERE c.organization_id = $1
+          AND c.is_active = true
+          AND a.is_active = true
+        ORDER BY c.code, a.name
+      `,
+      [actor.organizationId],
+    ),
+  ]);
+
+  const visibleAreas = areasResult.rows.filter((area) => {
+    if (actor.campusCode && cleanString(actor.campusCode) && cleanString(area.campus) !== cleanString(actor.campusCode)) return false;
+    if (actor.areaAccess?.mode === "custom") {
+      const allowed = new Set((actor.areaAccess.areaCodes || []).map((code) => cleanString(code)));
+      return allowed.has(cleanString(area.value));
+    }
+    return true;
+  });
+
+  return {
+    types: typesResult.rows.map((row) => ({ value: cleanString(row.value), label: cleanString(row.value) })),
+    statuses: statusesResult.rows
+      .map((row) => cleanString(row.value))
+      .filter((value) => ["active", "paused", "completed"].includes(value))
+      .map((value) => ({ value, label: value })),
+    categories: categoriesResult.rows.map((row) => ({
+      value: cleanString(row.value),
+      label: cleanString(row.label),
+      scope: cleanString(row.scope),
+      metric: cleanString(row.metric),
+      unit: cleanString(row.unit),
+    })),
+    areas: visibleAreas.map((row) => ({
+      value: cleanString(row.value),
+      label: cleanString(row.label),
+      campus: cleanString(row.campus),
+    })),
+  };
+}
+
 export async function createTarget(actor, payload, auditContext) {
   return withTransaction(async (client) => {
     const refs = await resolveTargetReferences(actor, payload, client);
@@ -334,6 +402,7 @@ export async function createTarget(actor, payload, auditContext) {
       userAgent: auditContext.userAgent,
       details: {},
     });
+    await evaluateTargetAlerts(client, actor, target);
     return target;
   });
 }
@@ -442,6 +511,7 @@ export async function updateTarget(actor, targetId, payload, auditContext) {
         changes: changedFields(existing, target),
       },
     });
+    await evaluateTargetAlerts(client, actor, target);
     return target;
   });
 }
@@ -452,7 +522,7 @@ export async function updateTargetStatus(actor, targetId, payload, auditContext)
     if (!existing) throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Target not found." });
 
     const status = cleanString(payload.status);
-    if (!["active", "paused", "completed"].includes(status)) {
+    if (!["active", "paused", "completed", "at_risk"].includes(status)) {
       throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "status is invalid.", details: { field: "status" } });
     }
 
@@ -490,6 +560,7 @@ export async function updateTargetStatus(actor, targetId, payload, auditContext)
         ),
       },
     });
+    await evaluateTargetAlerts(client, actor, target);
     return target;
   });
 }

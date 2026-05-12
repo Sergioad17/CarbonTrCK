@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from "../../shared/middleware/auth.js";
 import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createAdminCatalogEntryController,
+  createAdminAlertRuleController,
   createOrgCampusController,
   createOrgEntityController,
   deleteOrgCampusController,
@@ -13,6 +14,7 @@ import {
   createAdminPeriodController,
   getAdminEmissionCalculationController,
   listAdminCatalogsController,
+  listAdminAlertsController,
   listAdminPeriodsController,
   listOrgStructureController,
   listActiveSessionsController,
@@ -22,6 +24,8 @@ import {
   recalculateAdminEmissionsController,
   updateAdminCatalogEntryController,
   updateAdminCatalogEntryStatusController,
+  updateAdminAlertRuleController,
+  updateAdminAlertRuleStatusController,
   updateAdminPeriodController,
   updateOrgCampusController,
   updateOrgEntityController,
@@ -56,6 +60,10 @@ export function registerAdminRoutes(router) {
   adminRouter.delete("/security/sessions/:id", asyncHandler(revokeSessionController));
   adminRouter.get("/audit-events", asyncHandler(listAuditEventsController));
   adminRouter.post("/audit-events", asyncHandler(createAdminAuditEventController));
+  adminRouter.get("/alerts", asyncHandler(listAdminAlertsController));
+  adminRouter.post("/alerts/rules", asyncHandler(createAdminAlertRuleController));
+  adminRouter.put("/alerts/rules/:id", asyncHandler(updateAdminAlertRuleController));
+  adminRouter.patch("/alerts/rules/:id/status", asyncHandler(updateAdminAlertRuleStatusController));
 
   router.use("/admin", adminRouter);
 }

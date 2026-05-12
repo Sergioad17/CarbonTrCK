@@ -9,7 +9,9 @@ import {
   getAdminHomeSummaryService,
   createAdminPeriodService,
   createAdminAuditEventService,
+  createAdminAlertRuleService,
   listAdminCatalogsService,
+  listAdminAlertsService,
   listAdminPeriodsService,
   listOrgStructureService,
   listActiveSessionsService,
@@ -19,6 +21,8 @@ import {
   recalculateAdminEmissionsService,
   updateAdminCatalogEntryService,
   updateAdminCatalogEntryStatusService,
+  updateAdminAlertRuleService,
+  updateAdminAlertRuleStatusService,
   updateAdminPeriodService,
   updateOrgCampusService,
   updateOrgEntityService,
@@ -196,5 +200,37 @@ export async function listAuditEventsController(request, response) {
 export async function createAdminAuditEventController(request, response) {
   response.status(201).json({
     result: await createAdminAuditEventService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function listAdminAlertsController(request, response) {
+  response.json({ alerts: await listAdminAlertsService(request.user) });
+}
+
+export async function createAdminAlertRuleController(request, response) {
+  response.status(201).json({
+    rule: await createAdminAlertRuleService(request.user, request.body, auditContextFromRequest(request)),
+  });
+}
+
+export async function updateAdminAlertRuleController(request, response) {
+  response.json({
+    rule: await updateAdminAlertRuleService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function updateAdminAlertRuleStatusController(request, response) {
+  response.json({
+    rule: await updateAdminAlertRuleStatusService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
   });
 }

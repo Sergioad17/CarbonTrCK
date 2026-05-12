@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { assertRecordCaptureAllowedForDate } from "../admin/admin.periods.repository.js";
+import { evaluateRecordCreatedAlerts } from "../admin/admin.alerts-engine.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 const sourceCodeAliases = new Map([
@@ -1410,6 +1411,8 @@ export async function createRecord(actor, payload, auditContext, options = {}) {
         attachedFileCount: fileIds.length,
       },
     });
+
+    await evaluateRecordCreatedAlerts(client, actor, createdRecord);
 
     return createdRecord;
   });

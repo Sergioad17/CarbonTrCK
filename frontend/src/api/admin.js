@@ -170,3 +170,32 @@ export async function recordAdminAuditEvent(event) {
   });
   return payload?.result || payload;
 }
+
+export async function fetchAdminAlerts() {
+  const payload = await apiRequest("/admin/alerts");
+  return payload?.alerts || payload?.data?.alerts || { rules: [], templates: [], history: [], channels: [] };
+}
+
+export async function createAdminAlertRule(rule) {
+  const payload = await apiRequest("/admin/alerts/rules", {
+    method: "POST",
+    body: JSON.stringify(rule),
+  });
+  return payload?.rule || payload?.data?.rule || payload;
+}
+
+export async function updateAdminAlertRule(id, rule) {
+  const payload = await apiRequest(`/admin/alerts/rules/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(rule),
+  });
+  return payload?.rule || payload?.data?.rule || payload;
+}
+
+export async function updateAdminAlertRuleStatus(id, enabled) {
+  const payload = await apiRequest(`/admin/alerts/rules/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
+  return payload?.rule || payload?.data?.rule || payload;
+}

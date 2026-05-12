@@ -1,75 +1,68 @@
 import React from "react";
 import {
-  Target, Plus, Edit3, Pause, Play, Trash2, MessageSquare, Link2,
-  ShieldAlert, ShieldCheck, CheckCircle2, ListChecks, CalendarClock, Activity,
+  Activity,
+  CheckCircle2,
+  Edit3,
+  ListChecks,
+  MessageSquare,
+  Pause,
+  Play,
+  Plus,
+  ShieldAlert,
+  Target,
+  Trash2,
 } from "lucide-react";
 import AdminPageHeader from "../layout/AdminPageHeader";
 import AdminEntityDrawer, { DrawerField } from "../components/AdminEntityDrawer";
 import AdminStatusBadge from "../components/AdminStatusBadge";
 import AdminConfirmDialog from "../components/AdminConfirmDialog";
+import AdminLoadingScreen from "../components/AdminLoadingScreen";
 import Accions_Goals_Edits from "../../components/Accions_Goals_Edits";
-import { goals as mockGoals, goalActions, records } from "../mocks/adminMocks";
+import {
+  computeTargetSummary,
+  deleteActionById,
+  deleteTargetById,
+  fetchTargetsModuleData,
+  persistAction,
+  persistTarget,
+  updateTargetStatus,
+} from "../../api/targets";
+import { fetchCurrentUser } from "../../api/session";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
 const fm = "var(--eco-font-mono)";
 
+const EMPTY_OPTIONS = { types: [], statuses: [], categories: [], areas: [] };
+
 const STATUS = {
-  in_progress: { variant: "info",    label: "En curso"  },
-  at_risk:     { variant: "warning", label: "En riesgo" },
-  completed:   { variant: "success", label: "Cumplida"  },
-  delayed:     { variant: "error",   label: "Atrasada"  },
-  paused:      { variant: "neutral", label: "Pausada"   },
+  active: { variant: "info", label: "Activa" },
+  at_risk: { variant: "warning", label: "En riesgo" },
+  completed: { variant: "success", label: "Completada" },
+  paused: { variant: "neutral", label: "Pausada" },
 };
 
 const ACTION_STATUS = {
-  pending:     { color: "#64748B", label: "Pendiente" },
-  in_progress: { color: "#2563EB", label: "En curso"  },
-  completed:   { color: "#16A34A", label: "Hecha"     },
-  at_risk:     { color: "#CA8A04", label: "En riesgo" },
+  planned: { color: "#64748B", label: "Planificada" },
+  in_progress: { color: "#2563EB", label: "En progreso" },
+  done: { color: "#16A34A", label: "Completada" },
+  blocked: { color: "#CA8A04", label: "Bloqueada" },
 };
 
-const ACTION_KIND = {
-  preventive: { color: "#16A34A", label: "Preventiva", icon: ShieldCheck },
-  corrective: { color: "#CA8A04", label: "Correctiva", icon: ShieldAlert },
-};
-
-const EMPTY_GOAL = {
-  name: "", scope: 1, target: -10, baseline: 0, current: 0, unit: "tCO2e",
-  progress: 0, status: "in_progress", deadline: "", responsible: "",
-  areas: [], description: "", notes: "", linkedRecords: [],
-  objectiveType: "reduction_pct",
-  category: "all",
-  applicationArea: "all",
-  baselineStart: "",
-  baselineEnd: "",
-  targetStart: "",
-  targetEnd: "",
-};
-
-const EMPTY_ACTION = {
-  goalId: "",
-  title: "",
-  kind: "preventive",
-  status: "pending",
-  startDate: "",
-  due: "",
-  responsible: "",
-  impact: "",
-  evidence: "",
-  notes: "",
-};
-
-const ADMIN_CREATOR_NAME = "Admin CarbonTrack Demo";
+function getCreatorName(user) {
+  return user?.fullName || user?.name || user?.email || "Admin CarbonTrack";
+}
 
 function buildTargetForm(overrides) {
   return {
     id: "",
     title: "",
-    scope: "all",
+    scope: "",
     category: "",
     areaId: "",
     type: "",
+    metric: "",
+    unit: "",
     baselineStart: "",
     baselineEnd: "",
     baselineValue: "",
@@ -78,8 +71,8 @@ function buildTargetForm(overrides) {
     targetValue: "",
     description: "",
     status: "",
-    createdBy: ADMIN_CREATOR_NAME,
-    createdById: "admin-panel",
+    createdBy: "",
+    createdById: "",
     pauseReason: "",
     ...(overrides || {}),
   };
@@ -101,270 +94,316 @@ function buildActionForm(overrides) {
   };
 }
 
-function collectAreaOptions(goals) {
-  return Array.from(new Set(goals.flatMap(goal => goal.areas || []))).sort().map(area => ({
-    value: area,
-    label: area,
-  }));
+function clean(value) {
+  return String(value ?? "").trim();
 }
 
-function categoryFromScope(scope) {
-  if (scope === 2) return "electricidad";
-  if (scope === 1) return "combustible";
-  if (scope === 3) return "otros";
-  return "all";
+function normalizeSelectOptions(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      const value = clean(item?.value || item?.code || item?.id);
+      const label = clean(item?.label || item?.name || value);
+      return { ...item, value, label };
+    })
+    .filter((item) => {
+      if (!item.value || !item.label || seen.has(item.value)) return false;
+      seen.add(item.value);
+      return true;
+    });
 }
 
-function scopeFromCategory(category) {
-  if (category === "electricidad") return 2;
-  if (category === "combustible") return 1;
-  if (category === "otros") return 3;
-  return 0;
-}
-
-function targetStatusFromGoalStatus(status) {
-  if (status === "paused") return "paused";
-  if (status === "completed") return "completed";
-  return "active";
-}
-
-function goalStatusFromTargetStatus(status, previousStatus) {
-  if (status === "paused") return "paused";
-  if (status === "completed") return "completed";
-  if (previousStatus === "at_risk" || previousStatus === "delayed") return previousStatus;
-  return "in_progress";
-}
-
-function actionStatusToForm(status) {
-  if (status === "completed") return "done";
-  if (status === "at_risk") return "blocked";
-  if (status === "in_progress") return "in_progress";
-  return "planned";
-}
-
-function actionStatusFromForm(status) {
-  if (status === "done") return "completed";
-  if (status === "blocked") return "at_risk";
-  if (status === "in_progress") return "in_progress";
-  return "pending";
-}
-
-function computeProgress({ baseline, current, targetValue, type }) {
-  if (!(baseline > 0) || !(targetValue > 0)) return 0;
-  const reduction = Math.max(0, baseline - current);
-  const targetReduction = type === "absolute"
-    ? targetValue
-    : baseline * (targetValue / 100);
-  if (!(targetReduction > 0)) return 0;
-  return Math.max(0, Math.min(100, Math.round((reduction / targetReduction) * 100)));
-}
-
-function normalizeGoal(goal) {
+function normalizeTargetOptions(options) {
   return {
-    ...goal,
-    title: goal.title || goal.name,
-    objectiveType: goal.objectiveType || "reduction_pct",
-    category: goal.category || categoryFromScope(goal.scope),
-    applicationArea: goal.applicationArea || (goal.areas?.[0] || "all"),
-    baselineStart: goal.baselineStart || "",
-    baselineEnd: goal.baselineEnd || "",
-    targetStart: goal.targetStart || "",
-    targetEnd: goal.targetEnd || goal.deadline || "",
-    createdBy: goal.createdBy || ADMIN_CREATOR_NAME,
-    createdById: goal.createdById || "admin-panel",
+    types: normalizeSelectOptions(options?.types || []),
+    statuses: normalizeSelectOptions(options?.statuses || []),
+    categories: normalizeSelectOptions(options?.categories || []).map((item) => ({
+      value: item.value,
+      label: item.label,
+      scope: clean(item.scope),
+      metric: clean(item.metric),
+      unit: clean(item.unit),
+    })),
+    areas: normalizeSelectOptions(options?.areas || []).map((item) => ({
+      value: item.value,
+      label: item.label,
+      campus: clean(item.campus),
+    })),
   };
 }
 
-function normalizeAction(action) {
-  return {
-    ...action,
-    startDate: action.startDate || "",
-    due: action.due || action.endDate || "",
-    endDate: action.endDate || action.due || "",
-    responsible: action.responsible || action.owner || "",
-    impact: action.impact || "",
-    evidence: action.evidence || "",
-    notes: action.notes || "",
-  };
+function scopeLabel(scope) {
+  if (scope === "scope1") return "Scope 1";
+  if (scope === "scope2") return "Scope 2";
+  if (scope === "scope3") return "Scope 3";
+  return "Todos";
 }
 
-function goalToTargetForm(goal) {
-  return buildTargetForm({
-    id: goal.id,
-    title: goal.name,
-    scope: goal.scope === 0 ? "all" : `scope${goal.scope}`,
-    category: goal.category || categoryFromScope(goal.scope),
-    areaId: goal.applicationArea || goal.areas?.[0] || "all",
-    type: goal.objectiveType === "absolute" ? "absolute" : "reduction_percent",
-    baselineStart: goal.baselineStart || "",
-    baselineEnd: goal.baselineEnd || "",
-    baselineValue: String(goal.baseline ?? ""),
-    targetStart: goal.targetStart || "",
-    targetEnd: goal.targetEnd || goal.deadline || "",
-    targetValue: String(Math.abs(goal.target ?? "")),
-    description: goal.description || goal.notes || "",
-    status: targetStatusFromGoalStatus(goal.status),
-    createdBy: goal.createdBy || ADMIN_CREATOR_NAME,
-    createdById: goal.createdById || "admin-panel",
+function fmt(value, digits = 1) {
+  return Number(value || 0).toLocaleString("es-MX", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   });
 }
 
-function actionToActionForm(action) {
+function targetToForm(target, creatorName, creatorId) {
+  return buildTargetForm({
+    ...target,
+    baselineValue: String(target.baselineValue || ""),
+    targetValue: String(target.targetValue || ""),
+    createdBy: target.createdBy || creatorName,
+    createdById: target.createdById || creatorId || "",
+    pauseReason: target.pauseReason || "",
+  });
+}
+
+function actionToForm(action) {
   return buildActionForm({
-    id: action.id,
-    targetId: action.goalId,
-    title: action.title,
-    owner: action.responsible || "",
-    status: actionStatusToForm(action.status),
-    startDate: action.startDate || "",
-    endDate: action.endDate || action.due || "",
-    impact_tco2e: String(parseFloat(String(action.impact || "").replace(/[^\d.-]/g, "")) || ""),
-    evidence: action.evidence || "",
-    notes: action.notes || "",
+    ...action,
+    impact_tco2e: String(action.impact_tco2e || ""),
   });
 }
 
 export default function GoalsPage() {
-  const [goals, setGoals] = React.useState(mockGoals.map(normalizeGoal));
-  const [actions, setActions] = React.useState(goalActions.map(normalizeAction));
-  const [selected, setSelected] = React.useState(null);
-  const [modalGoal, setModalGoal] = React.useState(null);
-  const [modalAction, setModalAction] = React.useState(null);
-  const [editingGoal, setEditingGoal] = React.useState(false);
+  const currentUser = React.useMemo(() => fetchCurrentUser(), []);
+  const creatorName = React.useMemo(() => getCreatorName(currentUser), [currentUser]);
+  const [loading, setLoading] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [targets, setTargets] = React.useState([]);
+  const [actions, setActions] = React.useState([]);
+  const [records, setRecords] = React.useState([]);
+  const [catalogOptions, setCatalogOptions] = React.useState(EMPTY_OPTIONS);
+  const [selectedId, setSelectedId] = React.useState("");
+  const [targetModalOpen, setTargetModalOpen] = React.useState(false);
+  const [actionModalOpen, setActionModalOpen] = React.useState(false);
+  const [editingTarget, setEditingTarget] = React.useState(null);
+  const [editingAction, setEditingAction] = React.useState(null);
   const [targetForm, setTargetForm] = React.useState(() => buildTargetForm());
   const [actionForm, setActionForm] = React.useState(() => buildActionForm());
   const [confirmDelete, setConfirmDelete] = React.useState(null);
   const [confirmDeleteAction, setConfirmDeleteAction] = React.useState(null);
 
-  function handleGoalSave(event) {
-    event.preventDefault();
-    if (!targetForm.title.trim() || !targetForm.type || !targetForm.category || !targetForm.areaId || !targetForm.status) return;
-    const baseline = Number(targetForm.baselineValue || 0);
-    const currentGoal = goals.find(goal => goal.id === targetForm.id);
-    const targetValue = Number(targetForm.targetValue || 0);
-    const current = currentGoal?.current ?? baseline;
-    const nextGoal = normalizeGoal({
-      ...currentGoal,
-      id: targetForm.id || `g${goals.length + 1}`,
-      name: targetForm.title,
-      title: targetForm.title,
-      scope: scopeFromCategory(targetForm.category),
-      target: targetForm.type === "absolute" ? -targetValue : -targetValue,
-      baseline,
-      current,
-      unit: "tCO2e",
-      progress: computeProgress({ baseline, current, targetValue, type: targetForm.type }),
-      status: goalStatusFromTargetStatus(targetForm.status, currentGoal?.status),
-      deadline: targetForm.targetEnd,
-      responsible: currentGoal?.responsible || targetForm.createdBy || ADMIN_CREATOR_NAME,
-      areas: targetForm.areaId === "all" ? ["Todas las áreas"] : [targetForm.areaId],
-      description: targetForm.description,
-      notes: currentGoal?.notes || "",
-      linkedRecords: currentGoal?.linkedRecords || [],
-      objectiveType: targetForm.type === "absolute" ? "absolute" : "reduction_pct",
-      category: targetForm.category,
-      applicationArea: targetForm.areaId,
-      baselineStart: targetForm.baselineStart,
-      baselineEnd: targetForm.baselineEnd,
-      targetStart: targetForm.targetStart,
-      targetEnd: targetForm.targetEnd,
-      createdBy: targetForm.createdBy || ADMIN_CREATOR_NAME,
-      createdById: targetForm.createdById || "admin-panel",
-    });
+  const areaLabelMap = React.useMemo(
+    () => new Map((catalogOptions.areas || []).map((area) => [area.value, area.label])),
+    [catalogOptions.areas],
+  );
 
-    setGoals(prev => currentGoal
-      ? prev.map(goal => goal.id === nextGoal.id ? nextGoal : goal)
-      : [...prev, nextGoal]);
-    setModalGoal(null);
-  }
+  const rows = React.useMemo(
+    () =>
+      targets.map((target) => ({
+        ...target,
+        summary: computeTargetSummary(target, records, actions),
+      })),
+    [targets, records, actions],
+  );
 
-  function handleActionSave(event) {
-    event.preventDefault();
-    if (!actionForm.targetId || !actionForm.title.trim() || !actionForm.status) return;
-    const existing = actions.find(action => action.id === actionForm.id);
-    const impactValue = Number(actionForm.impact_tco2e || 0);
-    const nextAction = normalizeAction({
-      ...existing,
-      id: actionForm.id || `ga${actions.length + 1}`,
-      goalId: actionForm.targetId,
-      title: actionForm.title,
-      kind: existing?.kind || "preventive",
-      status: actionStatusFromForm(actionForm.status),
-      startDate: actionForm.startDate,
-      due: actionForm.endDate,
-      endDate: actionForm.endDate,
-      responsible: actionForm.owner,
-      impact: impactValue ? `-${impactValue} tCO2e` : "",
-      evidence: actionForm.evidence,
-      notes: actionForm.notes,
-    });
-    setActions(prev => existing
-      ? prev.map(action => action.id === nextAction.id ? nextAction : action)
-      : [...prev, nextAction]);
-    setModalAction(null);
-  }
+  const selected = rows.find((target) => target.id === selectedId) || null;
 
-  function togglePause(goal) {
-    const newStatus = goal.status === "paused" ? "in_progress" : "paused";
-    setGoals(prev => prev.map(g => g.id === goal.id ? { ...g, status: newStatus } : g));
-    setSelected(s => s && s.id === goal.id ? { ...s, status: newStatus } : s);
-  }
-
-  function handleDelete() {
-    setGoals(prev => prev.filter(g => g.id !== confirmDelete.id));
-    setActions(prev => prev.filter(action => action.goalId !== confirmDelete.id));
-    setSelected(null);
-    setConfirmDelete(null);
-  }
-
-  function handleActionDelete() {
-    setActions(prev => prev.filter(action => action.id !== confirmDeleteAction.id));
-    setConfirmDeleteAction(null);
-  }
-
-  function openGoalModal(goal = null) {
-    setEditingGoal(!!goal);
-    setTargetForm(goal ? goalToTargetForm(goal) : buildTargetForm());
-    setModalGoal(goal || EMPTY_GOAL);
-  }
-
-  function openActionModal(goalOrAction) {
-    if (goalOrAction?.goalId) {
-      setActionForm(actionToActionForm(goalOrAction));
-      setModalAction(goalOrAction);
+  async function loadData() {
+    setLoading(true);
+    setError("");
+    const data = await fetchTargetsModuleData().catch(() => null);
+    if (!data) {
+      setError("No se pudieron cargar las metas y acciones.");
+      setLoading(false);
       return;
     }
-    const goalId = goalOrAction?.id || selected?.id || goals[0]?.id || "";
-    const owner = goalOrAction?.responsible || selected?.responsible || "";
-    setActionForm(buildActionForm({ targetId: "", owner }));
-    setModalAction({ ...EMPTY_ACTION, goalId, responsible: owner });
+    setTargets(data.targets);
+    setActions(data.actions);
+    setRecords(data.records);
+    setCatalogOptions(normalizeTargetOptions(data.options || EMPTY_OPTIONS));
+    setLoading(false);
   }
 
-  function updateActionStatus(action, nextStatus) {
-    setActions(prev => prev.map(item => item.id === action.id ? { ...item, status: nextStatus } : item));
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      const data = await fetchTargetsModuleData().catch(() => null);
+      if (!active) return;
+      if (!data) {
+        setError("No se pudieron cargar las metas y acciones.");
+        setLoading(false);
+        return;
+      }
+      setTargets(data.targets);
+      setActions(data.actions);
+      setRecords(data.records);
+      setCatalogOptions(normalizeTargetOptions(data.options || EMPTY_OPTIONS));
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function areaLabel(value) {
+    if (!value || value === "all") return "Todas las áreas";
+    return areaLabelMap.get(value) || value;
   }
 
-  function complianceFor(goal) {
-    if (goal.status === "completed") return { color: "#16A34A", label: "Meta cumplida" };
-    if (goal.status === "delayed")   return { color: "#DC2626", label: "Incumplimiento declarado" };
-    if (goal.status === "at_risk")   return { color: "#CA8A04", label: "En riesgo de incumplir" };
-    if (goal.status === "paused")    return { color: "#64748B", label: "Seguimiento pausado" };
-    if (goal.progress >= 75) return { color: "#16A34A", label: "En línea con el plan" };
-    if (goal.progress >= 40) return { color: "#2563EB", label: "Avance moderado" };
-    return { color: "#CA8A04", label: "Avance inicial" };
+  function openGoalModal(target = null) {
+    setEditingTarget(target);
+    setTargetForm(target ? targetToForm(target, creatorName, currentUser?.id) : buildTargetForm({
+      createdBy: creatorName,
+      createdById: currentUser?.id || "",
+    }));
+    setTargetModalOpen(true);
+  }
+
+  function openActionModal(targetOrAction = null) {
+    if (targetOrAction?.targetId) {
+      setEditingAction(targetOrAction);
+      setActionForm(actionToForm(targetOrAction));
+    } else {
+      setEditingAction(null);
+      const targetId = targetOrAction?.id || "";
+      setActionForm(buildActionForm({ targetId }));
+    }
+    setActionModalOpen(true);
+  }
+
+  async function handleGoalSave(event) {
+    event.preventDefault();
+    const selectedCategory = catalogOptions.categories.find((item) => item.value === targetForm.category);
+    const selectedArea = catalogOptions.areas.find((item) => item.value === targetForm.areaId);
+    const baselineValue = Number(targetForm.baselineValue);
+    const targetValue = Number(targetForm.targetValue);
+
+    if (
+      !targetForm.title.trim() ||
+      !targetForm.type ||
+      !selectedCategory ||
+      !targetForm.areaId ||
+      !targetForm.status ||
+      !targetForm.baselineStart ||
+      !targetForm.baselineEnd ||
+      !targetForm.targetStart ||
+      !targetForm.targetEnd ||
+      !(baselineValue > 0) ||
+      !(targetValue > 0) ||
+      (targetForm.type === "reduction_percent" && targetValue > 100)
+    ) {
+      setError("Revisa los campos de la meta antes de guardar.");
+      return;
+    }
+
+    setSaving(true);
+    const payload = {
+      ...targetForm,
+      id: editingTarget ? targetForm.id : undefined,
+      scope: selectedCategory.scope,
+      category: selectedCategory.value,
+      campus: targetForm.areaId === "all" ? "all" : selectedArea?.campus || "all",
+      area: targetForm.areaId,
+      metric: selectedCategory.metric,
+      unit: selectedCategory.unit,
+      baselineValue,
+      targetValue,
+      createdBy: editingTarget?.createdBy || targetForm.createdBy || creatorName,
+      createdById: editingTarget?.createdById || targetForm.createdById || currentUser?.id || "",
+      pauseReason: targetForm.pauseReason || editingTarget?.pauseReason || "",
+    };
+    const result = await persistTarget(payload).catch(() => null);
+    setSaving(false);
+
+    if (!result?.ok) {
+      setError("No se pudo guardar la meta.");
+      return;
+    }
+    setTargets(result.targets);
+    setTargetModalOpen(false);
+    setEditingTarget(null);
+    setError("");
+  }
+
+  async function handleActionSave(event) {
+    event.preventDefault();
+    if (!actionForm.targetId || !actionForm.title.trim() || !actionForm.status) {
+      setError("Selecciona una meta, nombre y estado para la acción.");
+      return;
+    }
+
+    setSaving(true);
+    const payload = {
+      ...actionForm,
+      id: editingAction ? actionForm.id : undefined,
+      impact_tco2e: Number(actionForm.impact_tco2e || 0),
+    };
+    const result = await persistAction(payload).catch(() => null);
+    setSaving(false);
+
+    if (!result?.ok) {
+      setError("No se pudo guardar la acción.");
+      return;
+    }
+    setActions(result.actions);
+    setActionModalOpen(false);
+    setEditingAction(null);
+    setError("");
+  }
+
+  async function togglePause(target) {
+    const nextStatus = target.status === "paused" ? "active" : "paused";
+    const patch = {
+      status: nextStatus,
+      pauseReason: nextStatus === "paused" ? target.pauseReason || "Pausada desde panel admin." : "",
+    };
+    const result = await updateTargetStatus(target, patch).catch(() => null);
+    if (!result?.ok) {
+      setError("No se pudo actualizar el estado de la meta.");
+      return;
+    }
+    setTargets(result.targets);
+    setError("");
+  }
+
+  async function updateActionStatus(action, nextStatus) {
+    const result = await persistAction({ ...action, status: nextStatus }).catch(() => null);
+    if (!result?.ok) {
+      setError("No se pudo actualizar el estado de la acción.");
+      return;
+    }
+    setActions(result.actions);
+    setError("");
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return;
+    const result = await deleteTargetById(confirmDelete.id).catch(() => null);
+    if (!result?.ok) {
+      setError("No se pudo eliminar la meta.");
+      return;
+    }
+    setTargets(result.targets);
+    setActions(result.actions);
+    setSelectedId("");
+    setConfirmDelete(null);
+    setError("");
+  }
+
+  async function handleActionDelete() {
+    if (!confirmDeleteAction) return;
+    const result = await deleteActionById(confirmDeleteAction.id).catch(() => null);
+    if (!result?.ok) {
+      setError("No se pudo eliminar la acción.");
+      return;
+    }
+    setTargets(result.targets);
+    setActions(result.actions);
+    setConfirmDeleteAction(null);
+    setError("");
   }
 
   const stats = {
-    totalGoals: goals.length,
-    activeGoals: goals.filter(goal => goal.status !== "paused").length,
-    atRiskGoals: goals.filter(goal => goal.status === "at_risk" || goal.status === "delayed").length,
+    activeGoals: rows.filter((target) => target.status !== "paused").length,
+    atRiskGoals: rows.filter((target) => target.summary.state === "at_risk").length,
     totalActions: actions.length,
-    pendingActions: actions.filter(action => action.status === "pending" || action.status === "at_risk").length,
-    inFlightActions: actions.filter(action => action.status === "in_progress").length,
+    pendingActions: actions.filter((action) => action.status === "planned" || action.status === "blocked").length,
+    inFlightActions: actions.filter((action) => action.status === "in_progress").length,
   };
 
-  const areaOptions = collectAreaOptions(goals).map(option => option.label);
-  const targetOptions = goals.map(goal => ({ id: goal.id, title: goal.name }));
+  if (loading) return <AdminLoadingScreen />;
 
   return (
     <div>
@@ -375,55 +414,53 @@ export default function GoalsPage() {
         breadcrumb={["Control", "Metas"]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button onClick={() => openActionModal(selected)} style={btnGhost}>
+            <button onClick={() => openActionModal()} style={btnGhost} disabled={saving}>
               <ListChecks size={14} /> Nueva acción
             </button>
-            <button onClick={() => openGoalModal()} style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "8px 16px", borderRadius: 8, border: "none",
-              background: "var(--eco-primary-500, #22C55E)", color: "#fff",
-              fontFamily: fb, fontSize: 13, fontWeight: 600, cursor: "pointer",
-              boxShadow: "0 1px 3px rgba(34,197,94,.25)",
-            }}>
+            <button onClick={() => openGoalModal()} style={btnPrimary} disabled={saving}>
               <Plus size={14} /> Nueva meta
             </button>
           </div>
         }
       />
 
-      <div style={{
-        display: "grid",
-        gap: 12,
-        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-        marginBottom: 16,
-      }}>
+      {error && (
+        <div style={noticeStyle}>
+          <span>{error}</span>
+          <button type="button" onClick={loadData} style={noticeButtonStyle}>Reintentar</button>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", marginBottom: 16 }}>
         <MiniStat icon={Target} label="Metas activas" value={stats.activeGoals} color="#16A34A" />
         <MiniStat icon={ShieldAlert} label="Metas en riesgo" value={stats.atRiskGoals} color="#CA8A04" />
         <MiniStat icon={ListChecks} label="Acciones totales" value={stats.totalActions} color="#2563EB" />
-        <MiniStat icon={CalendarClock} label="Pendientes o en riesgo" value={stats.pendingActions} color="#DC2626" />
-        <MiniStat icon={Activity} label="Acciones en curso" value={stats.inFlightActions} color="#7C3AED" />
+        <MiniStat icon={CheckCircle2} label="Pendientes o bloqueadas" value={stats.pendingActions} color="#DC2626" />
+        <MiniStat icon={Activity} label="Acciones en progreso" value={stats.inFlightActions} color="#7C3AED" />
       </div>
 
-      <div style={{
-        display: "grid", gap: 14,
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-      }}>
-        {goals.map(g => (
-          <GoalCard
-            key={g.id}
-            goal={g}
-            actions={actions.filter(action => action.goalId === g.id)}
-            onClick={() => setSelected(g)}
-          />
-        ))}
-      </div>
+      {!rows.length ? (
+        <div style={emptyStateStyle}>Aún no hay metas registradas.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+          {rows.map((target) => (
+            <GoalCard
+              key={target.id}
+              target={target}
+              areaLabel={areaLabel(target.areaId)}
+              actions={actions.filter((action) => action.targetId === target.id)}
+              onClick={() => setSelectedId(target.id)}
+            />
+          ))}
+        </div>
+      )}
 
       <AdminEntityDrawer
         open={!!selected}
-        onClose={() => setSelected(null)}
-        title={selected?.name || ""}
-        subtitle={`Scope ${selected?.scope} · ${selected?.responsible}`}
-        badge={selected && <AdminStatusBadge variant={STATUS[selected.status]?.variant} label={STATUS[selected.status]?.label} />}
+        onClose={() => setSelectedId("")}
+        title={selected?.title || ""}
+        subtitle={selected ? `${scopeLabel(selected.scope)} · ${areaLabel(selected.areaId)} · ${selected.createdBy || creatorName}` : ""}
+        badge={selected && <AdminStatusBadge variant={STATUS[selected.summary.state]?.variant || STATUS[selected.status]?.variant} label={STATUS[selected.summary.state]?.label || STATUS[selected.status]?.label} />}
         actions={selected && (
           <>
             <button onClick={() => openActionModal(selected)} style={btnGhost}>
@@ -433,11 +470,9 @@ export default function GoalsPage() {
               <Trash2 size={13} /> Eliminar
             </button>
             <button onClick={() => togglePause(selected)} style={btnGhost}>
-              {selected.status === "paused"
-                ? <><Play size={13} /> Reactivar</>
-                : <><Pause size={13} /> Pausar</>}
+              {selected.status === "paused" ? <><Play size={13} /> Reactivar</> : <><Pause size={13} /> Pausar</>}
             </button>
-            <button onClick={() => { openGoalModal(selected); setSelected(null); }} style={btnPrimary}>
+            <button onClick={() => openGoalModal(selected)} style={btnPrimary}>
               <Edit3 size={13} /> Editar
             </button>
           </>
@@ -447,215 +482,62 @@ export default function GoalsPage() {
         {selected && (
           <>
             {selected.description && <DrawerField label="Descripción">{selected.description}</DrawerField>}
-
-            {/* Compliance */}
-            {(() => {
-              const c = complianceFor(selected);
-              return (
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 14px",
-                  background: `${c.color}10`,
-                  border: `1px solid ${c.color}33`,
-                  borderRadius: 10,
-                }}>
-                  <CheckCircle2 size={16} color={c.color} />
-                  <div style={{ fontFamily: fb, fontSize: 12.5, fontWeight: 700, color: c.color }}>
-                    {c.label}
-                  </div>
-                </div>
-              );
-            })()}
-
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <DrawerField label="Objetivo" mono>{selected.target}%</DrawerField>
-              <DrawerField label="Plazo" mono>{selected.deadline}</DrawerField>
-              <DrawerField label="Línea base" mono>{selected.baseline.toLocaleString()} {selected.unit}</DrawerField>
-              <DrawerField label="Actual" mono>{selected.current.toLocaleString()} {selected.unit}</DrawerField>
+              <DrawerField label="Objetivo" mono>
+                {selected.type === "reduction_percent" ? `${fmt(selected.targetValue, 1)}%` : `${fmt(selected.targetValue, 3)} tCO2e`}
+              </DrawerField>
+              <DrawerField label="Plazo" mono>{selected.targetEnd || "No disponible"}</DrawerField>
+              <DrawerField label="Línea base" mono>{fmt(selected.summary.baseline, 3)} tCO2e</DrawerField>
+              <DrawerField label="Actual" mono>{fmt(selected.summary.actual, 3)} tCO2e</DrawerField>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-              <SummaryPill label="Acciones vinculadas" value={actions.filter(a => a.goalId === selected.id).length} color="#2563EB" />
-              <SummaryPill label="En curso" value={actions.filter(a => a.goalId === selected.id && a.status === "in_progress").length} color="#16A34A" />
-              <SummaryPill label="Con seguimiento" value={actions.filter(a => a.goalId === selected.id && (a.status === "pending" || a.status === "at_risk")).length} color="#CA8A04" />
+              <SummaryPill label="Acciones vinculadas" value={actions.filter((action) => action.targetId === selected.id).length} color="#2563EB" />
+              <SummaryPill label="En progreso" value={actions.filter((action) => action.targetId === selected.id && action.status === "in_progress").length} color="#16A34A" />
+              <SummaryPill label="Bloqueadas" value={actions.filter((action) => action.targetId === selected.id && action.status === "blocked").length} color="#CA8A04" />
             </div>
-            <DrawerField label="Áreas">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
-                {selected.areas.map((a, i) => (
-                  <span key={i} style={{
-                    fontFamily: fb, fontSize: 11, fontWeight: 500,
-                    padding: "2px 9px", borderRadius: 12,
-                    background: "var(--eco-card-muted)", color: "var(--eco-text-soft)",
-                  }}>{a}</span>
-                ))}
-              </div>
-            </DrawerField>
 
-            {/* Progress visual */}
+            <DrawerField label="Área">{areaLabel(selected.areaId)}</DrawerField>
+
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                 <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text-soft)" }}>Progreso</span>
                 <span style={{ fontFamily: fm, fontSize: 13, fontWeight: 700, color: "var(--eco-primary-600)" }}>
-                  {selected.progress}%
+                  {fmt(selected.summary.progressPct, 1)}%
                 </span>
               </div>
-              <div style={{
-                height: 10, borderRadius: 6,
-                background: "var(--eco-card-muted)",
-                overflow: "hidden",
-              }}>
-                <div style={{
-                  height: "100%", width: `${selected.progress}%`,
-                  background: selected.status === "at_risk"
-                    ? "var(--eco-warning, #CA8A04)"
-                    : selected.status === "paused"
-                    ? "var(--eco-gray-300, #CBD5E1)"
-                    : "var(--eco-primary-500, #22C55E)",
-                  transition: "width .3s",
-                }} />
+              <div style={{ height: 10, borderRadius: 6, background: "var(--eco-card-muted)", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.min(100, selected.summary.progressPct)}%`,
+                    background: selected.summary.state === "at_risk" ? "var(--eco-warning, #CA8A04)" : "var(--eco-primary-500, #22C55E)",
+                    transition: "width .3s",
+                  }}
+                />
               </div>
             </div>
 
-            {/* Notes / observations */}
             <div>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6, marginBottom: 8,
-                fontFamily: fd, fontSize: 12, fontWeight: 700, textTransform: "uppercase",
-                letterSpacing: ".05em", color: "var(--eco-text-soft)",
-              }}>
+              <div style={sectionTitleStyle}>
                 <MessageSquare size={13} /> Observaciones
               </div>
-              {selected.notes ? (
-                <div style={{
-                  padding: "10px 14px",
-                  background: "var(--eco-card-muted)",
-                  border: "1px solid var(--eco-border)",
-                  borderRadius: 8,
-                  fontFamily: fb, fontSize: 12.5, color: "var(--eco-text)",
-                  lineHeight: 1.5,
-                }}>
-                  {selected.notes}
-                </div>
-              ) : (
-                <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontStyle: "italic" }}>
-                  Sin observaciones registradas.
-                </div>
-              )}
+              <div style={notesBoxStyle}>{selected.description || "Sin observaciones registradas."}</div>
             </div>
 
-            {/* Linked records */}
             <div>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6, marginBottom: 8,
-                fontFamily: fd, fontSize: 12, fontWeight: 700, textTransform: "uppercase",
-                letterSpacing: ".05em", color: "var(--eco-text-soft)",
-              }}>
-                <Link2 size={13} /> Registros vinculados ({(selected.linkedRecords || []).length})
-              </div>
-              {(selected.linkedRecords || []).length === 0 ? (
-                <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontStyle: "italic" }}>
-                  Sin registros vinculados.
-                </div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {selected.linkedRecords.map(rid => {
-                    const rec = records.find(r => r.id === rid);
-                    if (!rec) return null;
-                    return (
-                      <div key={rid} style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "8px 12px",
-                        background: "var(--eco-card-muted)",
-                        border: "1px solid var(--eco-border)",
-                        borderRadius: 8,
-                      }}>
-                        <span style={{
-                          fontFamily: fm, fontSize: 10.5, fontWeight: 700,
-                          padding: "2px 7px", borderRadius: 6,
-                          background: "var(--eco-card)",
-                          color: "var(--eco-text-soft)",
-                        }}>{rid}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text)" }}>
-                            {rec.consumptionType} · {rec.areaName}
-                          </div>
-                          <div style={{ fontFamily: fm, fontSize: 10.5, color: "var(--eco-text-soft)", marginTop: 2 }}>
-                            {rec.value.toLocaleString()} {rec.unit} · {rec.emissions.toFixed(2)} kgCO2e · {rec.date}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Linked actions */}
-            <div>
-              <div style={{
-                fontFamily: fd, fontSize: 12, fontWeight: 700, textTransform: "uppercase",
-                letterSpacing: ".05em", color: "var(--eco-text-soft)", marginBottom: 10,
-              }}>
-                Acciones vinculadas
-              </div>
+              <div style={sectionTitleStyle}>Acciones vinculadas</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {actions.filter(a => a.goalId === selected.id).map(a => {
-                  const kind = ACTION_KIND[a.kind] || ACTION_KIND.preventive;
-                  const KindIcon = kind.icon;
-                  return (
-                    <div key={a.id} style={{
-                      display: "flex", alignItems: "center", gap: 12,
-                      padding: "10px 14px",
-                      background: "var(--eco-card-muted)",
-                      border: "1px solid var(--eco-border)",
-                      borderRadius: 10,
-                    }}>
-                      <div style={{
-                        width: 8, height: 8, borderRadius: "50%",
-                        background: ACTION_STATUS[a.status]?.color, flexShrink: 0,
-                      }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                          <span style={{ fontFamily: fb, fontSize: 12.5, fontWeight: 600, color: "var(--eco-text)" }}>
-                            {a.title}
-                          </span>
-                          <span style={{
-                            display: "inline-flex", alignItems: "center", gap: 3,
-                            fontFamily: fb, fontSize: 10, fontWeight: 700,
-                            padding: "2px 7px", borderRadius: 10,
-                            background: `${kind.color}18`, color: kind.color,
-                          }}>
-                            <KindIcon size={9} /> {kind.label}
-                          </span>
-                        </div>
-                        <div style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", marginTop: 2 }}>
-                          {a.responsible} · vence {a.due} · {ACTION_STATUS[a.status]?.label}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontFamily: fm, fontSize: 11, fontWeight: 600, color: "var(--eco-primary-600)" }}>
-                          {a.impact}
-                        </span>
-                        <select
-                          value={a.status}
-                          onChange={e => updateActionStatus(a, e.target.value)}
-                          style={actionSelectStyle}
-                        >
-                          {Object.entries(ACTION_STATUS).map(([value, meta]) => (
-                            <option key={value} value={value}>{meta.label}</option>
-                          ))}
-                        </select>
-                        <button onClick={() => openActionModal(a)} style={iconBtn}>
-                          <Edit3 size={12} />
-                        </button>
-                        <button onClick={() => setConfirmDeleteAction(a)} style={{ ...iconBtn, color: "var(--eco-danger, #DC2626)" }}>
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {actions.filter(a => a.goalId === selected.id).length === 0 && (
+                {actions.filter((action) => action.targetId === selected.id).map((action) => (
+                  <ActionRow
+                    key={action.id}
+                    action={action}
+                    onStatusChange={(nextStatus) => updateActionStatus(action, nextStatus)}
+                    onEdit={() => openActionModal(action)}
+                    onDelete={() => setConfirmDeleteAction(action)}
+                  />
+                ))}
+                {actions.filter((action) => action.targetId === selected.id).length === 0 && (
                   <div style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontStyle: "italic" }}>
                     Sin acciones vinculadas.
                   </div>
@@ -667,20 +549,23 @@ export default function GoalsPage() {
       </AdminEntityDrawer>
 
       <Accions_Goals_Edits
-        mode={modalGoal ? "target" : modalAction ? "action" : ""}
-        editing={modalGoal ? editingGoal : !!modalAction?.id}
+        mode={targetModalOpen ? "target" : actionModalOpen ? "action" : ""}
+        editing={targetModalOpen ? !!editingTarget : !!editingAction}
         onClose={() => {
-          setModalGoal(null);
-          setModalAction(null);
+          setTargetModalOpen(false);
+          setActionModalOpen(false);
+          setEditingTarget(null);
+          setEditingAction(null);
         }}
-        onSubmit={modalGoal ? handleGoalSave : handleActionSave}
+        onSubmit={targetModalOpen ? handleGoalSave : handleActionSave}
         targetForm={targetForm}
         setTargetForm={setTargetForm}
         actionForm={actionForm}
         setActionForm={setActionForm}
-        areas={areaOptions}
-        targets={targetOptions}
-        creatorName={ADMIN_CREATOR_NAME}
+        areas={catalogOptions.areas}
+        targets={targets}
+        targetOptions={catalogOptions}
+        creatorName={creatorName}
       />
 
       <AdminConfirmDialog
@@ -688,7 +573,7 @@ export default function GoalsPage() {
         onClose={() => setConfirmDelete(null)}
         onConfirm={handleDelete}
         title="Eliminar meta"
-        message={`¿Seguro que quieres eliminar "${confirmDelete?.name}"? Se perderán sus acciones y observaciones.`}
+        message={`¿Seguro que quieres eliminar "${confirmDelete?.title}"? Se perderán sus acciones vinculadas.`}
         confirmLabel="Eliminar"
         danger
       />
@@ -698,7 +583,7 @@ export default function GoalsPage() {
         onClose={() => setConfirmDeleteAction(null)}
         onConfirm={handleActionDelete}
         title="Eliminar acción"
-        message={`¿Seguro que quieres eliminar "${confirmDeleteAction?.title}"? Esta acción se quitará del seguimiento de la meta.`}
+        message={`¿Seguro que quieres eliminar "${confirmDeleteAction?.title}"?`}
         confirmLabel="Eliminar"
         danger
       />
@@ -707,25 +592,100 @@ export default function GoalsPage() {
 }
 
 const btnPrimary = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  padding: "8px 14px", borderRadius: 8, border: "none",
-  background: "var(--eco-primary-500, #22C55E)", color: "#fff",
-  fontFamily: fb, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 14px",
+  borderRadius: 8,
+  border: "none",
+  background: "var(--eco-primary-500, #22C55E)",
+  color: "#fff",
+  fontFamily: fb,
+  fontSize: 12.5,
+  fontWeight: 600,
+  cursor: "pointer",
 };
+
 const btnGhost = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  padding: "8px 14px", borderRadius: 8,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  padding: "8px 14px",
+  borderRadius: 8,
   border: "1px solid var(--eco-border)",
-  background: "var(--eco-card)", color: "var(--eco-text)",
-  fontFamily: fb, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  background: "var(--eco-card)",
+  color: "var(--eco-text)",
+  fontFamily: fb,
+  fontSize: 12.5,
+  fontWeight: 600,
+  cursor: "pointer",
 };
+
 const btnDangerGhost = {
-  display: "inline-flex", alignItems: "center", gap: 6,
-  padding: "8px 14px", borderRadius: 8,
+  ...btnGhost,
   border: "1px solid rgba(239,68,68,.25)",
-  background: "rgba(239,68,68,.08)", color: "var(--eco-danger, #DC2626)",
-  fontFamily: fb, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+  background: "rgba(239,68,68,.08)",
+  color: "var(--eco-danger, #DC2626)",
 };
+
+const noticeStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12,
+  padding: "10px 12px",
+  marginBottom: 14,
+  borderRadius: 8,
+  border: "1px solid rgba(202,138,4,.3)",
+  background: "rgba(202,138,4,.08)",
+  color: "var(--eco-warning, #CA8A04)",
+  fontFamily: fb,
+  fontSize: 12.5,
+  fontWeight: 600,
+};
+
+const noticeButtonStyle = {
+  ...btnGhost,
+  height: 30,
+  padding: "0 10px",
+  fontSize: 12,
+};
+
+const emptyStateStyle = {
+  padding: "34px 20px",
+  border: "1px solid var(--eco-border)",
+  borderRadius: 12,
+  background: "var(--eco-card)",
+  color: "var(--eco-text-soft)",
+  fontFamily: fb,
+  fontSize: 13,
+  textAlign: "center",
+};
+
+const sectionTitleStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  marginBottom: 8,
+  fontFamily: fd,
+  fontSize: 12,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: ".05em",
+  color: "var(--eco-text-soft)",
+};
+
+const notesBoxStyle = {
+  padding: "10px 14px",
+  background: "var(--eco-card-muted)",
+  border: "1px solid var(--eco-border)",
+  borderRadius: 8,
+  fontFamily: fb,
+  fontSize: 12.5,
+  color: "var(--eco-text)",
+  lineHeight: 1.5,
+};
+
 const iconBtn = {
   display: "inline-flex",
   alignItems: "center",
@@ -738,6 +698,7 @@ const iconBtn = {
   color: "var(--eco-text-soft)",
   cursor: "pointer",
 };
+
 const actionSelectStyle = {
   padding: "6px 8px",
   borderRadius: 8,
@@ -748,56 +709,59 @@ const actionSelectStyle = {
   fontSize: 11.5,
 };
 
-function GoalCard({ goal, actions, onClick }) {
-  const statusColor = goal.status === "at_risk" ? "#CA8A04"
-    : goal.status === "completed" ? "#16A34A"
-    : goal.status === "delayed" ? "#DC2626"
-    : goal.status === "paused" ? "#64748B"
+function GoalCard({ target, actions, areaLabel, onClick }) {
+  const statusColor = target.summary.state === "at_risk" ? "#CA8A04"
+    : target.summary.state === "completed" ? "#16A34A"
+    : target.status === "paused" ? "#64748B"
     : "#2563EB";
-  const paused = goal.status === "paused";
-  const openActions = actions.filter(action => action.status === "pending" || action.status === "in_progress" || action.status === "at_risk").length;
+  const openActions = actions.filter((action) => action.status === "planned" || action.status === "in_progress" || action.status === "blocked").length;
+
   return (
-    <div onClick={onClick} style={{
-      padding: "18px 20px",
-      background: "var(--eco-card, #fff)",
-      border: "1px solid var(--eco-border, #E2E8F0)",
-      borderRadius: 14,
-      cursor: "pointer",
-      opacity: paused ? 0.7 : 1,
-      transition: "all .15s",
-    }}
-    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--eco-primary-400)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--eco-border, #E2E8F0)"; e.currentTarget.style.transform = "translateY(0)"; }}
+    <div
+      onClick={onClick}
+      style={{
+        padding: "18px 20px",
+        background: "var(--eco-card, #fff)",
+        border: "1px solid var(--eco-border, #E2E8F0)",
+        borderRadius: 14,
+        cursor: "pointer",
+        opacity: target.status === "paused" ? 0.7 : 1,
+        transition: "all .15s",
+      }}
+      onMouseEnter={(event) => {
+        event.currentTarget.style.borderColor = "var(--eco-primary-400)";
+        event.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(event) => {
+        event.currentTarget.style.borderColor = "var(--eco-border, #E2E8F0)";
+        event.currentTarget.style.transform = "translateY(0)";
+      }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text)", marginBottom: 4 }}>
-            {goal.name}
+            {target.title}
           </div>
           <div style={{ fontFamily: fb, fontSize: 11.5, color: "var(--eco-text-soft)" }}>
-            Scope {goal.scope} · {goal.responsible}
+            {scopeLabel(target.scope)} · {areaLabel}
           </div>
         </div>
-        <AdminStatusBadge variant={STATUS[goal.status]?.variant} label={STATUS[goal.status]?.label} />
+        <AdminStatusBadge variant={STATUS[target.summary.state]?.variant || STATUS[target.status]?.variant} label={STATUS[target.summary.state]?.label || STATUS[target.status]?.label} />
       </div>
 
       <div style={{ marginTop: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
           <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>Progreso</span>
-          <span style={{ fontFamily: fm, fontSize: 12, fontWeight: 700, color: statusColor }}>{goal.progress}%</span>
+          <span style={{ fontFamily: fm, fontSize: 12, fontWeight: 700, color: statusColor }}>{fmt(target.summary.progressPct, 1)}%</span>
         </div>
         <div style={{ height: 8, borderRadius: 5, background: "var(--eco-card-muted)", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${goal.progress}%`, background: statusColor, transition: "width .3s" }} />
+          <div style={{ height: "100%", width: `${Math.min(100, target.summary.progressPct)}%`, background: statusColor, transition: "width .3s" }} />
         </div>
       </div>
 
-      <div style={{
-        display: "flex", justifyContent: "space-between", marginTop: 14,
-        paddingTop: 12, borderTop: "1px dashed var(--eco-border)",
-        fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)",
-      }}>
-        <span>Objetivo: <strong style={{ color: "var(--eco-text)" }}>{goal.target}%</strong></span>
-        <span>Plazo: <strong style={{ color: "var(--eco-text)" }}>{goal.deadline}</strong></span>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: "1px dashed var(--eco-border)", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>
+        <span>Objetivo: <strong style={{ color: "var(--eco-text)" }}>{target.type === "reduction_percent" ? `${fmt(target.targetValue, 1)}%` : `${fmt(target.targetValue, 2)} tCO2e`}</strong></span>
+        <span>Plazo: <strong style={{ color: "var(--eco-text)" }}>{target.targetEnd || "-"}</strong></span>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
@@ -808,26 +772,39 @@ function GoalCard({ goal, actions, onClick }) {
   );
 }
 
+function ActionRow({ action, onStatusChange, onEdit, onDelete }) {
+  const status = ACTION_STATUS[action.status] || ACTION_STATUS.planned;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: "var(--eco-card-muted)", border: "1px solid var(--eco-border)", borderRadius: 10 }}>
+      <div style={{ width: 8, height: 8, borderRadius: "50%", background: status.color, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: fb, fontSize: 12.5, fontWeight: 600, color: "var(--eco-text)" }}>{action.title}</div>
+        <div style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", marginTop: 2 }}>
+          {action.owner || "Sin responsable"} · vence {action.endDate || "sin fecha"} · {status.label}
+        </div>
+      </div>
+      <span style={{ fontFamily: fm, fontSize: 11, fontWeight: 600, color: "var(--eco-primary-600)" }}>
+        {fmt(action.impact_tco2e, 3)} tCO2e
+      </span>
+      <select value={action.status} onChange={(event) => onStatusChange(event.target.value)} style={actionSelectStyle}>
+        {Object.entries(ACTION_STATUS).map(([value, meta]) => (
+          <option key={value} value={value}>{meta.label}</option>
+        ))}
+      </select>
+      <button onClick={onEdit} style={iconBtn} type="button" aria-label="Editar acción">
+        <Edit3 size={12} />
+      </button>
+      <button onClick={onDelete} style={{ ...iconBtn, color: "var(--eco-danger, #DC2626)" }} type="button" aria-label="Eliminar acción">
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
+
 function MiniStat({ icon: Icon, label, value, color }) {
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      padding: "14px 16px",
-      background: "var(--eco-card, #fff)",
-      border: "1px solid var(--eco-border, #E2E8F0)",
-      borderRadius: 12,
-    }}>
-      <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        background: `${color}18`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "var(--eco-card, #fff)", border: "1px solid var(--eco-border, #E2E8F0)", borderRadius: 12 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <Icon size={17} color={color} />
       </div>
       <div>
@@ -840,35 +817,16 @@ function MiniStat({ icon: Icon, label, value, color }) {
 
 function SummaryPill({ label, value, color }) {
   return (
-    <div style={{
-      padding: "10px 12px",
-      borderRadius: 10,
-      border: `1px solid ${color}22`,
-      background: `${color}10`,
-    }}>
-      <div style={{ fontFamily: fb, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color }}>
-        {label}
-      </div>
-      <div style={{ fontFamily: fd, fontSize: 20, fontWeight: 800, color, lineHeight: 1, marginTop: 6 }}>
-        {value}
-      </div>
+    <div style={{ padding: "10px 12px", borderRadius: 10, border: `1px solid ${color}22`, background: `${color}10` }}>
+      <div style={{ fontFamily: fb, fontSize: 10.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em", color }}>{label}</div>
+      <div style={{ fontFamily: fd, fontSize: 20, fontWeight: 800, color, lineHeight: 1, marginTop: 6 }}>{value}</div>
     </div>
   );
 }
 
 function CardChip({ label, color }) {
   return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      padding: "3px 9px",
-      borderRadius: 999,
-      background: `${color}12`,
-      color,
-      fontFamily: fb,
-      fontSize: 10.5,
-      fontWeight: 700,
-    }}>
+    <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 999, background: `${color}12`, color, fontFamily: fb, fontSize: 10.5, fontWeight: 700 }}>
       {label}
     </span>
   );

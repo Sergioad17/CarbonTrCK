@@ -44,6 +44,17 @@ const TARGET_STATUS_COLORS = {
   completed: { bg: "var(--eco-success-bg)", color: "var(--eco-success)", border: "rgba(34,197,94,.25)" },
 };
 
+const TARGET_TYPE_LABELS = {
+  reduction_percent: "Reducción %",
+  absolute: "Absoluto tCO2e",
+};
+
+const TARGET_STATUS_LABELS = {
+  active: "Activa",
+  paused: "Pausada",
+  completed: "Completada",
+};
+
 const ACTION_STATUS_COLORS = {
   planned: { bg: "var(--eco-card-muted)", color: "var(--eco-text-soft)", border: "var(--eco-border)" },
   in_progress: { bg: "var(--eco-info-bg)", color: "var(--eco-info)", border: "rgba(59,130,246,.25)" },
@@ -284,7 +295,7 @@ function StatusSelect({ value, onChange, options, colorMap, placeholder = "-- Se
 }
 
 /* ─── Shell modal wrapper ─── */
-function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLoading }) {
+function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLoading, compactY = false }) {
   return (
     <div
       style={{
@@ -293,7 +304,7 @@ function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLo
         zIndex: 100,
         display: "grid",
         placeItems: "center",
-        padding: "20px 14px",
+        padding: compactY ? "140px 14px 54px" : "20px 14px",
         animation: "eco-fadeIn .18s ease-out",
       }}
     >
@@ -313,8 +324,8 @@ function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLo
         onSubmit={onSubmit}
         style={{
           width: "min(900px, calc(100vw - 28px))",
-          maxHeight: "calc(100vh - 40px)",
-          overflowY: "auto",
+          maxHeight: compactY ? "calc(100vh - 194px)" : "calc(100vh - 40px)",
+          overflow: "hidden",
           overflowX: "hidden",
           position: "relative",
           background: "var(--eco-card)",
@@ -324,16 +335,11 @@ function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLo
           animation: "eco-scaleIn .24s cubic-bezier(.34,1.56,.64,1)",
           display: "flex",
           flexDirection: "column",
-          scrollbarWidth: "thin",
-          scrollbarColor: "var(--eco-border) transparent",
         }}
       >
         {/* ─── Header ─── */}
         <div
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 2,
             padding: "14px 20px",
             borderBottom: "1px solid var(--eco-border)",
             background: "var(--eco-card)",
@@ -398,16 +404,23 @@ function Shell({ title, subtitle, onClose, onSubmit, submitLabel, children, isLo
         </div>
 
         {/* ─── Body ─── */}
-        <div style={{ flex: 1, minHeight: 0 }}>
+        <div
+          style={{
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            overscrollBehavior: "contain",
+            scrollbarWidth: "thin",
+            scrollbarColor: "var(--eco-border) transparent",
+          }}
+        >
           {isLoading ? children : children}
         </div>
 
         {/* ─── Footer ─── */}
         <div
           style={{
-            position: "sticky",
-            bottom: 0,
-            zIndex: 2,
             padding: "12px 20px",
             borderTop: "1px solid var(--eco-border)",
             background: "var(--eco-surface)",
@@ -495,6 +508,7 @@ export default function Accions_Goals_Edits({
   setActionForm,
   areas,
   targets,
+  targetOptions,
   creatorName,
 }) {
   const [ready, setReady] = useState(false);
@@ -526,6 +540,9 @@ export default function Accions_Goals_Edits({
   if (mode === "target") {
     const tf = targetForm;
     const set = (key) => (e) => setTargetForm((p) => ({ ...p, [key]: e.target.value }));
+    const typeOptions = Array.isArray(targetOptions?.types) ? targetOptions.types : [];
+    const categoryOptions = Array.isArray(targetOptions?.categories) ? targetOptions.categories : [];
+    const statusOptions = Array.isArray(targetOptions?.statuses) ? targetOptions.statuses : [];
 
     return (
       <Shell
@@ -538,6 +555,7 @@ export default function Accions_Goals_Edits({
         onClose={onClose}
         onSubmit={onSubmit}
         submitLabel={editing ? "Guardar cambios" : "Crear meta"}
+        compactY
       >
         {!ready ? (
           <FormSkeleton isTarget />
@@ -581,8 +599,11 @@ export default function Accions_Goals_Edits({
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
                     <option value="" disabled>-- Seleccionar --</option>
-                    <option value="reduction_percent">Reducción %</option>
-                    <option value="absolute">Absoluto tCO₂e</option>
+                    {typeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {TARGET_TYPE_LABELS[option.value] || option.label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
 
@@ -596,10 +617,11 @@ export default function Accions_Goals_Edits({
                     style={{ ...inBase, cursor: "pointer", appearance: "none", WebkitAppearance: "none" }}
                   >
                     <option value="" disabled>-- Seleccionar --</option>
-                    <option value="all">Todas las categorías</option>
-                    <option value="electricidad">Electricidad</option>
-                    <option value="combustible">Combustible</option>
-                    <option value="otros">Otros</option>
+                    {categoryOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </Field>
 
@@ -632,11 +654,10 @@ export default function Accions_Goals_Edits({
                     onChange={set("status")}
                     colorMap={TARGET_STATUS_COLORS}
                     required
-                    options={[
-                      { value: "active", label: "Activa" },
-                      { value: "paused", label: "Pausada" },
-                      { value: "completed", label: "Completada" },
-                    ]}
+                    options={statusOptions.map((option) => ({
+                      value: option.value,
+                      label: TARGET_STATUS_LABELS[option.value] || option.label,
+                    }))}
                   />
                 </Field>
 

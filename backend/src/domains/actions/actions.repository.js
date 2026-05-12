@@ -302,3 +302,27 @@ export async function updateAction(actor, actionId, payload, auditContext) {
     return action;
   });
 }
+
+export async function deleteAction(actor, actionId, auditContext) {
+  return withTransaction(async (client) => {
+    const existingRow = await getActionRow(actor, actionId, client);
+    if (!existingRow) throw new AppError({ statusCode: 404, code: "NOT_FOUND", message: "Action not found." });
+
+    const existing = buildActionShape(existingRow);
+    const target = await getTargetForAction(actor, existing.targetId, client);
+    if (!target) throw new AppError({ statusCode: 422, code: "VALIDATION_ERROR", message: "targetId is invalid.", details: { field: "targetId" } });
+
+    await client.query(`DELETE FROM target_actions WHERE id = $1 AND organization_id = $2`, [actionId, actor.organizationId]);
+    await insertAuditEvent(client, {
+      organizationId: actor.organizationId,
+      userId: actor.id,
+      eventType: "actions.delete",
+      entityType: "action",
+      entityId: actionId,
+      ipAddress: auditContext.ipAddress,
+      userAgent: auditContext.userAgent,
+      details: { targetId: existing.targetId, action: existing.title },
+    });
+    return { ok: true };
+  });
+}

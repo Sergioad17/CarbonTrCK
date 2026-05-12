@@ -510,6 +510,7 @@ function serviceStatus(label, status, latencyMs = null) {
 const AUDIT_MODULE_LABELS = Object.freeze({
   actions: "Acciones",
   admin: "Administración",
+  admin_alerts: "Alertas",
   ai: "Inteligencia artificial",
   auth: "Autenticación",
   dashboard: "Dashboard",
@@ -530,6 +531,7 @@ const AUDIT_MODULE_LABELS = Object.freeze({
 const AUDIT_ICON_MAP = Object.freeze({
   actions: "calendar",
   admin: "shield",
+  admin_alerts: "file",
   ai: "zap",
   auth: "shield",
   dashboard: "database",
@@ -572,6 +574,12 @@ function auditActionText(row) {
       return "cerro una sesion remota";
     case "admin.security.sessions_revoke_all":
       return `cerro ${details.revokedCount || 0} sesiones remotas activas`;
+    case "admin_alerts.create":
+      return `creo una regla de alerta${details.name ? `: ${details.name}` : ""}`;
+    case "admin_alerts.update":
+      return `actualizo una regla de alerta${details.name ? `: ${details.name}` : ""}`;
+    case "admin_alerts.status_change":
+      return `${details.enabled ? "activo" : "desactivo"} una regla de alerta${details.name ? `: ${details.name}` : ""}`;
     case "ai.engine.update":
       return "actualizo el motor IA";
     case "ai.module.update":

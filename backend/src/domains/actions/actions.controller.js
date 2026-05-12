@@ -1,4 +1,4 @@
-import { createActionService, listActionsService, updateActionService } from "./actions.service.js";
+import { createActionService, deleteActionService, listActionsService, updateActionService } from "./actions.service.js";
 
 function auditContextFromRequest(request) {
   return { ipAddress: request.ip, userAgent: request.headers["user-agent"] || null };
@@ -14,4 +14,9 @@ export async function createActionController(request, response) {
 
 export async function updateActionController(request, response) {
   response.json({ action: await updateActionService(request.user, request.params.id, request.body, auditContextFromRequest(request)) });
+}
+
+export async function deleteActionController(request, response) {
+  await deleteActionService(request.user, request.params.id, auditContextFromRequest(request));
+  response.status(204).send();
 }

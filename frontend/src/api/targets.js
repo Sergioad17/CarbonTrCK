@@ -29,7 +29,7 @@ function normalizeActionsList(payload) {
 
 export async function fetchTargetsModuleData(seedTargets = []) {
   void seedTargets;
-  const [targetsPayload, actionsPayload, records] = await Promise.all([
+  const [targetsPayload, actionsPayload, records, optionsPayload] = await Promise.all([
     apiRequest("/targets", {
       method: "GET",
       headers: authHeaders(),
@@ -39,12 +39,17 @@ export async function fetchTargetsModuleData(seedTargets = []) {
       headers: authHeaders(),
     }),
     fetchEmissionRecords(),
+    apiRequest("/targets/options", {
+      method: "GET",
+      headers: authHeaders(),
+    }).catch(() => null),
   ]);
 
   return {
     targets: normalizeTargetsList(targetsPayload),
     actions: normalizeActionsList(actionsPayload),
     records,
+    options: optionsPayload?.options || optionsPayload?.data?.options || { types: [], statuses: [], categories: [], areas: [] },
     error: "",
     meta: { seededFromEmpty: false },
   };
@@ -89,6 +94,15 @@ export async function updateTargetStatus(target, patch) {
 
 export async function deleteTargetById(targetId) {
   await apiRequest(`/targets/${targetId}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  const moduleData = await fetchTargetsModuleData();
+  return { ok: true, targets: moduleData.targets, actions: moduleData.actions };
+}
+
+export async function deleteActionById(actionId) {
+  await apiRequest(`/actions/${actionId}`, {
     method: "DELETE",
     headers: authHeaders(),
   });

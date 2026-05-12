@@ -1,6 +1,7 @@
 import { AppError } from "../../shared/errors/app-error.js";
 import { query, withTransaction } from "../../shared/db/pool.js";
 import { hashDeviceCredential } from "../../shared/utils/device-credentials.js";
+import { evaluateDeviceReadingAlerts } from "../admin/admin.alerts-engine.js";
 import { insertAuditEvent } from "../audit/audit.repository.js";
 
 const DEFAULT_BACKEND_URL = "https://api.example.edu";
@@ -1155,11 +1156,15 @@ export async function createDeviceReading(device, reading, auditContext) {
       },
     );
 
-    return {
+    const result = {
       ok: true,
       deviceCode: device.code,
       receivedAt: inserted.rows[0].recorded_at,
       readingId: inserted.rows[0].id,
     };
+
+    await evaluateDeviceReadingAlerts(client, device, reading, result);
+
+    return result;
   });
 }

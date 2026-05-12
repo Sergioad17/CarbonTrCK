@@ -303,22 +303,6 @@ export const deviceLogs = [
   { id:"dl6", deviceId:"d2",  ts:"2026-04-11T08:00:00Z", level:"info",    message:"Lectura normal completada." },
 ];
 
-// --- Records ------------------------------------------------------------
-export const records = [
-  { id:"r1",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e1",  areaName:"Edificio A - Rectoría",  value:1245.6, unit:"kWh",  factorId:"f1", emissions:541.84, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r2",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e2",  areaName:"Edificio B - Ciencias",   value:2108.3, unit:"kWh",  factorId:"f1", emissions:917.11, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r3",  date:"2026-04-10", periodId:"p7", consumptionType:"Electricidad", areaId:"e3",  areaName:"Edificio C - Ingenierías",value:890.2,  unit:"kWh",  factorId:"f1", emissions:387.24, captureMode:"device",   capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:true,  notes:"Lectura anómala detectada por delta -42%." },
-  { id:"r4",  date:"2026-04-09", periodId:"p7", consumptionType:"Gas natural",  areaId:"e7",  areaName:"Laboratorio de Química",  value:45.8,   unit:"m3",   factorId:"f2", emissions:86.10,  captureMode:"manual",   capturedBy:"Carlos Méndez",  status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
-  { id:"r5",  date:"2026-04-08", periodId:"p7", consumptionType:"Diésel",       areaId:"e9",  areaName:"Taller de Mecánica",      value:32.4,   unit:"L",    factorId:"f3", emissions:86.83,  captureMode:"file",     capturedBy:"María López",    status:"validated", evidenceCount:1, anomaly:false, notes:"" },
-  { id:"r6",  date:"2026-04-07", periodId:"p7", consumptionType:"Electricidad", areaId:"e12", areaName:"Edificio Principal",      value:1567.8, unit:"kWh",  factorId:"f1", emissions:681.99, captureMode:"device",   capturedBy:"Sistema",        status:"validated", evidenceCount:0, anomaly:false, notes:"" },
-  { id:"r7",  date:"2026-04-07", periodId:"p7", consumptionType:"Gas LP",       areaId:"e11", areaName:"Cafetería Central",       value:18.2,   unit:"L",    factorId:"f4", emissions:29.30,  captureMode:"manual",   capturedBy:"Carlos Méndez",  status:"rejected",  evidenceCount:0, anomaly:true,  notes:"Sin evidencia adjunta - rechazado." },
-  { id:"r8",  date:"2026-04-06", periodId:"p7", consumptionType:"Gasolina",     areaId:"e3",  areaName:"Edificio C - Ingenierías",value:78.5,   unit:"L",    factorId:"f5", emissions:181.34, captureMode:"assisted", capturedBy:"Pedro Ramírez",  status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
-  { id:"r9",  date:"2026-04-05", periodId:"p7", consumptionType:"Electricidad", areaId:"e15", areaName:"Laboratorio de Materiales",value:678.2, unit:"kWh", factorId:"f1", emissions:295.02, captureMode:"device",   capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:true,  notes:"Health del medidor en 65%." },
-  { id:"r10", date:"2026-04-04", periodId:"p7", consumptionType:"Diésel",       areaId:"e13", areaName:"Nave Industrial",         value:120.0,  unit:"L",    factorId:"f3", emissions:321.60, captureMode:"file",     capturedBy:"Diego Herrera",  status:"validated", evidenceCount:2, anomaly:false, notes:"" },
-  { id:"r11", date:"2026-04-03", periodId:"p7", consumptionType:"Electricidad", areaId:"e17", areaName:"Edificio Administrativo Sur",value:456.7,unit:"kWh",factorId:"f1",emissions:198.66, captureMode:"manual",   capturedBy:"Sofía Medina",   status:"pending",   evidenceCount:1, anomaly:false, notes:"" },
-  { id:"r12", date:"2026-04-02", periodId:"p7", consumptionType:"Agua",         areaId:"e17", areaName:"Edificio Administrativo Sur",value:125,  unit:"m3", factorId:"f7", emissions:43.00,  captureMode:"api",      capturedBy:"Sistema",        status:"pending",   evidenceCount:0, anomaly:false, notes:"Factor en borrador." },
-];
-
 // --- Validation Queue ---------------------------------------------------
 export const validationQueue = [
   { id:"v1", recordId:"r3",  priority:"high",   reason:"Anomalía detectada (-42% delta)",     submittedAt:"2026-04-10T05:30:00Z", submittedBy:"Sistema",        assignedTo:"Ana Torres" },
@@ -372,62 +356,6 @@ export const recalculationHistory = [
   { id:"rh1", ts:"2026-04-10T08:00:00Z", trigger:"Actualización factor f1 (v3.0)", recordsAffected:6, deltaEmissions:-58.42, by:"Sergio Arellano" },
   { id:"rh2", ts:"2026-03-15T10:30:00Z", trigger:"Corrección manual r5",            recordsAffected:1, deltaEmissions:+12.10, by:"María López" },
   { id:"rh3", ts:"2026-02-20T14:00:00Z", trigger:"Cierre periodo 2025-Q4",          recordsAffected:142,deltaEmissions:0,     by:"Sistema" },
-];
-
-// --- Goals & Actions ----------------------------------------------------
-export const goals = [
-  { id:"g1", name:"Reducir Scope 2 -15% vs 2024", scope:2, target:-15,  baseline:5400, current:4590, unit:"kgCO2e", progress:78, status:"in_progress", deadline:"2026-12-31", responsible:"Ana Torres",      areas:["Edificio A - Rectoría","Edificio B - Ciencias"], description:"Meta institucional de reducción de electricidad.", notes:"Revisión trimestral en curso. Buen avance gracias al cambio a LED.", linkedRecords:["r1","r2","r6"] },
-  { id:"g2", name:"Reducir Gas natural -10%",      scope:1, target:-10,  baseline:600,  current:540,  unit:"kgCO2e", progress:60, status:"in_progress", deadline:"2026-12-31", responsible:"Carlos Méndez",   areas:["Laboratorio de Química"], description:"", notes:"", linkedRecords:["r4"] },
-  { id:"g3", name:"Cero diésel en flotilla",       scope:1, target:-100, baseline:400,  current:387,  unit:"kgCO2e", progress:13, status:"in_progress", deadline:"2027-12-31", responsible:"Diego Herrera",   areas:["Nave Industrial","Taller de Mecánica"], description:"Migración gradual a electromovilidad.", notes:"Depende de asignación presupuestal 2027.", linkedRecords:["r5","r10"] },
-  { id:"g4", name:"Eficiencia energética Norte",   scope:2, target:-12,  baseline:2200, current:2100, unit:"kgCO2e", progress:38, status:"in_progress", deadline:"2026-12-31", responsible:"Diego Herrera",   areas:["Edificio Principal","Nave Industrial"], description:"", notes:"", linkedRecords:["r6","r7"] },
-  { id:"g5", name:"Carbono neutro 2030",            scope:0, target:-100, baseline:13000,current:11800,unit:"kgCO2e", progress:9,  status:"in_progress", deadline:"2030-12-31", responsible:"Dr. Roberto Garza", areas:["Todos"], description:"Meta institucional de largo plazo.", notes:"Compromiso publicado en reporte institucional 2025.", linkedRecords:[] },
-  { id:"g6", name:"Reducir consumo de agua -8%",   scope:3, target:-8,   baseline:500,  current:495,  unit:"kgCO2e", progress:12, status:"at_risk",     deadline:"2026-12-31", responsible:"Lic. Camila Ortiz", areas:["Campus Sur"], description:"En riesgo por temporada seca.", notes:"Requiere plan de acción correctivo antes de junio.", linkedRecords:["r12"] },
-];
-
-export const goalActions = [
-  { id:"ga1", goalId:"g1", title:"Cambio a iluminación LED en Edificio A",    kind:"preventive", status:"completed",  due:"2026-02-28", responsible:"Pedro Ramírez", impact:"-120 kgCO2e/mes" },
-  { id:"ga2", goalId:"g1", title:"Sensor de presencia en aulas Edif. B",     kind:"preventive", status:"in_progress",due:"2026-05-30", responsible:"Pedro Ramírez", impact:"-80 kgCO2e/mes" },
-  { id:"ga3", goalId:"g1", title:"Auditoría energética laboratorios",        kind:"preventive", status:"pending",    due:"2026-06-30", responsible:"Andrés Navarro", impact:"-200 kgCO2e/mes" },
-  { id:"ga4", goalId:"g2", title:"Calibración calderas Lab Química",         kind:"corrective", status:"completed",  due:"2026-03-15", responsible:"Carlos Méndez", impact:"-40 kgCO2e/mes" },
-  { id:"ga5", goalId:"g2", title:"Sustitución por equipos eléctricos",       kind:"preventive", status:"in_progress",due:"2026-09-30", responsible:"Carlos Méndez", impact:"-60 kgCO2e/mes" },
-  { id:"ga6", goalId:"g3", title:"Compra de 2 vehículos eléctricos",         kind:"preventive", status:"pending",    due:"2026-12-31", responsible:"Diego Herrera", impact:"-150 kgCO2e/mes" },
-  { id:"ga7", goalId:"g4", title:"Aislamiento térmico Edif. Principal",      kind:"preventive", status:"in_progress",due:"2026-08-15", responsible:"Diego Herrera", impact:"-90 kgCO2e/mes" },
-  { id:"ga8", goalId:"g6", title:"Sistema de captación de agua de lluvia",   kind:"corrective", status:"at_risk",    due:"2026-07-30", responsible:"Camila Ortiz",  impact:"-30 kgCO2e/mes" },
-];
-
-// --- Alerts & Notifications ---------------------------------------------
-export const alertRules = [
-  { id:"ar1", name:"Dispositivo desconectado",       type:"device",       condition:"sin lectura > 24h",     severity:"critical", priority:"high",   frequency:"immediate", channels:["email","push","inapp"], recipients:["admin","Ing. Ricardo Luna","Mantenimiento"], enabled:true,  triggeredCount:8 },
-  { id:"ar2", name:"Lectura fuera de rango",         type:"anomaly",      condition:"delta > 30% vs media",  severity:"warning",  priority:"normal", frequency:"immediate", channels:["email","inapp"],        recipients:["Dra. Ana Torres","María López"],             enabled:true,  triggeredCount:23 },
-  { id:"ar3", name:"Factor de emisión vencido",      type:"factor",       condition:"validUntil < hoy",      severity:"critical", priority:"high",   frequency:"daily",     channels:["email","inapp"],        recipients:["admin","Sergio Arellano"],                   enabled:true,  triggeredCount:1 },
-  { id:"ar4", name:"Periodo próximo a cerrar",       type:"period",       condition:"endDate <= 7 días",     severity:"info",     priority:"low",    frequency:"daily",     channels:["email","inapp"],        recipients:["directivo","operativo"],                     enabled:true,  triggeredCount:2 },
-  { id:"ar5", name:"Meta en riesgo",                 type:"goal",         condition:"progreso < 50% al 75% del plazo", severity:"warning", priority:"high", frequency:"weekly", channels:["email","inapp"], recipients:["Dra. Ana Torres","Dr. Roberto Garza"], enabled:true, triggeredCount:1 },
-  { id:"ar6", name:"Registro pendiente > 5 días",    type:"validation",   condition:"submittedAt > 5 días",  severity:"warning",  priority:"normal", frequency:"daily",     channels:["inapp"],                recipients:["Validadores"],                                enabled:true,  triggeredCount:5 },
-  { id:"ar7", name:"Login fallido reiterado",        type:"security",     condition:"5 intentos en 10 min",  severity:"critical", priority:"high",   frequency:"immediate", channels:["email"],                recipients:["admin"],                                      enabled:false, triggeredCount:0 },
-];
-
-export const notificationTemplates = [
-  { id:"nt-1", name:"Dispositivo desconectado",      subject:"[CarbonTrack] Dispositivo {{deviceName}} sin reporte", body:"El dispositivo {{deviceName}} en {{areaName}} no ha enviado lectura desde {{lastReading}}.", channel:"email" },
-  { id:"nt-2", name:"Anomalía detectada",            subject:"[CarbonTrack] Lectura anómala en {{areaName}}",         body:"Se detectó una variación de {{delta}}% en la lectura del {{date}}.",                          channel:"email" },
-  { id:"nt-3", name:"Factor vencido",                subject:"[CarbonTrack] Factor {{factorCode}} vencido",            body:"El factor {{factorCode}} venció el {{validUntil}}. Actualícelo lo antes posible.",          channel:"email" },
-  { id:"nt-4", name:"Cierre de periodo",             subject:"[CarbonTrack] Periodo {{periodName}} próximo a cerrar",  body:"El periodo {{periodName}} cierra el {{endDate}}. Captura pendiente: {{pendingCount}}.",       channel:"email" },
-];
-
-export const notificationHistory = [
-  { id:"nh1", ts:"2026-04-11T06:30:00Z", ruleId:"ar1", title:"Dispositivo Medidor Nave Industrial sin reporte",   recipients:3, status:"sent",   channel:"email" },
-  { id:"nh2", ts:"2026-04-10T22:00:00Z", ruleId:"ar3", title:"Factor GRID-MX-2025 vencido",                       recipients:2, status:"sent",   channel:"email" },
-  { id:"nh3", ts:"2026-04-10T05:30:00Z", ruleId:"ar2", title:"Lectura anómala en Edificio C",                     recipients:4, status:"sent",   channel:"email" },
-  { id:"nh4", ts:"2026-04-09T18:45:00Z", ruleId:"ar4", title:"Periodo 2026-Q1 cierre en 7 días",                  recipients:8, status:"sent",   channel:"email" },
-  { id:"nh5", ts:"2026-04-09T10:15:00Z", ruleId:"ar5", title:"Meta Reducir consumo de agua en riesgo",            recipients:2, status:"sent",   channel:"email" },
-  { id:"nh6", ts:"2026-04-08T14:00:00Z", ruleId:"ar1", title:"Sensor GLP Cafetería sin reporte",                  recipients:3, status:"sent",   channel:"email" },
-  { id:"nh7", ts:"2026-04-07T09:00:00Z", ruleId:"ar6", title:"5 registros pendientes > 5 días",                   recipients:2, status:"failed", channel:"email" },
-];
-
-export const notificationChannels = [
-  { id:"email",  label:"Correo",       icon:"Mail" },
-  { id:"push",   label:"Push",         icon:"Bell" },
-  { id:"inapp",  label:"En la app",    icon:"MessageSquare" },
-  { id:"sms",    label:"SMS",          icon:"Smartphone" },
 ];
 
 /* ------------------------------------------------------------------------
