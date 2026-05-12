@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Clock, LogIn, ShieldAlert, Sparkles } from "lucide-react";
+import { Clock, LogIn, ShieldAlert, HelpCircle } from "lucide-react";
 
 const fb = "var(--eco-font-body)";
 const fd = "var(--eco-font-display)";
@@ -99,8 +99,8 @@ export default function SessionExpiredOverlay({ open, onConfirm }) {
       <div className="ct-se-overlay" role="alertdialog" aria-modal="true" aria-labelledby="ct-se-title" aria-describedby="ct-se-sub">
         <div className="ct-se-card">
           <div className="ct-se-glyph-stage" aria-hidden="true">
-            <Sparkles size={11} className="ct-se-glyph-spark s1" />
-            <Sparkles size={9} className="ct-se-glyph-spark s2" />
+            <HelpCircle size={11} className="ct-se-glyph-spark s1" />
+            <HelpCircle size={9} className="ct-se-glyph-spark s2" />
             <div className="ct-se-glyph">
               <ShieldAlert size={28} strokeWidth={2.4} />
             </div>
@@ -113,12 +113,12 @@ export default function SessionExpiredOverlay({ open, onConfirm }) {
 
           <h2 id="ct-se-title" className="ct-se-title">¿Hola, aún sigues ahí?</h2>
           <p id="ct-se-sub" className="ct-se-sub">
-            Tu sesión ha expirado, pero no te preocupes: puedes volver a iniciar sesión y retomar tu trabajo justo donde lo dejaste.
+            Tu sesión ha expirado, pero no te preocupes. Puedes volver a iniciar sesión y retomar tu trabajo justo donde lo dejaste.
           </p>
 
           <div className="ct-se-meta">
             <Clock size={13} />
-            Tus datos se conservaron — no perdiste <strong>nada</strong>.
+            Tus datos se conservaron y no perdiste <strong>nada.</strong>
           </div>
 
           <button type="button" className="ct-se-cta" onClick={onConfirm} autoFocus>

@@ -213,10 +213,25 @@ function Kpi({
   const tc = {
     up: { i: <TrendingUp size={13} />, c: "var(--eco-danger)" },
     down: { i: <TrendingDown size={13} />, c: "var(--eco-success)" },
-    neutral: { i: <Minus size={13} />, c: "var(--eco-gray-500)" },
+    neutral: { i: <Minus size={13} />, c: "var(--eco-text-soft)" },
   }[trend || "neutral"];
 
-  const stC = { success: "var(--eco-success)", warning: "var(--eco-warning)", danger: "var(--eco-danger)", info: "var(--eco-info)" };
+  const stC = {
+    success: "var(--eco-success)",
+    warning: "var(--eco-warning)",
+    danger: "var(--eco-danger)",
+    info: "var(--eco-info)",
+  };
+
+  const accent = stC[status] || iconColor || "var(--eco-primary-500)";
+  const finalIconColor = iconColor || accent;
+
+  const ringRest = active
+    ? "0 0 0 3px color-mix(in srgb, var(--eco-primary-500) 22%, transparent), var(--eco-shadow-sm)"
+    : "var(--eco-shadow-sm)";
+  const ringHover = active
+    ? "0 0 0 3px color-mix(in srgb, var(--eco-primary-500) 32%, transparent), var(--eco-shadow-md)"
+    : "0 10px 24px -10px color-mix(in srgb, " + accent + " 35%, transparent), 0 4px 12px -4px rgba(15,23,42,0.10)";
 
   return (
     <div
@@ -224,121 +239,151 @@ function Kpi({
       tabIndex={onClick ? 0 : undefined}
       role={onClick ? "button" : undefined}
       style={{
-        background: "white",
+        background: "var(--eco-card)",
         borderRadius: "var(--eco-radius-lg)",
-        padding: 20,
-        border: `1.5px solid ${
-          active
-            ? "var(--eco-primary-400)"
-            : status === "warning"
-            ? "#FDE68A"
-            : status === "success"
-            ? "#BBF7D0"
-            : status === "info"
-            ? "#BFDBFE"
-            : status === "danger"
-            ? "#FECACA"
-            : "var(--eco-border)"
+        padding: "20px 22px",
+        border: `1px solid ${
+          active ? "var(--eco-primary-400)" : `color-mix(in srgb, ${accent} 22%, var(--eco-border))`
         }`,
-        boxShadow: active ? "0 0 0 3px var(--eco-primary-100)" : "var(--eco-shadow-sm)",
+        boxShadow: ringRest,
         cursor: onClick ? "pointer" : "default",
-        transition: "all 200ms cubic-bezier(0.33,1,0.68,1)",
+        transition:
+          "transform 220ms cubic-bezier(0.33,1,0.68,1), box-shadow 220ms cubic-bezier(0.33,1,0.68,1), border-color 220ms ease",
         animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
         position: "relative",
         overflow: "hidden",
+        isolation: "isolate",
       }}
       onMouseEnter={e => {
         if (onClick) {
-          e.currentTarget.style.boxShadow = active
-            ? "0 0 0 3px var(--eco-primary-200)"
-            : "0 4px 16px -4px rgba(0,0,0,0.1), 0 2px 6px -2px rgba(0,0,0,0.06)";
+          e.currentTarget.style.boxShadow = ringHover;
           e.currentTarget.style.transform = "translateY(-3px)";
         }
       }}
       onMouseLeave={e => {
         if (onClick) {
-          e.currentTarget.style.boxShadow = active ? "0 0 0 3px var(--eco-primary-100)" : "var(--eco-shadow-sm)";
+          e.currentTarget.style.boxShadow = ringRest;
           e.currentTarget.style.transform = "translateY(0)";
         }
       }}
     >
-      {status && stC[status] && (
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: stC[status] }} />
+      {/* Decorative tinted glow in top-right corner */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`,
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+
+      {/* Top accent gradient bar (only when a status is set or card is active) */}
+      {(status || active) && (
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: `linear-gradient(90deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, transparent) 65%, transparent 100%)`,
+            zIndex: 1,
+          }}
+        />
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: `linear-gradient(135deg, ${iconBg || "var(--eco-primary-50)"}, transparent)`,
-            color: iconColor || "var(--eco-primary-600)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            boxShadow: "0 2px 8px -2px rgba(0,0,0,0.06)",
-          }}
-        >
-          {icon}
-        </div>
-
-        <div>
-          <p
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          {/* Icon frame: layered gradient + tinted ring + tinted drop shadow */}
+          <div
             style={{
-              fontFamily: fb,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--eco-gray-500)",
-              margin: 0,
-              lineHeight: 1.2,
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${finalIconColor} 22%, transparent) 0%, color-mix(in srgb, ${finalIconColor} 10%, transparent) 100%)`,
+              border: `1px solid color-mix(in srgb, ${finalIconColor} 30%, transparent)`,
+              color: finalIconColor,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: `0 6px 14px -6px color-mix(in srgb, ${finalIconColor} 50%, transparent), inset 0 1px 0 color-mix(in srgb, white 30%, transparent)`,
             }}
           >
-            {title}
-          </p>
-          {sub && <p style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)", margin: 0 }}>{sub}</p>}
+            {icon}
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontFamily: fb,
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--eco-text-strong)",
+                margin: 0,
+                lineHeight: 1.25,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {title}
+            </p>
+            {sub && (
+              <p
+                style={{
+                  fontFamily: fb,
+                  fontSize: 11,
+                  color: "var(--eco-text-soft)",
+                  margin: "2px 0 0",
+                  lineHeight: 1.2,
+                }}
+              >
+                {sub}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginBottom: 6 }}>
-        <span
-          style={{
-            fontFamily: fm,
-            fontSize: 26,
-            fontWeight: 700,
-            color: "var(--eco-gray-900)",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {fN(av)}
-        </span>
-        <span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-gray-400)" }}>{unit}</span>
-      </div>
-
-      {delta != null && (
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "2px 8px",
-            borderRadius: "var(--eco-radius-full)",
-            background:
-              trend === "down"
-                ? "var(--eco-success-bg)"
-                : trend === "up"
-                ? "var(--eco-danger-bg)"
-                : "var(--eco-gray-100)",
-          }}
-        >
-          <span style={{ display: "flex", color: tc.c }}>{tc.i}</span>
-          <span style={{ fontFamily: fm, fontSize: 11, fontWeight: 600, color: tc.c }}>
-            {delta > 0 ? "+" : ""}
-            {delta}%
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: delta != null ? 8 : 0 }}>
+          <span
+            style={{
+              fontFamily: fm,
+              fontSize: 28,
+              fontWeight: 700,
+              color: "var(--eco-text-strong)",
+              letterSpacing: "-0.025em",
+              lineHeight: 1,
+            }}
+          >
+            {fN(av)}
+          </span>
+          <span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-text-soft)", fontWeight: 500 }}>
+            {unit}
           </span>
         </div>
-      )}
+
+        {delta != null && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 9px",
+              borderRadius: "var(--eco-radius-full)",
+              background: `color-mix(in srgb, ${tc.c} 14%, transparent)`,
+              border: `1px solid color-mix(in srgb, ${tc.c} 22%, transparent)`,
+            }}
+          >
+            <span style={{ display: "flex", color: tc.c }}>{tc.i}</span>
+            <span style={{ fontFamily: fm, fontSize: 11, fontWeight: 700, color: tc.c }}>
+              {delta > 0 ? "+" : ""}
+              {delta}%
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

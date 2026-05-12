@@ -499,7 +499,7 @@ function Drawer({ factor, onClose }) {
   const sampleAmount = factor.category === "electricidad" ? 100 : 10;
   const sampleResult = sampleAmount * Number(factor.value || 0);
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "flex-end" }}>
+    <div style={{ position: "fixed", top: "var(--header-h, 60px)", right: 0, bottom: 0, left: 0, zIndex: 15, display: "flex", justifyContent: "flex-end" }}>
       <div
         style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,.34)", backdropFilter: "blur(3px)", animation: "ctOverlay .2s ease-out" }}
         onClick={onClose}
@@ -603,48 +603,68 @@ function Drawer({ factor, onClose }) {
 }
 
 /* --- KPI Card --- */
+function extractAccentColor(bg) {
+  if (!bg || typeof bg !== "string") return "var(--eco-primary-500)";
+  const m = bg.match(/(#[\da-fA-F]{3,8}|var\(--[\w-]+\)|rgba?\([^)]+\))/);
+  return m ? m[1] : "var(--eco-primary-500)";
+}
 function KpiCard({ icon, iconBg, label, value, sub, delay = 0 }) {
+  const accent = extractAccentColor(iconBg);
+  const restBorder = `1px solid color-mix(in srgb, ${accent} 22%, var(--eco-border))`;
+  const hoverShadow = `0 10px 22px -10px color-mix(in srgb, ${accent} 35%, transparent), 0 4px 10px -4px rgba(15,23,42,0.10)`;
   return (
     <div
       style={{
         ...cardBase,
         padding: "18px 20px",
+        border: restBorder,
         animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,
-        transition: "box-shadow 200ms, transform 200ms",
+        transition: "transform 220ms cubic-bezier(.33,1,.68,1), box-shadow 220ms cubic-bezier(.33,1,.68,1), border-color 220ms ease",
+        position: "relative",
+        overflow: "hidden",
+        isolation: "isolate",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = "0 8px 24px rgba(34,197,94,.10)";
-        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.boxShadow = hoverShadow;
+        e.currentTarget.style.transform = "translateY(-3px)";
+        e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 45%, var(--eco-border))`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
         e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 22%, var(--eco-border))`;
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: iconBg,
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {icon}
+      {/* Decorative tinted glow in top-right corner */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`, pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              background: iconBg,
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
+              boxShadow: `0 8px 18px -6px color-mix(in srgb, ${accent} 55%, transparent), inset 0 1px 0 color-mix(in srgb, white 35%, transparent)`,
+            }}
+          >
+            {icon}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text-soft, var(--eco-gray-500))", letterSpacing: "-0.005em" }}>{label}</p>
+            <p style={{ margin: "2px 0 0", fontFamily: fd, fontSize: 22, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{value}</p>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>{label}</p>
-          <p style={{ margin: "2px 0 0", fontFamily: fd, fontSize: 22, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))", letterSpacing: "-0.02em" }}>{value}</p>
-        </div>
+        {sub && (
+          <p style={{ margin: "10px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-500))", lineHeight: 1.45 }}>{sub}</p>
+        )}
       </div>
-      {sub && (
-        <p style={{ margin: "10px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-500))", lineHeight: 1.45 }}>{sub}</p>
-      )}
     </div>
   );
 }
@@ -897,6 +917,7 @@ export default function FactorsPage({ user }) {
 
     const payload = {
       id: form.id || undefined,
+      scope: scopeForFactorCategory(form.category),
       category: form.category,
       metric: form.category === "electricidad" ? "electricity_consumption" : form.category === "combustible" ? "fuel_volume" : "custom",
       numeratorUnit: "kgCO2e",
@@ -915,7 +936,7 @@ export default function FactorsPage({ user }) {
 
     const conflict = findDefaultConflict(
       factors,
-      { ...payload, scope: scopeForFactorCategory(payload.category), isDefault: payload.isDefault, isActive: payload.isActive },
+      { ...payload, isDefault: payload.isDefault, isActive: payload.isActive },
       factor?.id
     );
     if (payload.isDefault && conflict && !forceDefaultOverride) {
@@ -1449,8 +1470,8 @@ export default function FactorsPage({ user }) {
                 <tbody>
                   {filtered.map((factor, index) => {
                     const scopeColors = {
-                      scope1: { bg: "var(--eco-primary-50)", color: "var(--eco-primary-700)", icon: <Flame size={12} /> },
-                      scope2: { bg: "#EFF6FF", color: "#2563EB", icon: <Zap size={12} /> },
+                      scope1: { bg: "color-mix(in srgb, var(--eco-primary-500) 14%, transparent)", color: "var(--eco-primary-700)", icon: <Flame size={12} /> },
+                      scope2: { bg: "color-mix(in srgb, var(--eco-info) 14%, transparent)", color: "var(--eco-info)", icon: <Zap size={12} /> },
                       scope3: { bg: "#F5F3FF", color: "#7C3AED", icon: <Globe size={12} /> },
                     };
                     const sc = scopeColors[factor.scope] || scopeColors.scope2;

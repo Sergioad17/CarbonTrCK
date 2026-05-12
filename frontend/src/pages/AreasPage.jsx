@@ -57,13 +57,24 @@ function DonutCenter({ pct = 0, caption = "Participacion" }) { return <div style
 function KpiCard({ title, value, unit, icon, iconBg, iconColor, sub, status, delay = 0 }) {
   const num = Number(String(value).replace(/[^0-9.\-]/g, "")) || 0; const anim = useCountUp(num, 700); const isNum = !isNaN(num) && String(value) !== "-";
   const sa = { warning: { c: "var(--eco-warning)", b: "#FDE68A" }, danger: { c: "var(--eco-danger)", b: "#FECACA" }, success: { c: "var(--eco-success)", b: "#BBF7D0" } }[status] || null;
-  return (<div style={{ background: "white", borderRadius: "var(--eco-radius-lg)", padding: 18, border: `1px solid ${sa?.b || "var(--eco-border)"}`, boxShadow: "var(--eco-shadow-sm)", transition: "all 200ms cubic-bezier(.33,1,.68,1)", animation: `ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative", overflow: "hidden" }}
-    onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-md)"; e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = "var(--eco-primary-300)"; }}
-    onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = sa?.b || "var(--eco-border)"; }}>
-    {sa && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: sa.c, borderRadius: "14px 14px 0 0" }} />}
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}><div style={{ width: 38, height: 38, borderRadius: "var(--eco-radius-md)", background: iconBg || "var(--eco-primary-50)", color: iconColor || "var(--eco-primary-600)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div><p style={{ margin: 0, fontFamily: fb, fontSize: 13, fontWeight: 500, color: "var(--eco-gray-500)", lineHeight: 1.2 }}>{title}</p></div>
-    <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}><span style={{ fontFamily: fm, fontSize: 26, fontWeight: 700, color: "var(--eco-gray-900)", letterSpacing: "-0.02em" }}>{isNum ? fN(anim, unit === "%" ? 0 : 2) : value}</span><span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-gray-400)" }}>{unit}</span></div>
-    {sub && <p style={{ margin: "4px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-gray-400)" }}>{sub}</p>}
+  const accent = sa?.c || iconColor || "var(--eco-primary-500)";
+  const finalIconColor = iconColor || accent;
+  const restBorder = `1px solid color-mix(in srgb, ${accent} 22%, var(--eco-border))`;
+  const hoverShadow = `0 10px 22px -10px color-mix(in srgb, ${accent} 35%, transparent), 0 4px 10px -4px rgba(15,23,42,0.10)`;
+  return (<div style={{ background: "var(--eco-card)", borderRadius: "var(--eco-radius-lg)", padding: "18px 20px", border: restBorder, boxShadow: "var(--eco-shadow-sm)", transition: "transform 220ms cubic-bezier(.33,1,.68,1), box-shadow 220ms cubic-bezier(.33,1,.68,1), border-color 220ms ease", animation: `ctUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`, position: "relative", overflow: "hidden", isolation: "isolate" }}
+    onMouseEnter={e => { e.currentTarget.style.boxShadow = hoverShadow; e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 45%, var(--eco-border))`; }}
+    onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)"; e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 22%, var(--eco-border))`; }}>
+    {/* Decorative tinted glow in top-right corner */}
+    <div aria-hidden style={{ position: "absolute", inset: 0, background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`, pointerEvents: "none", zIndex: 0 }} />
+    {sa && <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${sa.c} 0%, color-mix(in srgb, ${sa.c} 55%, transparent) 65%, transparent 100%)`, zIndex: 1 }} />}
+    <div style={{ position: "relative", zIndex: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, color-mix(in srgb, ${finalIconColor} 22%, transparent) 0%, color-mix(in srgb, ${finalIconColor} 10%, transparent) 100%)`, border: `1px solid color-mix(in srgb, ${finalIconColor} 30%, transparent)`, color: finalIconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 6px 14px -6px color-mix(in srgb, ${finalIconColor} 50%, transparent), inset 0 1px 0 color-mix(in srgb, white 30%, transparent)` }}>{icon}</div>
+        <p style={{ margin: 0, fontFamily: fb, fontSize: 13, fontWeight: 600, color: "var(--eco-text-strong)", lineHeight: 1.25, letterSpacing: "-0.005em" }}>{title}</p>
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}><span style={{ fontFamily: fm, fontSize: 26, fontWeight: 700, color: "var(--eco-text-strong)", letterSpacing: "-0.025em", lineHeight: 1 }}>{isNum ? fN(anim, unit === "%" ? 0 : 2) : value}</span><span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-text-soft)", fontWeight: 500 }}>{unit}</span></div>
+      {sub && <p style={{ margin: "5px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.2 }}>{sub}</p>}
+    </div>
   </div>);
 }
 

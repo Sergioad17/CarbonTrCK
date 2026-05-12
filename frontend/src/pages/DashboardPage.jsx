@@ -16,7 +16,8 @@ import {
   Eye, Menu,
   LogOut, User, Settings,
   Users, Database, FileText,
-  HelpCircle, BrainCircuit
+  HelpCircle, BrainCircuit, Sparkles,
+  Send, RotateCcw, Pencil, Paperclip
 } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar, PieChart as RPieChart,
@@ -41,7 +42,9 @@ import NotificationsBell from '../components/NotificationsBell'
 import AdminPanel from '../admin/AdminPanel'
 import DiagnosticoInteligentePage from './DiagnosticoInteligentePage'
 import RecentActivityDetailSheet from '../components/RecentActivityDetailSheet'
-import { createEmissionRecord } from "../api/records"
+import { createEmissionRecord, fetchEmissionRecords } from "../api/records"
+import { buildApiUrl } from "../api/config"
+import { getSession } from "../lib/sessionStore"
 import { fetchDashboardActivity, fetchDashboardPeriods, fetchDashboardRecords, persistDashboardActivity } from "../api/dashboard"
 import { hydrateCurrentUser } from "../api/auth"
 import { canUse } from "../lib/permissions"
@@ -184,13 +187,13 @@ function useCount(t, dur = 650) {
 
 const navItems = [{
   id: "dashboard",
-  label: "Dashboard",
+  label: "Inicio",
   icon: LayoutDashboard
 },
 {
   id: "diagnostico",
   label: "Diagnóstico Inteligente",
-  icon: BrainCircuit,
+  icon: Sparkles,
   aiTheme: true,
   aiBadge: "IA"
 },
@@ -800,7 +803,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
     },
     neutral: {
       i: <Minus size={13} />,
-      c: "var(--eco-gray-500)"
+      c: "var(--eco-text-soft)"
     }
   }[trend || "neutral"];
   const stC = {
@@ -809,6 +812,9 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
     danger: "var(--eco-danger)",
     info: "var(--eco-info)"
   };
+  const accent = stC[status] || iconColor || "var(--eco-primary-500)";
+  const finalIconColor = iconColor || accent;
+  const sparkStroke = tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8";
   const sparkPts = spark?.length > 1 ? (() => {
     const mx = Math.max(...spark),
       mn = Math.min(...spark),
@@ -830,20 +836,21 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
     tabIndex={onClick ? 0 : undefined}
     role={onClick ? "button" : undefined}
     style={{
-      background: "white",
+      background: "var(--eco-card)",
       borderRadius: "var(--eco-radius-lg)",
-      padding: 20,
-      border: `1px solid ${status === "danger" ? "#FECACA" : status === "warning" ? "#FDE68A" : status === "success" ? "#BBF7D0" : status === "info" ? "#BFDBFE" : "var(--eco-border)"}`,
+      padding: "20px 22px",
+      border: `1px solid color-mix(in srgb, ${accent} 22%, var(--eco-border))`,
       boxShadow: "var(--eco-shadow-sm)",
       cursor: onClick ? "pointer" : "default",
-      transition: "all 250ms cubic-bezier(0.33,1,0.68,1)",
+      transition: "transform 250ms cubic-bezier(0.33,1,0.68,1), box-shadow 250ms cubic-bezier(0.33,1,0.68,1), border-color 250ms ease",
       animation: `eco-fadeInUp 0.4s ease-out ${delay}ms both`,
       position: "relative",
-      overflow: "hidden"
+      overflow: "hidden",
+      isolation: "isolate"
     }}
     onMouseEnter={e => {
       if (onClick) {
-        e.currentTarget.style.boxShadow = "0 8px 25px -5px rgba(0,0,0,0.1), 0 4px 10px -5px rgba(0,0,0,0.04)";
+        e.currentTarget.style.boxShadow = `0 10px 24px -10px color-mix(in srgb, ${accent} 35%, transparent), 0 4px 12px -4px rgba(15,23,42,0.10)`;
         e.currentTarget.style.transform = "translateY(-3px)"
       }
     }}
@@ -853,14 +860,25 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
         e.currentTarget.style.transform = "translateY(0)"
       }
     }}>
-    {status && stC[status] && <div style={{
+    {/* Decorative tinted glow in top-right corner */}
+    <div aria-hidden style={{
+      position: "absolute",
+      inset: 0,
+      background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`,
+      pointerEvents: "none",
+      zIndex: 0
+    }} />
+    {/* Top accent gradient bar */}
+    {status && stC[status] && <div aria-hidden style={{
       position: "absolute",
       top: 0,
       left: 0,
       right: 0,
       height: 3,
-      background: stC[status]
+      background: `linear-gradient(90deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, transparent) 65%, transparent 100%)`,
+      zIndex: 1
     }} />}
+    <div style={{ position: "relative", zIndex: 2 }}>
     <div
       style={{
         display: "flex",
@@ -876,34 +894,37 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
         }}>
         <div
           style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: iconBg ? `linear-gradient(135deg, ${iconBg}, ${iconBg}dd)` : "linear-gradient(135deg, var(--eco-primary-50), var(--eco-primary-100))",
-            color: iconColor || "var(--eco-primary-600)",
+            width: 44,
+            height: 44,
+            borderRadius: 13,
+            background: `linear-gradient(135deg, color-mix(in srgb, ${finalIconColor} 22%, transparent) 0%, color-mix(in srgb, ${finalIconColor} 10%, transparent) 100%)`,
+            border: `1px solid color-mix(in srgb, ${finalIconColor} 30%, transparent)`,
+            color: finalIconColor,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
-            boxShadow: `0 2px 8px ${iconBg ? iconBg + "40" : "rgba(34,197,94,0.15)"}`
+            boxShadow: `0 6px 14px -6px color-mix(in srgb, ${finalIconColor} 50%, transparent), inset 0 1px 0 color-mix(in srgb, white 30%, transparent)`
           }}>
           {icon}
         </div>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <p style={{
             fontFamily: fb,
             fontSize: 13,
-            fontWeight: 500,
-            color: "var(--eco-gray-500)",
+            fontWeight: 600,
+            color: "var(--eco-text-strong)",
             margin: 0,
-            lineHeight: 1.2
+            lineHeight: 1.25,
+            letterSpacing: "-0.005em"
           }}>
             {title}
           </p>{sub && <p style={{
             fontFamily: fb,
             fontSize: 11,
-            color: "var(--eco-gray-400)",
-            margin: "2px 0 0"
+            color: "var(--eco-text-soft)",
+            margin: "2px 0 0",
+            lineHeight: 1.2
           }}>
             {sub}
           </p>}
@@ -919,8 +940,8 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
           }}>
           <defs>
             <linearGradient id={`sparkGrad-${title?.replace(/\s/g,"")}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"} stopOpacity="0.2" />
-              <stop offset="100%" stopColor={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"} stopOpacity="0" />
+              <stop offset="0%" stopColor={sparkStroke} stopOpacity="0.25" />
+              <stop offset="100%" stopColor={sparkStroke} stopOpacity="0" />
             </linearGradient>
           </defs>
           {sparkArea && <polygon
@@ -930,7 +951,7 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
           <polyline
             points={sparkPts}
             fill="none"
-            stroke={tc.c === "var(--eco-success)" ? "#22C55E" : tc.c === "var(--eco-danger)" ? "#EF4444" : "#94A3B8"}
+            stroke={sparkStroke}
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round" />
@@ -940,14 +961,14 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       display: "flex",
       alignItems: "baseline",
       gap: 6,
-      marginBottom: 8
+      marginBottom: delta != null ? 8 : 0
     }}>
       <span style={{
         fontFamily: fm,
         fontSize: 28,
         fontWeight: 700,
-        color: "var(--eco-gray-900)",
-        letterSpacing: "-0.02em",
+        color: "var(--eco-text-strong)",
+        letterSpacing: "-0.025em",
         lineHeight: 1
       }}>
         {fN(av)}
@@ -955,7 +976,8 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       <span style={{
         fontFamily: fm,
         fontSize: 12,
-        color: "var(--eco-gray-400)"
+        color: "var(--eco-text-soft)",
+        fontWeight: 500
       }}>
         {unit}
       </span>
@@ -966,7 +988,8 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
       gap: 4,
       padding: "3px 10px",
       borderRadius: "var(--eco-radius-full)",
-      background: trend === "down" ? "var(--eco-success-bg)" : trend === "up" ? "var(--eco-danger-bg)" : "var(--eco-gray-100)",
+      background: `color-mix(in srgb, ${tc.c} 14%, transparent)`,
+      border: `1px solid color-mix(in srgb, ${tc.c} 22%, transparent)`,
       animation: "eco-deltaPop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.5s both"
     }}>
       <span
@@ -980,12 +1003,13 @@ function Kpi({ title, sub, value, unit, icon, iconBg, iconColor, delta, trend, s
         style={{
           fontFamily: fm,
           fontSize: 11,
-          fontWeight: 600,
+          fontWeight: 700,
           color: tc.c
         }}>
         {delta > 0 ? "+" : ""}
         {delta}%</span>
     </div>}
+    </div>
   </div>)
 }
 
@@ -1259,6 +1283,490 @@ function DrillPanel({ title, onClose, children }) {
   );
 }
 
+function resolveEvidenceUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^(https?:|blob:|data:)/i.test(raw)) return raw;
+  if (raw.startsWith("//") && typeof window !== "undefined") return `${window.location.protocol}${raw}`;
+  try { return buildApiUrl(raw); } catch { return typeof window !== "undefined" ? new URL(raw, window.location.origin).toString() : raw; }
+}
+
+function EvidenceImage({ url, accentColor = "var(--eco-info)" }) {
+  const [src, setSrc] = useState(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const resolvedUrl = resolveEvidenceUrl(url);
+    setSrc(null);
+    setFailed(false);
+    if (!resolvedUrl) return;
+    if (resolvedUrl.startsWith("data:") || resolvedUrl.startsWith("blob:")) { setSrc(resolvedUrl); return; }
+    let objUrl = null;
+    const token = getSession()?.token || null;
+    fetch(resolvedUrl, token ? { headers: { Authorization: `Bearer ${token}` } } : {})
+      .then(r => r.ok ? r.blob() : Promise.reject())
+      .then(blob => { if (!blob.type.startsWith("image/")) { setFailed(true); return; } objUrl = URL.createObjectURL(blob); setSrc(objUrl); })
+      .catch(() => setFailed(true));
+    return () => { if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [url]);
+  if (!url || failed || !src) return null;
+  return (
+    <div style={{ borderRadius: "var(--eco-radius-md)", overflow: "hidden", border: "1px solid var(--eco-border)", animation: "eco-fadeInUp .35s ease-out both" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--eco-surface)", borderBottom: "1px solid var(--eco-border)" }}>
+        <Paperclip size={11} style={{ color: accentColor, flexShrink: 0 }} />
+        <span style={{ fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-text-soft)" }}>Evidencia adjunta</span>
+      </div>
+      <div style={{ background: "var(--eco-card-muted, var(--eco-surface))", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <img src={src} alt="Evidencia" style={{ width: "100%", maxHeight: 260, objectFit: "contain", display: "block" }} />
+      </div>
+    </div>
+  );
+}
+
+function RecordsListDrawer({ open, onClose, records, title, subtitle, accent, accentIcon: AccentIcon, emptyText, onEditRecord }) {
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    if (!open) setSelected(null);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handler = (event) => { if (event.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const formatDate = (iso) => {
+    const norm = normalizeDateISO(iso);
+    if (!norm) return "Sin fecha";
+    const dt = new Date(`${norm}T12:00:00`);
+    if (Number.isNaN(dt.getTime())) return norm;
+    return `${dt.getDate()} ${MONTHS_ES[dt.getMonth()]} ${dt.getFullYear()}`;
+  };
+
+  const scopeLabel = (record) => {
+    if (record.category === "combustible") return "Scope 1 · Combustible";
+    if (record.category === "electricidad") return "Scope 2 · Electricidad";
+    return record.scope ? record.scope.replace("scope", "Scope ") : "Sin scope";
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "var(--header-h, 60px)",
+        right: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 15,
+        display: "flex",
+        justifyContent: "flex-end",
+        animation: "eco-fadeIn 0.2s ease-out",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--eco-overlay, rgba(15,23,42,0.35))",
+          backdropFilter: "blur(3px)",
+        }}
+        onClick={onClose}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 560,
+          background: "var(--eco-card)",
+          borderLeft: "1px solid var(--eco-border)",
+          boxShadow: "var(--eco-shadow-xl)",
+          display: "flex",
+          flexDirection: "column",
+          animation: "eco-fadeInUp 0.28s cubic-bezier(0.33,1,0.68,1)",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid var(--eco-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            flexShrink: 0,
+            background: `linear-gradient(180deg, color-mix(in srgb, ${accent} 8%, var(--eco-card)) 0%, var(--eco-card) 100%)`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            {selected ? (
+              <button
+                onClick={() => setSelected(null)}
+                aria-label="Volver al listado"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "var(--eco-radius-sm)",
+                  border: `1px solid color-mix(in srgb, ${accent} 28%, var(--eco-border))`,
+                  background: `color-mix(in srgb, ${accent} 12%, transparent)`,
+                  color: accent,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  transition: "all 150ms ease",
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+            ) : (
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "var(--eco-radius-md)",
+                  background: `color-mix(in srgb, ${accent} 18%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${accent} 32%, transparent)`,
+                  color: accent,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {AccentIcon ? <AccentIcon size={17} /> : null}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              <h3
+                style={{
+                  fontFamily: fd,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: "var(--eco-text-strong)",
+                  margin: 0,
+                  lineHeight: 1.25,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {selected ? "Detalle del registro" : title}
+              </h3>
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontFamily: fb,
+                  fontSize: 11.5,
+                  color: "var(--eco-text-soft)",
+                  lineHeight: 1.2,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {selected ? selected.activity || "Trazabilidad del registro" : subtitle}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "var(--eco-radius-sm)",
+              border: "1px solid var(--eco-border)",
+              background: "var(--eco-card)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--eco-text-soft)",
+              flexShrink: 0,
+              transition: "all 140ms ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--eco-danger-bg)";
+              e.currentTarget.style.color = "var(--eco-danger)";
+              e.currentTarget.style.borderColor = "color-mix(in srgb, var(--eco-danger) 35%, var(--eco-border))";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--eco-card)";
+              e.currentTarget.style.color = "var(--eco-text-soft)";
+              e.currentTarget.style.borderColor = "var(--eco-border)";
+            }}
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: "auto", padding: 16, minHeight: 0 }}>
+          {selected ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Formula / cálculo */}
+              <div
+                style={{
+                  background: `color-mix(in srgb, ${accent} 10%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${accent} 25%, var(--eco-border))`,
+                  borderRadius: "var(--eco-radius-lg)",
+                  padding: 14,
+                  textAlign: "center",
+                }}
+              >
+                <p style={{ margin: "0 0 8px", fontFamily: fb, fontSize: 11, fontWeight: 700, color: accent, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  Cálculo de emisiones
+                </p>
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: fm, fontSize: 17, fontWeight: 700, color: "var(--eco-text-strong)" }}>
+                    {fN(Number(selected.value) || 0, selected.category === "combustible" ? 2 : 0)}
+                  </span>
+                  <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>{selected.unit || (selected.category === "combustible" ? "L" : "kWh")}</span>
+                  <span style={{ color: "var(--eco-text-soft)", fontFamily: fm, fontSize: 14 }}>×</span>
+                  <span style={{ fontFamily: fm, fontSize: 17, fontWeight: 700, color: "var(--eco-text-strong)" }}>{fN(Number(selected.factor) || 0, 3)}</span>
+                  <span style={{ fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>{`kgCO₂e/${selected.unit || (selected.category === "combustible" ? "L" : "kWh")}`}</span>
+                  <span style={{ color: "var(--eco-text-soft)", fontFamily: fm, fontSize: 14 }}>=</span>
+                  <span style={{ fontFamily: fm, fontSize: 20, fontWeight: 700, color: accent }}>{fN(Number(selected.co2e_t) || 0, 4)}</span>
+                  <span style={{ fontFamily: fb, fontSize: 12, color: accent, fontWeight: 700 }}>tCO₂e</span>
+                </div>
+              </div>
+
+              {/* Detail rows */}
+              <div
+                style={{
+                  background: "var(--eco-surface)",
+                  borderRadius: "var(--eco-radius-md)",
+                  border: "1px solid var(--eco-border)",
+                  overflow: "hidden",
+                }}
+              >
+                {[
+                  ["Fecha", formatDate(selected.dateISO)],
+                  ["Área", selected.area || "Sin área"],
+                  ["Scope", scopeLabel(selected)],
+                  ["Actividad", selected.activity || "Sin actividad"],
+                  ["Consumo", `${fN(Number(selected.value) || 0, selected.category === "combustible" ? 2 : 0)} ${selected.unit || (selected.category === "combustible" ? "L" : "kWh")}`],
+                  ["Factor aplicado", `${fN(Number(selected.factor) || 0, 3)} kgCO₂e/${selected.unit || (selected.category === "combustible" ? "L" : "kWh")}`],
+                  ["CO₂e (kg)", `${fN(Number(selected.co2e_kg) || 0, 2)} kgCO₂e`],
+                  ["Tipo de dato", selected.status === "est" ? "Estimado" : "Real"],
+                  ["Fuente", selected.source || "Medición"],
+                  ["Capturado por", selected.by || "Sin información"],
+                ].map(([label, value], i, all) => (
+                  <div
+                    key={label}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      padding: "10px 14px",
+                      borderBottom: i < all.length - 1 ? "1px solid var(--eco-border)" : "none",
+                    }}
+                  >
+                    <span style={{ fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)" }}>{label}</span>
+                    <span style={{ fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text-strong)", textAlign: "right", lineHeight: 1.5 }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Evidence image (if the record has one) */}
+              {selected.evidenceUrl ? (
+                <EvidenceImage url={selected.evidenceUrl} accentColor={accent} />
+              ) : null}
+
+              {/* Validation comment (for returned records) */}
+              {selected.latestValidationComment ? (
+                <div
+                  style={{
+                    background: `color-mix(in srgb, ${accent} 8%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${accent} 28%, var(--eco-border))`,
+                    borderRadius: "var(--eco-radius-md)",
+                    padding: "12px 14px",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                  }}
+                >
+                  <AlertCircle size={16} style={{ color: accent, flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontFamily: fd, fontSize: 12.5, fontWeight: 700, color: "var(--eco-text-strong)" }}>
+                      Comentario del revisor
+                    </p>
+                    <p style={{ margin: "3px 0 0", fontFamily: fb, fontSize: 12, color: "var(--eco-text)", lineHeight: 1.5 }}>
+                      {selected.latestValidationComment}
+                    </p>
+                    {selected.latestValidationActor && (
+                      <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>
+                        — {selected.latestValidationActor}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Note */}
+              {selected.note ? (
+                <div
+                  style={{
+                    background: "var(--eco-surface)",
+                    border: "1px solid var(--eco-border)",
+                    borderRadius: "var(--eco-radius-md)",
+                    padding: "12px 14px",
+                  }}
+                >
+                  <p style={{ margin: "0 0 4px", fontFamily: fb, fontSize: 11, fontWeight: 600, color: "var(--eco-text-soft)" }}>Nota</p>
+                  <p style={{ margin: 0, fontFamily: fb, fontSize: 12.5, color: "var(--eco-text)", lineHeight: 1.55 }}>{selected.note}</p>
+                </div>
+              ) : null}
+
+              {/* Edit button (only for returned records) */}
+              {onEditRecord ? (
+                <button
+                  onClick={() => onEditRecord(selected)}
+                  style={{
+                    height: 42,
+                    padding: "0 18px",
+                    borderRadius: "var(--eco-radius-md)",
+                    border: "none",
+                    background: `linear-gradient(135deg, ${accent}, color-mix(in srgb, ${accent} 75%, black))`,
+                    color: "white",
+                    fontFamily: fb,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: `0 8px 20px -8px color-mix(in srgb, ${accent} 55%, transparent)`,
+                    transition: "all 180ms ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = `0 12px 26px -8px color-mix(in srgb, ${accent} 65%, transparent)`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = `0 8px 20px -8px color-mix(in srgb, ${accent} 55%, transparent)`;
+                  }}
+                >
+                  <Pencil size={14} />
+                  Editar registro
+                </button>
+              ) : null}
+            </div>
+          ) : records && records.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {records.map((record, index) => (
+                <button
+                  key={record.id}
+                  onClick={() => setSelected(record)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    border: "1px solid var(--eco-border)",
+                    background: "var(--eco-surface)",
+                    borderRadius: "var(--eco-radius-md)",
+                    padding: "12px 14px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    transition: "all 160ms ease",
+                    animation: `eco-fadeInUp .3s ease-out ${Math.min(index * 30, 240)}ms both`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 45%, var(--eco-border))`;
+                    e.currentTarget.style.background = `color-mix(in srgb, ${accent} 6%, var(--eco-surface))`;
+                    e.currentTarget.style.transform = "translateX(2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--eco-border)";
+                    e.currentTarget.style.background = "var(--eco-surface)";
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: "var(--eco-radius-md)",
+                      background: `color-mix(in srgb, ${accent} 14%, transparent)`,
+                      border: `1px solid color-mix(in srgb, ${accent} 28%, transparent)`,
+                      color: accent,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {record.category === "combustible" ? <Flame size={15} /> : <Zap size={15} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontFamily: fb, fontSize: 13, fontWeight: 700, color: "var(--eco-text-strong)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {record.activity || "Sin actividad"}
+                    </p>
+                    <p style={{ margin: "2px 0 0", fontFamily: fb, fontSize: 11.5, color: "var(--eco-text-soft)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {formatDate(record.dateISO)} · {record.area || "Sin área"} · {scopeLabel(record)}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, gap: 2 }}>
+                    <span style={{ fontFamily: fm, fontSize: 13, fontWeight: 700, color: accent }}>
+                      {fN(Number(record.co2e_t) || 0, 3)}
+                    </span>
+                    <span style={{ fontFamily: fb, fontSize: 10, fontWeight: 600, color: "var(--eco-text-soft)" }}>tCO₂e</span>
+                  </div>
+                  <ChevronRight size={15} style={{ color: "var(--eco-text-soft)", flexShrink: 0 }} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
+                padding: "40px 20px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: `color-mix(in srgb, ${accent} 12%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${accent} 28%, transparent)`,
+                  color: accent,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {AccentIcon ? <AccentIcon size={26} /> : <Info size={26} />}
+              </div>
+              <p style={{ margin: 0, fontFamily: fd, fontSize: 14, fontWeight: 700, color: "var(--eco-text-strong)" }}>
+                {emptyText || "Sin registros para mostrar"}
+              </p>
+              <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", maxWidth: 340, lineHeight: 1.5 }}>
+                Cuando haya registros en esta categoría aparecerán listados aquí con todos sus detalles.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SectionLabel({ children, action }) {
   return (
     <div
@@ -1496,8 +2004,37 @@ function DashboardSkeleton() {
   );
 }
 
-function QuickActionCard({ icon, label, primary, onClick }) {
+function QuickActionCard({ icon, label, primary, tone, count, onClick }) {
   const Icon = icon;
+  const toneAccent = tone === "blue" ? "var(--eco-info)" : tone === "red" ? "var(--eco-danger)" : null;
+  const showCount = typeof count === "number" && count > 0;
+  const displayCount = count > 99 ? "99+" : String(count);
+
+  const baseBg = primary
+    ? "var(--eco-primary-500)"
+    : toneAccent
+      ? `color-mix(in srgb, ${toneAccent} 10%, var(--eco-card))`
+      : "var(--eco-card)";
+  const baseBorder = primary
+    ? "var(--eco-primary-500)"
+    : toneAccent
+      ? `color-mix(in srgb, ${toneAccent} 32%, var(--eco-border))`
+      : "var(--eco-border)";
+  const textColor = primary ? "white" : "var(--eco-text-strong)";
+  const iconAccent = primary
+    ? null
+    : toneAccent || "var(--eco-gray-500)";
+  const iconWrapBg = primary
+    ? "linear-gradient(135deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.16) 100%)"
+    : `linear-gradient(135deg, color-mix(in srgb, ${iconAccent} 22%, transparent) 0%, color-mix(in srgb, ${iconAccent} 10%, transparent) 100%)`;
+  const iconWrapBorder = primary
+    ? "rgba(255,255,255,0.28)"
+    : `color-mix(in srgb, ${iconAccent} 30%, transparent)`;
+  const iconWrapShadow = primary
+    ? "inset 0 1px 0 rgba(255,255,255,0.35)"
+    : `0 6px 14px -6px color-mix(in srgb, ${iconAccent} 45%, transparent), inset 0 1px 0 color-mix(in srgb, white 28%, transparent)`;
+  const iconColor = primary ? "white" : toneAccent || "var(--eco-gray-600)";
+
   return (
     <button
       onClick={onClick}
@@ -1507,13 +2044,13 @@ function QuickActionCard({ icon, label, primary, onClick }) {
         gap: 10,
         padding: "12px 16px",
         borderRadius: "var(--eco-radius-lg)",
-        border: primary ? "1px solid var(--eco-primary-500)" : "1px solid var(--eco-border)",
-        background: primary ? "var(--eco-primary-500)" : "var(--eco-bg, white)",
+        border: `1px solid ${baseBorder}`,
+        background: baseBg,
         cursor: "pointer",
         fontFamily: fb,
         fontSize: 13,
-        fontWeight: 500,
-        color: primary ? "white" : "var(--eco-gray-700)",
+        fontWeight: 600,
+        color: textColor,
         transition: "all 200ms cubic-bezier(0.33,1,0.68,1)",
         boxShadow: "var(--eco-shadow-sm)",
         textAlign: "left",
@@ -1524,6 +2061,9 @@ function QuickActionCard({ icon, label, primary, onClick }) {
         if (primary) {
           e.currentTarget.style.background = "#16a34a";
           e.currentTarget.style.boxShadow = "0 4px 16px -2px rgba(34,197,94,0.35)";
+        } else if (toneAccent) {
+          e.currentTarget.style.boxShadow = `0 6px 18px -4px color-mix(in srgb, ${toneAccent} 38%, transparent)`;
+          e.currentTarget.style.borderColor = `color-mix(in srgb, ${toneAccent} 55%, var(--eco-border))`;
         } else {
           e.currentTarget.style.boxShadow = "0 4px 12px -2px rgba(0,0,0,0.08)";
           e.currentTarget.style.borderColor = "var(--eco-primary-200)";
@@ -1532,20 +2072,18 @@ function QuickActionCard({ icon, label, primary, onClick }) {
       onMouseLeave={e => {
         e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
-        if (primary) {
-          e.currentTarget.style.background = "var(--eco-primary-500)";
-          e.currentTarget.style.borderColor = "var(--eco-primary-500)";
-        } else {
-          e.currentTarget.style.borderColor = "var(--eco-border)";
-        }
+        e.currentTarget.style.background = baseBg;
+        e.currentTarget.style.borderColor = baseBorder;
       }}
     >
       <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        background: primary ? "rgba(255,255,255,0.2)" : "var(--eco-gray-100)",
-        color: primary ? "white" : "var(--eco-gray-600)",
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        background: iconWrapBg,
+        border: `1px solid ${iconWrapBorder}`,
+        boxShadow: iconWrapShadow,
+        color: iconColor,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -1553,7 +2091,43 @@ function QuickActionCard({ icon, label, primary, onClick }) {
       }}>
         <Icon size={17} />
       </div>
-      <span>{label}</span>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {showCount && (
+        <span
+          aria-label={`${count} ${count === 1 ? "registro" : "registros"}`}
+          style={{
+            minWidth: 22,
+            height: 22,
+            padding: "0 7px",
+            borderRadius: "var(--eco-radius-full)",
+            background: primary
+              ? "rgba(255,255,255,0.22)"
+              : toneAccent
+                ? `color-mix(in srgb, ${toneAccent} 22%, transparent)`
+                : "var(--eco-gray-100)",
+            border: `1px solid ${primary
+              ? "rgba(255,255,255,0.32)"
+              : toneAccent
+                ? `color-mix(in srgb, ${toneAccent} 42%, transparent)`
+                : "var(--eco-border)"}`,
+            color: primary ? "white" : (toneAccent || "var(--eco-text-soft)"),
+            fontFamily: fm,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "-0.01em",
+            lineHeight: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            boxShadow: toneAccent && !primary
+              ? `0 0 0 0 ${toneAccent}, inset 0 1px 0 color-mix(in srgb, white 8%, transparent)`
+              : "none",
+          }}
+        >
+          {displayCount}
+        </span>
+      )}
     </button>
   );
 }
@@ -1571,9 +2145,13 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const [drill, setDrill] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [newRecordOpen, setNewRecordOpen] = useState(false);
+  const [sentDrawerOpen, setSentDrawerOpen] = useState(false);
+  const [returnedDrawerOpen, setReturnedDrawerOpen] = useState(false);
+  const [editRecord, setEditRecord] = useState(null);
   const [toast, setToast] = useState(null);
   const [activity, setActivity] = useState([]);
   const [activityRecords, setActivityRecords] = useState([]);
+  const [allRecords, setAllRecords] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [activityLoading, setActivityLoading] = useState(true);
   const [NewRecordModalComponent, setNewRecordModalComponent] = useState(null);
@@ -1621,10 +2199,12 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
       fetchDashboardActivity([], normalizeActivityItem, activityKey),
       fetchDashboardRecords(),
       fetchDashboardPeriods(),
-    ]).then(([activityResult, recordsResult, periodsResult]) => {
+      fetchEmissionRecords().catch(() => []),
+    ]).then(([activityResult, recordsResult, periodsResult, allRecordsResult]) => {
       if (!mounted) return;
       setActivity(activityResult.status === "fulfilled" ? activityResult.value : []);
       setActivityRecords(recordsResult.status === "fulfilled" ? recordsResult.value : []);
+      setAllRecords(allRecordsResult.status === "fulfilled" && Array.isArray(allRecordsResult.value) ? allRecordsResult.value : []);
       const periods = periodsResult.status === "fulfilled" && Array.isArray(periodsResult.value)
         ? periodsResult.value
         : [];
@@ -1648,6 +2228,9 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
     const syncRecords = () => {
       fetchDashboardRecords()
         .then((items) => setActivityRecords(items))
+        .catch(() => {});
+      fetchEmissionRecords()
+        .then((items) => setAllRecords(Array.isArray(items) ? items : []))
         .catch(() => {});
     };
     window.addEventListener("carbontrack:newrecord", syncRecords);
@@ -1738,6 +2321,40 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
   const initials =
     (user?.fullName || user?.name)?.split(" ").map(w => w[0]).slice(0, 2).join("") || "U";
   const visibleActivity = activity.slice(0, 6);
+
+  const sentRecords = useMemo(() => {
+    return allRecords.filter((record) => {
+      if (!record || record.archivedAt) return false;
+      if (record.category !== "combustible" && record.category !== "electricidad") return false;
+      if (record.validationStatus === "approved") return false;
+      if (record.validationStatus === "rejected") return false;
+      if (record.latestValidationDecision === "returned") return false;
+      return true;
+    });
+  }, [allRecords]);
+
+  const returnedRecords = useMemo(() => {
+    return allRecords.filter((record) => {
+      if (!record || record.archivedAt) return false;
+      if (record.category !== "combustible" && record.category !== "electricidad") return false;
+      return record.latestValidationDecision === "returned";
+    });
+  }, [allRecords]);
+
+  const handleEditReturnedRecord = (record) => {
+    setReturnedDrawerOpen(false);
+    setEditRecord(record);
+  };
+
+  const handleEditRecordSubmitted = () => {
+    setEditRecord(null);
+    fetchDashboardRecords()
+      .then((items) => setActivityRecords(items))
+      .catch(() => {});
+    fetchEmissionRecords()
+      .then((items) => setAllRecords(Array.isArray(items) ? items : []))
+      .catch(() => {});
+  };
 
   const openActivityDetail = (item) => {
     const matched = findMatchingRecord(item, activityRecords);
@@ -2045,7 +2662,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                 {activeNav === "emissions"
                   ? <><Leaf size={13} /> Emisiones</>
                   : activeNav === "diagnostico"
-                  ? <><BrainCircuit size={13} color="#8b5cf6" /> Diagnóstico Inteligente</>
+                  ? <><Sparkles size={13} color="#8b5cf6" /> Diagnóstico Inteligente</>
                   : activeNav === "profile"
                   ? <><User size={13} /> Mi perfil</>
                   : activeNav === "scope2"
@@ -2068,7 +2685,7 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
                   ? <><FileText size={13} /> Reportes</>
                   : activeNav === "settings"
                   ? <><Settings size={13} /> Configuración</>
-                  : <><LayoutDashboard size={13} /> Dashboard</>}
+                  : <><LayoutDashboard size={13} /> Inicio</>}
               </li>
             </ol>
           </nav>
@@ -2525,20 +3142,22 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
               />
               <QuickActionCard
                 icon={FileText}
-                label="Ver reportes"
+                label="Generar un reporte"
                 onClick={() => handleNav("reports")}
               />
               <QuickActionCard
-                icon={Target}
-                label="Gestionar metas"
-                onClick={() => handleNav("goals")}
+                icon={Send}
+                label="Registros enviados"
+                tone="blue"
+                count={sentRecords.length}
+                onClick={() => setSentDrawerOpen(true)}
               />
               <QuickActionCard
-                icon={Download}
-                label="Exportar datos"
-                onClick={() => {
-                  setToast({ title: "Exportar", message: "Ve a Reportes para exportar datos." });
-                }}
+                icon={RotateCcw}
+                label="Registros devueltos"
+                tone="red"
+                count={returnedRecords.length}
+                onClick={() => setReturnedDrawerOpen(true)}
               />
             </div>
 
@@ -2888,6 +3507,41 @@ export default function DashboardPage({ user, onLogout, onUserChange }) {
           onCreate={handleCreateRecord}
           onCreateRecord={handleCreateRecord}
           onSave={handleCreateRecord}
+        />
+      )}
+
+      <RecordsListDrawer
+        open={sentDrawerOpen}
+        onClose={() => setSentDrawerOpen(false)}
+        records={sentRecords}
+        title="Registros enviados"
+        subtitle={`${sentRecords.length} ${sentRecords.length === 1 ? "registro pendiente" : "registros pendientes"} de revisión`}
+        accent="var(--eco-info)"
+        accentIcon={Send}
+        emptyText="Sin registros enviados"
+      />
+
+      <RecordsListDrawer
+        open={returnedDrawerOpen}
+        onClose={() => setReturnedDrawerOpen(false)}
+        records={returnedRecords}
+        title="Registros devueltos"
+        subtitle={`${returnedRecords.length} ${returnedRecords.length === 1 ? "registro devuelto" : "registros devueltos"} por el revisor`}
+        accent="var(--eco-danger)"
+        accentIcon={RotateCcw}
+        emptyText="Sin registros devueltos"
+        onEditRecord={handleEditReturnedRecord}
+      />
+
+      {editRecord && NewRecordModalComponent && (
+        <NewRecordModalComponent
+          open={Boolean(editRecord)}
+          isOpen={Boolean(editRecord)}
+          editRecord={editRecord}
+          onClose={() => setEditRecord(null)}
+          onCreate={handleEditRecordSubmitted}
+          onCreateRecord={handleEditRecordSubmitted}
+          onSave={handleEditRecordSubmitted}
         />
       )}
 

@@ -638,6 +638,8 @@ function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
     warning: { accent: "var(--eco-warning)", iconBg: "var(--eco-warning-bg)", iconColor: "var(--eco-secondary-600)" },
     info: { accent: "var(--eco-info)", iconBg: "var(--eco-info-bg)", iconColor: "var(--eco-info)" },
   }[tone];
+  const accent = toneMap.accent;
+  const iconAccent = toneMap.iconColor;
 
   return (
     <div
@@ -645,35 +647,49 @@ function KpiCard({ title, value, sub, icon, tone = "neutral", delay = 0 }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         ...cardBase,
-        padding: 20,
+        padding: "20px 22px",
         position: "relative",
         overflow: "hidden",
+        isolation: "isolate",
         animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,
-        transition: "box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease",
-        borderColor: hovered ? "var(--eco-primary-200)" : "var(--eco-border)",
-        ...(hovered ? { boxShadow: "var(--eco-shadow-md)", transform: "translateY(-2px)" } : {}),
+        transition: "transform 0.25s cubic-bezier(.33,1,.68,1), box-shadow 0.25s cubic-bezier(.33,1,.68,1), border-color 0.25s ease",
+        border: `1px solid color-mix(in srgb, ${accent} ${hovered ? 45 : 22}%, var(--eco-border))`,
+        ...(hovered
+          ? {
+              boxShadow: `0 10px 22px -10px color-mix(in srgb, ${accent} 35%, transparent), 0 4px 10px -4px rgba(15,23,42,0.10)`,
+              transform: "translateY(-3px)",
+            }
+          : {}),
       }}
     >
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: toneMap.accent, borderRadius: "3px 3px 0 0" }} />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontWeight: 500 }}>{title}</p>
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: "var(--eco-radius-md)",
-            background: toneMap.iconBg,
-            color: toneMap.iconColor,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {icon}
+      {/* Decorative tinted glow in top-right corner */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`, pointerEvents: "none", zIndex: 0 }} />
+      {/* Top accent gradient bar */}
+      <div aria-hidden style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${accent} 0%, color-mix(in srgb, ${accent} 55%, transparent) 65%, transparent 100%)`, borderRadius: "3px 3px 0 0", zIndex: 1 }} />
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <p style={{ margin: 0, fontFamily: fb, fontSize: 12, color: "var(--eco-text-soft)", fontWeight: 600, letterSpacing: "-0.005em" }}>{title}</p>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: `linear-gradient(135deg, color-mix(in srgb, ${iconAccent} 22%, transparent) 0%, color-mix(in srgb, ${iconAccent} 10%, transparent) 100%)`,
+              border: `1px solid color-mix(in srgb, ${iconAccent} 30%, transparent)`,
+              color: iconAccent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: `0 6px 14px -6px color-mix(in srgb, ${iconAccent} 50%, transparent), inset 0 1px 0 color-mix(in srgb, white 30%, transparent)`,
+            }}
+          >
+            {icon}
+          </div>
         </div>
+        <p style={{ margin: 0, fontFamily: fm, fontSize: 30, fontWeight: 700, color: "var(--eco-text-strong)", letterSpacing: "-0.025em", lineHeight: 1 }}>{value}</p>
+        {sub && <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)", lineHeight: 1.2 }}>{sub}</p>}
       </div>
-      <p style={{ margin: 0, fontFamily: fm, fontSize: 30, fontWeight: 700, color: "var(--eco-text-strong)", lineHeight: 1 }}>{value}</p>
-      {sub && <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft)" }}>{sub}</p>}
     </div>
   );
 }

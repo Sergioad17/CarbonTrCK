@@ -491,7 +491,7 @@ export default function FactorModal({ state, onClose, onSubmit }) {
         zIndex: 110,
         display: "grid",
         placeItems: "center",
-        padding: "16px 14px",
+        padding: "104px 14px",
         animation: "eco-fadeIn .18s ease-out",
       }}
     >
@@ -511,9 +511,7 @@ export default function FactorModal({ state, onClose, onSubmit }) {
         style={{
           position: "relative",
           width: "min(96vw, 880px)",
-          maxHeight: "calc(100vh - 32px)",
-          overflowY: "auto",
-          overflowX: "hidden",
+          maxHeight: "calc(100vh - 208px)",
           background: "var(--eco-card)",
           border: "1px solid var(--eco-border)",
           borderRadius: "var(--eco-radius-xl)",
@@ -521,20 +519,15 @@ export default function FactorModal({ state, onClose, onSubmit }) {
           animation: "eco-scaleIn .24s cubic-bezier(.34,1.56,.64,1)",
           display: "flex",
           flexDirection: "column",
-          scrollbarWidth: "thin",
-          scrollbarColor: "var(--eco-border) transparent",
+          overflow: "hidden",
         }}
       >
-        {/* ─── Header ─── */}
+        {/* ─── Header (static) ─── */}
         <div
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 2,
             padding: "14px 20px",
             borderBottom: "1px solid var(--eco-border)",
             background: "var(--eco-card)",
-            backdropFilter: "blur(12px)",
             display: "flex",
             alignItems: "flex-start",
             justifyContent: "space-between",
@@ -631,8 +624,18 @@ export default function FactorModal({ state, onClose, onSubmit }) {
           </button>
         </div>
 
-        {/* ─── Body ─── */}
-        <form onSubmit={onSubmit} style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* ─── Body (scrollable) + Footer (static) inside form ─── */}
+        <form onSubmit={onSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              scrollbarWidth: "thin",
+              scrollbarColor: "var(--eco-border) transparent",
+            }}
+          >
           {!ready ? (
             <ModalSkeleton isEdit={isEdit} />
           ) : (
@@ -1003,13 +1006,11 @@ export default function FactorModal({ state, onClose, onSubmit }) {
               </div>
             </div>
           )}
+          </div>
 
-          {/* ─── Footer ─── */}
+          {/* ─── Footer (static) ─── */}
           <div
             style={{
-              position: "sticky",
-              bottom: 0,
-              zIndex: 2,
               padding: "12px 20px",
               borderTop: "1px solid var(--eco-border)",
               background: "var(--eco-surface)",

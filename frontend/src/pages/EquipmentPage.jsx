@@ -125,6 +125,20 @@ const iconButtonStyle = {
   transition: "all 140ms",
 };
 
+const inputStyle = {
+  width: "100%",
+  height: 38,
+  padding: "0 12px",
+  borderRadius: "var(--eco-radius-md)",
+  border: "1px solid var(--eco-border)",
+  background: "var(--eco-input-bg, var(--eco-card))",
+  color: "var(--eco-text)",
+  fontFamily: fb,
+  fontSize: 13,
+  outline: "none",
+  transition: "border-color 160ms ease, box-shadow 160ms ease",
+};
+
 const numberFormat = (value, decimals = 2) =>
   Number(value || 0).toLocaleString("es-MX", {
     minimumFractionDigits: decimals,
@@ -451,47 +465,67 @@ function ConfirmModal({ modal, onCancel, onConfirm }) {
 }
 
 /* --- KPI Card --- */
+function extractAccentColor(bg) {
+  if (!bg || typeof bg !== "string") return "var(--eco-primary-500)";
+  const m = bg.match(/(#[\da-fA-F]{3,8}|var\(--[\w-]+\)|rgba?\([^)]+\))/);
+  return m ? m[1] : "var(--eco-primary-500)";
+}
 function KpiCard({ icon, iconBg, title, value, unit, sub, delay = 0 }) {
+  const accent = extractAccentColor(iconBg);
+  const restBorder = `1px solid color-mix(in srgb, ${accent} 22%, var(--eco-border))`;
+  const hoverShadow = `0 10px 22px -10px color-mix(in srgb, ${accent} 35%, transparent), 0 4px 10px -4px rgba(15,23,42,0.10)`;
   return (
     <div
       style={{
         ...cardBase,
         padding: "18px 20px",
+        border: restBorder,
         animation: `ctFadeUp .4s cubic-bezier(.33,1,.68,1) ${delay}ms both`,
-        transition: "box-shadow 200ms, transform 200ms",
+        transition: "transform 220ms cubic-bezier(.33,1,.68,1), box-shadow 220ms cubic-bezier(.33,1,.68,1), border-color 220ms ease",
+        position: "relative",
+        overflow: "hidden",
+        isolation: "isolate",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.boxShadow = "0 8px 24px rgba(34,197,94,.10)";
-        e.currentTarget.style.transform = "translateY(-1px)";
+        e.currentTarget.style.boxShadow = hoverShadow;
+        e.currentTarget.style.transform = "translateY(-3px)";
+        e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 45%, var(--eco-border))`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.boxShadow = "var(--eco-shadow-sm)";
         e.currentTarget.style.transform = "translateY(0)";
+        e.currentTarget.style.borderColor = `color-mix(in srgb, ${accent} 22%, var(--eco-border))`;
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <div
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 12,
-            background: iconBg,
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          {icon}
+      {/* Decorative tinted glow in top-right corner */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, background: `radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, ${accent} 14%, transparent) 0%, transparent 55%)`, pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "relative", zIndex: 2 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              background: iconBg,
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              border: `1px solid color-mix(in srgb, ${accent} 40%, transparent)`,
+              boxShadow: `0 8px 18px -6px color-mix(in srgb, ${accent} 55%, transparent), inset 0 1px 0 color-mix(in srgb, white 35%, transparent)`,
+            }}
+          >
+            {icon}
+          </div>
+          <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 600, color: "var(--eco-text-soft, var(--eco-gray-500))", letterSpacing: "-0.005em" }}>{title}</p>
         </div>
-        <p style={{ margin: 0, fontFamily: fb, fontSize: 12, fontWeight: 500, color: "var(--eco-text-soft, var(--eco-gray-500))" }}>{title}</p>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))", letterSpacing: "-0.025em", lineHeight: 1.1 }}>{value}</span>
+          {unit && <span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-400))", fontWeight: 500 }}>{unit}</span>}
+        </div>
+        {sub ? <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))", lineHeight: 1.45 }}>{sub}</p> : null}
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-        <span style={{ fontFamily: fd, fontSize: 24, fontWeight: 800, color: "var(--eco-text-strong, var(--eco-gray-900))", letterSpacing: "-0.02em" }}>{value}</span>
-        {unit && <span style={{ fontFamily: fm, fontSize: 12, color: "var(--eco-text-soft, var(--eco-gray-400))" }}>{unit}</span>}
-      </div>
-      {sub ? <p style={{ margin: "6px 0 0", fontFamily: fb, fontSize: 11, color: "var(--eco-text-soft, var(--eco-gray-400))", lineHeight: 1.45 }}>{sub}</p> : null}
     </div>
   );
 }
@@ -637,7 +671,7 @@ function DetailDrawer({ state, onClose, onEdit, onGenerate }) {
   const { co2eKg, co2eT } = computeCo2eMonth(equipment, factorValue);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", justifyContent: "flex-end" }}>
+    <div style={{ position: "fixed", top: "var(--header-h, 60px)", right: 0, bottom: 0, left: 0, zIndex: 15, display: "flex", justifyContent: "flex-end" }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,.34)", backdropFilter: "blur(3px)", animation: "ctOverlay .2s ease-out" }} onClick={onClose} />
       <div
         style={{
