@@ -47,11 +47,9 @@ services:
         VITE_API_BASE_URL: https://carbontrack.lat/api
     container_name: carbontrack-p2-nginx
     env_file:
+      # Incluye ACCESS_MODE (public|private). El entrypoint valida y cae a
+      # "private" como fail-safe si la var falta o tiene un valor inválido.
       - .env.prod
-    environment:
-      # Modo de acceso del sitio: "public" o "private" (whitelist).
-      # Si la var no está en .env.prod, se cae a "private" por seguridad.
-      ACCESS_MODE: ${ACCESS_MODE:-private}
     ports:
       - "80:80"
       - "443:443"
