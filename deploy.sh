@@ -118,6 +118,11 @@ echo "  Ver logs nginx:    docker compose -f docker-compose.prod.yml logs -f ngi
 echo "  Reiniciar:         docker compose -f docker-compose.prod.yml restart"
 echo "  Parar todo:        docker compose -f docker-compose.prod.yml down"
 echo "  Actualizar app:    ./deploy.sh update"
+echo ""
+echo "Modo de acceso (toggle público/privado en ~3 seg, sin rebuild):"
+echo "  Abrir al público:  ./ct-mode.sh public"
+echo "  Solo whitelist:    ./ct-mode.sh private"
+echo "  Ver modo actual:   ./ct-mode.sh status"
 
 # ─────────────────────────────────────────────────────────────────
 # RECORDATORIO: renovación del certificado

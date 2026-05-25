@@ -23,12 +23,34 @@ http {
 
         # --- Agrega aquí las IPs autorizadas ---
         187.136.47.235    1;   # Sergio - Casa
-        187.136.17.230  1;   # Pedro - Casa 
+        187.136.17.230  1;   # Pedro - Casa
         200.68.181.252 1;   # Mike - Casa
         187.136.135.70 1;   # Uriel - Casa
         187.136.83.232 1;   # Itzel - Casa
         187.136.28.10 1; # Tec cc2- Universidad
         187.136.31.187 1; # Mike - Casa en Mante
+    }
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ─── MODO DE ACCESO ──────────────────────────────────────────────────────
+    # Valor inyectado por envsubst desde la variable ACCESS_MODE del contenedor.
+    # Cualquier valor distinto de "public" se trata como privado (fail-safe).
+    #   public  → cualquier IP entra
+    #   private → solo las IPs de la whitelist (resto recibe 403)
+    map $host $access_mode {
+        default "${ACCESS_MODE}";
+    }
+
+    map $access_mode $public_mode {
+        default  0;
+        "public" 1;
+    }
+
+    # block_request = 1  ⇔  modo privado AND la IP no está en la whitelist
+    # Cualquier otra combinación permite el request.
+    map "$public_mode$allowed_ip" $block_request {
+        "00"     1;
+        default  0;
     }
     # ─────────────────────────────────────────────────────────────────────────
 
@@ -61,14 +83,15 @@ http {
         ssl_session_cache   shared:SSL:10m;
         ssl_session_timeout 10m;
 
-        # ── Aplicar whitelist ──
-        # Si la IP no está en la lista, devuelve 403
+        # Header informativo del modo (útil para debug, no expone IPs)
+        add_header X-CarbonTrack-Mode $access_mode always;
+
         # ── Frontend (archivos estáticos) ──
         root /usr/share/nginx/html;
         index index.html;
 
         location / {
-            if ($allowed_ip = 0) {
+            if ($block_request) {
                 return 403 "Acceso restringido. Contacta al administrador.\n";
             }
             try_files $uri $uri/ /index.html;
@@ -91,7 +114,7 @@ http {
         }
 
         location /api/ {
-            if ($allowed_ip = 0) {
+            if ($block_request) {
                 return 403 "Acceso restringido. Contacta al administrador.\n";
             }
             proxy_pass         http://backend:3001/;
@@ -105,7 +128,7 @@ http {
 
         # ── Archivos estáticos con caché ──
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-            if ($allowed_ip = 0) {
+            if ($block_request) {
                 return 403 "Acceso restringido. Contacta al administrador.\n";
             }
             expires 1y;

@@ -17,15 +17,22 @@ RUN npm run build
 # ─── Etapa 2: nginx sirve el frontend + hace proxy al backend ───────────────
 FROM nginx:1.27-alpine
 
+# envsubst (incluido en gettext) para renderizar el template al arrancar
+RUN apk add --no-cache gettext
+
 # Archivos estáticos del frontend
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
-# Configuración de nginx (se reemplaza la que viene por defecto)
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
+# Template de nginx (se renderiza al arrancar inyectando ACCESS_MODE)
+COPY nginx/nginx.conf.template /etc/nginx/nginx.conf.template
+
+# Entrypoint que valida ACCESS_MODE, corre envsubst y arranca nginx
+COPY nginx/docker-entrypoint.sh /docker-entrypoint-carbontrack.sh
+RUN chmod +x /docker-entrypoint-carbontrack.sh
 
 # Carpeta para los challenges de Let's Encrypt (webroot)
 RUN mkdir -p /var/www/certbot
 
 EXPOSE 80 443
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint-carbontrack.sh"]
