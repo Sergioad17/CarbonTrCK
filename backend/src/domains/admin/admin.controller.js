@@ -10,6 +10,10 @@ import {
   createAdminPeriodService,
   createAdminAuditEventService,
   createAdminAlertRuleService,
+  createAdminAlertTemplateService,
+  deleteAdminAlertRuleService,
+  deleteAdminAlertTemplateService,
+  listAdminAlertTemplatesService,
   listAdminCatalogsService,
   listAdminAlertsService,
   listAdminPeriodsService,
@@ -19,10 +23,12 @@ import {
   revokeOtherSessionsService,
   revokeSessionService,
   recalculateAdminEmissionsService,
+  runAdminAlertRuleService,
   updateAdminCatalogEntryService,
   updateAdminCatalogEntryStatusService,
   updateAdminAlertRuleService,
   updateAdminAlertRuleStatusService,
+  updateAdminAlertTemplateService,
   updateAdminPeriodService,
   updateOrgCampusService,
   updateOrgEntityService,
@@ -230,6 +236,57 @@ export async function updateAdminAlertRuleStatusController(request, response) {
       request.user,
       request.params.id,
       request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function deleteAdminAlertRuleController(request, response) {
+  response.json({
+    result: await deleteAdminAlertRuleService(
+      request.user,
+      request.params.id,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function runAdminAlertRuleController(request, response) {
+  response.json({
+    result: await runAdminAlertRuleService(request.user, request.params.id),
+  });
+}
+
+export async function listAdminAlertTemplatesController(request, response) {
+  response.json({ templates: await listAdminAlertTemplatesService(request.user) });
+}
+
+export async function createAdminAlertTemplateController(request, response) {
+  response.status(201).json({
+    template: await createAdminAlertTemplateService(
+      request.user,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function updateAdminAlertTemplateController(request, response) {
+  response.json({
+    template: await updateAdminAlertTemplateService(
+      request.user,
+      request.params.id,
+      request.body,
+      auditContextFromRequest(request),
+    ),
+  });
+}
+
+export async function deleteAdminAlertTemplateController(request, response) {
+  response.json({
+    result: await deleteAdminAlertTemplateService(
+      request.user,
+      request.params.id,
       auditContextFromRequest(request),
     ),
   });

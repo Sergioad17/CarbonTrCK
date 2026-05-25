@@ -173,7 +173,7 @@ export async function recordAdminAuditEvent(event) {
 
 export async function fetchAdminAlerts() {
   const payload = await apiRequest("/admin/alerts");
-  return payload?.alerts || payload?.data?.alerts || { rules: [], templates: [], history: [], channels: [] };
+  return payload?.alerts || payload?.data?.alerts || { rules: [], templates: [], history: [], channels: [], metrics: {} };
 }
 
 export async function createAdminAlertRule(rule) {
@@ -198,4 +198,40 @@ export async function updateAdminAlertRuleStatus(id, enabled) {
     body: JSON.stringify({ enabled }),
   });
   return payload?.rule || payload?.data?.rule || payload;
+}
+
+export async function deleteAdminAlertRule(id) {
+  const payload = await apiRequest(`/admin/alerts/rules/${id}`, { method: "DELETE" });
+  return payload?.result || payload?.data?.result || payload;
+}
+
+export async function runAdminAlertRule(id) {
+  const payload = await apiRequest(`/admin/alerts/rules/${id}/run`, { method: "POST" });
+  return payload?.result || payload?.data?.result || payload;
+}
+
+export async function fetchAdminAlertTemplates() {
+  const payload = await apiRequest("/admin/alerts/templates");
+  return payload?.templates || payload?.data?.templates || [];
+}
+
+export async function createAdminAlertTemplate(template) {
+  const payload = await apiRequest("/admin/alerts/templates", {
+    method: "POST",
+    body: JSON.stringify(template),
+  });
+  return payload?.template || payload?.data?.template || payload;
+}
+
+export async function updateAdminAlertTemplate(id, template) {
+  const payload = await apiRequest(`/admin/alerts/templates/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(template),
+  });
+  return payload?.template || payload?.data?.template || payload;
+}
+
+export async function deleteAdminAlertTemplate(id) {
+  const payload = await apiRequest(`/admin/alerts/templates/${id}`, { method: "DELETE" });
+  return payload?.result || payload?.data?.result || payload;
 }

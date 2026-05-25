@@ -17,17 +17,23 @@ DO $$ BEGIN
   ALTER TABLE admin_alert_rules DROP CONSTRAINT admin_alert_rules_type_chk;
 EXCEPTION WHEN undefined_object THEN NULL; END $$;
 
-ALTER TABLE admin_alert_rules
-  ADD CONSTRAINT admin_alert_rules_type_chk
-  CHECK (type IN ('device','anomaly','factor','period','goal','validation','security','system','custom'));
+DO $$ BEGIN
+  ALTER TABLE admin_alert_rules
+    ADD CONSTRAINT admin_alert_rules_type_chk
+    CHECK (type IN ('device','anomaly','factor','period','goal','validation','security','system','custom'));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-ALTER TABLE admin_alert_rules
-  ADD CONSTRAINT admin_alert_rules_quiet_start_chk
-  CHECK (quiet_hours_start IS NULL OR (quiet_hours_start >= 0 AND quiet_hours_start < 24));
+DO $$ BEGIN
+  ALTER TABLE admin_alert_rules
+    ADD CONSTRAINT admin_alert_rules_quiet_start_chk
+    CHECK (quiet_hours_start IS NULL OR (quiet_hours_start >= 0 AND quiet_hours_start < 24));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
-ALTER TABLE admin_alert_rules
-  ADD CONSTRAINT admin_alert_rules_quiet_end_chk
-  CHECK (quiet_hours_end IS NULL OR (quiet_hours_end >= 0 AND quiet_hours_end < 24));
+DO $$ BEGIN
+  ALTER TABLE admin_alert_rules
+    ADD CONSTRAINT admin_alert_rules_quiet_end_chk
+    CHECK (quiet_hours_end IS NULL OR (quiet_hours_end >= 0 AND quiet_hours_end < 24));
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 -- ── Tabla de plantillas editables ────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS admin_alert_templates (

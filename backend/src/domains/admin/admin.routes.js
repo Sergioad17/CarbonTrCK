@@ -4,8 +4,11 @@ import { asyncHandler } from "../../shared/utils/async-handler.js";
 import {
   createAdminCatalogEntryController,
   createAdminAlertRuleController,
+  createAdminAlertTemplateController,
   createOrgCampusController,
   createOrgEntityController,
+  deleteAdminAlertRuleController,
+  deleteAdminAlertTemplateController,
   deleteOrgCampusController,
   deleteOrgEntityController,
   getAdminGovernmentSettingsController,
@@ -13,6 +16,7 @@ import {
   createAdminAuditEventController,
   createAdminPeriodController,
   getAdminEmissionCalculationController,
+  listAdminAlertTemplatesController,
   listAdminCatalogsController,
   listAdminAlertsController,
   listAdminPeriodsController,
@@ -22,10 +26,12 @@ import {
   revokeOtherSessionsController,
   revokeSessionController,
   recalculateAdminEmissionsController,
+  runAdminAlertRuleController,
   updateAdminCatalogEntryController,
   updateAdminCatalogEntryStatusController,
   updateAdminAlertRuleController,
   updateAdminAlertRuleStatusController,
+  updateAdminAlertTemplateController,
   updateAdminPeriodController,
   updateOrgCampusController,
   updateOrgEntityController,
@@ -64,6 +70,12 @@ export function registerAdminRoutes(router) {
   adminRouter.post("/alerts/rules", asyncHandler(createAdminAlertRuleController));
   adminRouter.put("/alerts/rules/:id", asyncHandler(updateAdminAlertRuleController));
   adminRouter.patch("/alerts/rules/:id/status", asyncHandler(updateAdminAlertRuleStatusController));
+  adminRouter.delete("/alerts/rules/:id", asyncHandler(deleteAdminAlertRuleController));
+  adminRouter.post("/alerts/rules/:id/run", asyncHandler(runAdminAlertRuleController));
+  adminRouter.get("/alerts/templates", asyncHandler(listAdminAlertTemplatesController));
+  adminRouter.post("/alerts/templates", asyncHandler(createAdminAlertTemplateController));
+  adminRouter.put("/alerts/templates/:id", asyncHandler(updateAdminAlertTemplateController));
+  adminRouter.delete("/alerts/templates/:id", asyncHandler(deleteAdminAlertTemplateController));
 
   router.use("/admin", adminRouter);
 }

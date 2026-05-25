@@ -26,10 +26,18 @@ import {
 } from "./admin.emissions.repository.js";
 import {
   createAdminAlertRule,
+  deleteAdminAlertRule,
   listAdminAlerts,
+  runAlertRuleManually,
   updateAdminAlertRule,
   updateAdminAlertRuleStatus,
 } from "./admin.alerts.repository.js";
+import {
+  createAdminAlertTemplate,
+  deleteAdminAlertTemplate,
+  listAdminAlertTemplates,
+  updateAdminAlertTemplate,
+} from "./admin.alert-templates.repository.js";
 import {
   createCampus as createOrgCampus,
   createEntity as createOrgEntity,
@@ -180,4 +188,30 @@ export function updateAdminAlertRuleService(actor, ruleId, payload, auditContext
 export function updateAdminAlertRuleStatusService(actor, ruleId, payload, auditContext) {
   assertObject(payload);
   return updateAdminAlertRuleStatus(actor, ruleId, payload.enabled, auditContext);
+}
+
+export function deleteAdminAlertRuleService(actor, ruleId, auditContext) {
+  return deleteAdminAlertRule(actor, ruleId, auditContext);
+}
+
+export function runAdminAlertRuleService(actor, ruleId) {
+  return runAlertRuleManually(actor, ruleId);
+}
+
+export function listAdminAlertTemplatesService(actor) {
+  return listAdminAlertTemplates(actor);
+}
+
+export function createAdminAlertTemplateService(actor, payload, auditContext) {
+  assertObject(payload);
+  return createAdminAlertTemplate(actor, payload, auditContext);
+}
+
+export function updateAdminAlertTemplateService(actor, templateId, payload, auditContext) {
+  assertObject(payload);
+  return updateAdminAlertTemplate(actor, templateId, payload, auditContext);
+}
+
+export function deleteAdminAlertTemplateService(actor, templateId, auditContext) {
+  return deleteAdminAlertTemplate(actor, templateId, auditContext);
 }
