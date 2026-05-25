@@ -54,7 +54,7 @@ export default function Navbar({ scrolled, onGo }) {
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
           <LeafIcon />
-          <span>CarbónTrack</span>
+          <span>CarbonTrack</span>
         </div>
 
         <ul className="lnd-nl">

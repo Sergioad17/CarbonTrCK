@@ -5,14 +5,20 @@ export default function FinalCTASection({ onGo }) {
   return (
     <section className="lnd-cf lnd-c">
       <R><h2>Empieza a operar con trazabilidad desde el primer registro</h2></R>
-      <R><p className="lnd-ss" style={{ margin: "0 auto 28px", textAlign: "center" }}>CarbonTrack te permite iniciar con datos reales o estimados, visualizar Scope 1/2 y construir un plan de reducción con metas y acciones.</p></R>
+      <R><p className="lnd-ss" style={{ margin: "0 auto 28px", textAlign: "center" }}>CarbonTrack te permite iniciar con datos reales o estimados, visualizar las categorías de Electricidad/Combustible y construir un plan de reducción con metas y acciones.</p></R>
       <R>
         <div className="lnd-hc">
           <button className="btn1" onClick={onGo}>
             <Leaf size={16} strokeWidth={2.2} />
             Ingresar
           </button>
-          <button className="btn2" onClick={onGo}>Ver el producto</button>
+          <button className="btn2" onClick={onGo}>
+            <span>
+              <span>
+                <span>Ver el producto</span>
+              </span>
+            </span>
+          </button>
         </div>
       </R>
       <R><p className="lnd-hn" style={{ marginTop: 16 }}>Sin promesas vacías: enfoque práctico, medible y escalable.</p></R>

@@ -29,8 +29,7 @@ export default function HeroSection({ onGo }) {
   return (
     <section className="lnd-hero lnd-c">
       <R>
-        <div className="lnd-sl">
-          <Sparkles size={14} strokeWidth={2.2} />
+        <div className="lnd-sl"> 
           Huella de carbono institucional
         </div>
       </R>

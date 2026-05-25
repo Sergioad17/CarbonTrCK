@@ -25,11 +25,30 @@ export const DIFFS = [
 ];
 
 export const CASES = [
-  "Reporte mensual de Scope 1 y 2 para dirección y coordinación.",
-  "Priorización de áreas críticas (centros de cómputo vs aulas).",
-  "Seguimiento de acciones (cambio de equipos, horarios) con impacto estimado.",
-  "Preparación para certificaciones de sustentabilidad.",
-  "Base para proyectos de investigación (series de tiempo, predicción).",
+  {
+    t: "Reportes ejecutivos mensuales",
+    d: "Consolida la huella por Electricidad y Combustible en un reporte listo para dirección, coordinación y consejos académicos, con desglose por área y evolución mensual.",
+  },
+  {
+    t: "Priorización de áreas críticas",
+    d: "Identifica focos de mayor consumo (centros de cómputo, laboratorios, aulas, transporte institucional) y enfoca el presupuesto de reducción donde realmente impacta.",
+  },
+  {
+    t: "Metas y acciones medibles",
+    d: "Define metas de reducción por área o categoría y mide el impacto real de cada acción (cambio de equipos, ajuste de horarios, mantenimiento) con evidencia.",
+  },
+  {
+    t: "Detección temprana con alertas",
+    d: "Configura reglas para detectar picos de consumo, desviaciones contra metas o lecturas anómalas de dispositivos antes de que se traduzcan en sobrecostos.",
+  },
+  {
+    t: "Cumplimiento y certificaciones",
+    d: "Mantén un historial auditable de datos, factores y cálculos para procesos de certificación ambiental, auditorías internas o reportes regulatorios.",
+  },
+  {
+    t: "Investigación y datos abiertos",
+    d: "Aprovecha las series de tiempo y el histórico estructurado para proyectos académicos, tesis, modelos de predicción y publicaciones de sostenibilidad.",
+  },
 ];
 
 export const TESTS = [

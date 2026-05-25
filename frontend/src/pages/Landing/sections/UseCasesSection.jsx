@@ -9,8 +9,11 @@ export default function UseCasesSection({ casesList }) {
         <div className="lnd-cs">
           {casesList.map((c, i) => (
             <div key={i} className="lnd-ci">
-              <span style={{ color: "#22C55E", fontSize: 18, flexShrink: 0 }}>→</span>
-              {c}
+              <div className="lnd-ci-h">
+                <span className="lnd-ci-b" aria-hidden="true">→</span>
+                <span className="lnd-ci-t">{c.t}</span>
+              </div>
+              <p className="lnd-ci-d">{c.d}</p>
             </div>
           ))}
         </div>
